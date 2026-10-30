@@ -32,23 +32,14 @@ async function handleSync(request: Request): Promise<NextResponse> {
   const startedAt = Date.now();
 
   try {
-    // DEBUG: log todos os headers para diagnosticar autenticação
-    const allHeaders: Record<string, string> = {};
-    request.headers.forEach((value, key) => { allHeaders[key] = value; });
-    console.log('[SYNC-LOMADEE] Headers recebidos:', JSON.stringify(allHeaders));
-
-    // Validação de autorização: aceita Bearer token OU header x-vercel-cron do Vercel Cron
     const authHeader = request.headers.get('authorization');
     const vercelCronHeader = request.headers.get('x-vercel-cron');
     const isVercelCron = vercelCronHeader === '1';
     const isAuthorized = isVercelCron || (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`);
 
-    console.log('[SYNC-LOMADEE] Auth check:', { authHeader, vercelCronHeader, isVercelCron, hasCronSecret: !!CRON_SECRET, isAuthorized });
-
-    // TEMPORÁRIO: permitir sem auth para debug - REMOVER APÓS CONFIRMAR FUNCIONAMENTO
-    // if (!isAuthorized) {
-    //   return NextResponse.json({ error: 'Não autorizado', debug: { authHeader, vercelCronHeader } }, { status: 401 });
-    // }
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
 
     // Verifica se Lomadee está configurado
     if (!lomadeeService.isConfigured()) {

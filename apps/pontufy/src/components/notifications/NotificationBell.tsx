@@ -22,11 +22,16 @@ export function NotificationBell() {
 
   useEffect(() => {
     refreshUnread();
-  }, [refreshUnread]);
-
-  // Sincronização reativa via SSE — badge atualiza em tempo real sem polling.
-  useEffect(() => {
     let eventSource: EventSource | null = null;
+    let pollId: ReturnType<typeof setInterval> | null = null;
+
+    const startPoll = () => {
+      if (pollId) return;
+      pollId = setInterval(() => {
+        void refreshUnread();
+      }, 15_000);
+    };
+
     try {
       eventSource = new EventSource('/api/notifications/stream');
       eventSource.addEventListener('notification', () => {
@@ -34,11 +39,16 @@ export function NotificationBell() {
       });
       eventSource.onerror = () => {
         eventSource?.close();
+        eventSource = null;
+        startPoll();
       };
-    } catch {}
+    } catch {
+      startPoll();
+    }
 
     return () => {
       eventSource?.close();
+      if (pollId) clearInterval(pollId);
     };
   }, [refreshUnread]);
 

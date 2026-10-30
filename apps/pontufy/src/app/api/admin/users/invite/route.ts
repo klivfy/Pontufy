@@ -4,7 +4,7 @@ import { getSessionContext } from '@/backend/session';
 import { getTenantDb, prisma } from '@/backend/db';
 import { logAudit, extractRequestMeta } from '@/lib/audit';
 
-const VALID_ROLES = ['employee', 'guest'] as const;
+const VALID_ROLES = ['employee'] as const;
 const TOKEN_EXPIRY_HOURS = 72;
 
 export async function POST(request: Request) {

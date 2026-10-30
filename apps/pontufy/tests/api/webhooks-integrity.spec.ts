@@ -23,22 +23,18 @@ test.describe('Webhooks com assinatura inválida', () => {
     expect(persisted).toBe(0);
   });
 
-  test('POST /api/postback sem assinatura x-pontufy-signature → 400', async ({ request }) => {
-    const res = await request.post('/api/postback', {
-      data: { network: 'lomadee', orderId: 'ord-123', commissionValue: 10 },
+  test('POST /api/postback/lomadee sem token → 401', async ({ request }) => {
+    const res = await request.post('/api/postback/lomadee', {
+      data: { subId: 'x', orderId: 'ord-123', commissionValue: 10, status: 'CONFIRMED' },
     });
-    expect(res.status()).toBe(400);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.status()).toBe(401);
   });
 
-  test('POST /api/postback com payload malformado → 400 BAD_REQUEST', async ({ request }) => {
-    const res = await request.post('/api/postback', {
+  test('POST /api/postback/lomadee com token inválido → 401', async ({ request }) => {
+    const res = await request.post('/api/postback/lomadee?token=forged', {
       headers: { 'content-type': 'application/json' },
       data: { unexpected: true },
     });
-    expect(res.status()).toBe(400);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.status()).toBe(401);
   });
 });

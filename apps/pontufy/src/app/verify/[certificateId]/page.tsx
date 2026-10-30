@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { verifyCertificateSignature } from '@/lib/certificate-generator';
-import { PrismaClient } from '@prisma/client';
+import { getRawPrisma } from '@/infra/db';
 
 interface Props {
   params: Promise<{ certificateId: string }>;
@@ -23,8 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function VerifyCertificatePage({ params }: Props) {
   const { certificateId } = await params;
 
-  // Procura o certificado em todos os tenants (página pública)
-  const prisma = new PrismaClient();
+  const prisma = getRawPrisma();
 
   const certificate = await prisma.issuedCertificate.findUnique({
     where: { id: certificateId },
@@ -33,15 +32,12 @@ export default async function VerifyCertificatePage({ params }: Props) {
     },
   });
 
-  // Fetch tenant separately since there's no direct relation
   const tenant = certificate?.tenantId
     ? await prisma.tenant.findUnique({
         where: { id: certificate.tenantId },
         select: { name: true },
       })
     : null;
-
-  await prisma.$disconnect();
 
   if (!certificate) {
     notFound();

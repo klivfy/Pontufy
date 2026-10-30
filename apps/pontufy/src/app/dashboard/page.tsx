@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import HeroCourse from '@/components/dashboard/HeroCourse';
 import CourseRow from '@/components/dashboard/CourseRow';
-import SurpriseRewardToast from '@/components/dashboard/SurpriseRewardToast';
 import StreakCard from '@/components/dashboard/StreakCard';
 import { useCourses, useEnrolledCourses } from '@/hooks/useApi';
 import { getCachedCourses, reconcileWithApi, type CachedCourse } from '@/lib/local-courses';
@@ -84,8 +83,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen pb-20 bg-md-surface-dim">
-      <SurpriseRewardToast />
-
       {isLoading ? (
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 className="animate-spin text-md-primary" size={40} />

@@ -14,37 +14,50 @@ import { execSync } from 'node:child_process';
 
 // Vercel / Supabase may inject the connection strings under different names
 // depending on how the integration is configured — resolve with fallbacks.
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.SUPABASE_DATABASE_URL;
+// Canonical names first (local `.env.local`), then unprefixed, then KLIV_PONT_*.
+const POOLED_URL_KEYS = [
+  'DATABASE_URL',
+  'POSTGRES_PRISMA_URL',
+  'POSTGRES_URL',
+  'SUPABASE_DATABASE_URL',
+  'KLIV_PONT_POSTGRES_PRISMA_URL',
+  'KLIV_PONT_POSTGRES_URL',
+];
 
-const directUrl =
-  process.env.DIRECT_URL ||
-  process.env.POSTGRES_URL_NON_POOLING ||
-  process.env.SUPABASE_DIRECT_URL;
+const DIRECT_URL_KEYS = [
+  'DIRECT_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'SUPABASE_DIRECT_URL',
+  'KLIV_PONT_POSTGRES_URL_NON_POOLING',
+];
+
+function firstDefinedEnv(keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) return { value, source: key };
+  }
+  return {};
+}
+
+const pooled = firstDefinedEnv(POOLED_URL_KEYS);
+const direct = firstDefinedEnv(DIRECT_URL_KEYS);
+const databaseUrl = pooled.value;
+const directUrl = direct.value;
 
 if (!databaseUrl) {
   console.warn(
     '\n🟠 No PostgreSQL connection string is set — skipping migrations. Set ' +
-      'DATABASE_URL, POSTGRES_PRISMA_URL or SUPABASE_DATABASE_URL to apply ' +
-      'the schema.\n',
+      'one of: ' +
+      POOLED_URL_KEYS.join(', ') +
+      ' to apply the schema.\n',
   );
   process.exit(0);
 }
 
 // Log only the variable NAMES that resolved — never the values (secrets).
-const urlSource = process.env.DATABASE_URL
-  ? 'DATABASE_URL'
-  : process.env.POSTGRES_PRISMA_URL
-    ? 'POSTGRES_PRISMA_URL'
-    : 'SUPABASE_DATABASE_URL';
-const directSource = process.env.DIRECT_URL
-  ? 'DIRECT_URL'
-  : process.env.POSTGRES_URL_NON_POOLING
-    ? 'POSTGRES_URL_NON_POOLING'
-    : 'SUPABASE_DIRECT_URL';
-console.log(`🔌 migrate: DATABASE_URL <- \`${urlSource}\` | DIRECT_URL <- \`${directSource}\``);
+console.log(
+  `🔌 migrate: DATABASE_URL <- \`${pooled.source}\` | DIRECT_URL <- \`${direct.source ?? 'unset'}\``,
+);
 
 // Prisma migrate uses directUrl; fall back to the main URL when unset. Resolved
 // values are passed explicitly so `prisma migrate deploy` picks them up no

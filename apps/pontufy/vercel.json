@@ -1,11 +1,6 @@
 {
   "buildCommand": "npm run build",
   "framework": "nextjs",
-  "functions": {
-    "src/app/api/rewards/autopilot/route.ts": {
-      "maxDuration": 60
-    }
-  },
   "crons": [
     {
       "path": "/api/cron/expire-points",

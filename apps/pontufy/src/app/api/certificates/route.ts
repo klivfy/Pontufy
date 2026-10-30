@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/backend/session';
 import { getTenantDb } from '@/backend/db';
-import { issueCertificate, CertificateError } from '@/lib/certificate-service';
+import { issueCertificate, CertificateError } from '@/domain/certificates';
 import { logAudit } from '@/lib/audit';
 import { notifyCertificateReady } from '@/lib/notifications';
 

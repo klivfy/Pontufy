@@ -193,7 +193,6 @@ export default function TeamClient() {
             >
               <option value="employee">Colaborador</option>
               <option value="admin_rh">Administrador</option>
-              <option value="guest">Convidado</option>
             </select>
             <button
               type="submit"

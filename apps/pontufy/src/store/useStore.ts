@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { buildScope, clearScope } from '@/lib/offline-storage';
 
 interface UserSession {
   userId: string;
@@ -31,14 +30,7 @@ export const useStore = create<PontufyState>((set) => ({
 
   setUser: (user) => set({ currentUser: user }),
   clearUser: () =>
-    set((s) => {
-      const user = s.currentUser;
-      if (user) {
-        // Privacidade/segurança: purge do cache offline do escopo anterior.
-        clearScope(buildScope(user.tenantId, user.userId)).catch(() => {});
-      }
-      return { currentUser: null, currentPointsBalance: 0, searchQuery: '', unreadNotifications: 0 };
-    }),
+    set({ currentUser: null, currentPointsBalance: 0, searchQuery: '', unreadNotifications: 0 }),
   setPointsBalance: (balance) => set({ currentPointsBalance: balance }),
   addPoints: (amount) => set((s) => ({ currentPointsBalance: s.currentPointsBalance + amount })),
   deductPoints: (amount) => set((s) => ({ currentPointsBalance: Math.max(0, s.currentPointsBalance - amount) })),

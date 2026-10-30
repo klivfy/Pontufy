@@ -57,7 +57,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    command: 'npx next dev --webpack',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

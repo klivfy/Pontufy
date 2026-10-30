@@ -1,24 +1,8 @@
-// ═══════════════════════════════════════════════════════════════════════
-// Next.js API Route — GET /api/cron/link-health
-//
-// Gatilho cron para o job de validação de links de afiliados.
-// Configure no vercel.json:
-//   { "crons": [{ "path": "/api/cron/link-health", "schedule": "*/30 8-20 * * 1-5" }] }
-// ═══════════════════════════════════════════════════════════════════════
 import { NextRequest, NextResponse } from 'next/server';
-import { runLinkHealthCheck } from '@/backend/linkHealthJob';
-import type { TenantId } from '@/backend/types';
-
-/**
- * Em produção, a lista de tenants ativos viria do banco.
- * Para o MVP, iteramos sobre um array estático.
- */
-const ACTIVE_TENANTS: TenantId[] = [
-  'tenant_techcorp' as TenantId,
-];
+import { getRawPrisma } from '@/infra/db';
+import { logger } from '@/infra/logger';
 
 export async function GET(request: NextRequest) {
-  // Validação: aceita Bearer token OU header x-vercel-cron do Vercel Cron
   const authHeader = request.headers.get('authorization');
   const vercelCronHeader = request.headers.get('x-vercel-cron');
   const isVercelCron = vercelCronHeader === '1';
@@ -29,16 +13,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
-  const allResults = [];
+  const prisma = getRawPrisma();
+  const rewards = await prisma.reward.findMany({
+    where: { isActive: true, originalUrl: { not: '' } },
+    select: { id: true, originalUrl: true, tenantId: true, title: true },
+    take: 100,
+  });
 
-  for (const tenantId of ACTIVE_TENANTS) {
-    const results = await runLinkHealthCheck(tenantId);
-    allResults.push({ tenantId, results });
+  let deactivated = 0;
+  const errors: string[] = [];
+
+  for (const reward of rewards) {
+    if (!reward.originalUrl) continue;
+    try {
+      const res = await fetch(reward.originalUrl, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(8000) });
+      if (res.status >= 400) {
+        await prisma.reward.update({ where: { id: reward.id }, data: { isActive: false } });
+        deactivated += 1;
+        logger.warn('Reward link unhealthy, deactivated', { rewardId: reward.id, status: res.status }, 'link-health');
+      }
+    } catch (error) {
+      errors.push(`${reward.id}: ${String(error)}`);
+    }
   }
 
   return NextResponse.json({
     success: true,
-    tenantsChecked: ACTIVE_TENANTS.length,
-    summary: allResults,
+    checked: rewards.length,
+    deactivated,
+    errors: errors.slice(0, 20),
   });
 }

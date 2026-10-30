@@ -5,7 +5,7 @@ import { getTenantDb, prisma } from '@/backend/db';
 import { logAudit, extractRequestMeta } from '@/lib/audit';
 import { resolveBaseUrl, sendInvitationEmail } from '@/lib/email';
 
-const VALID_ROLES = ['admin_rh', 'employee', 'guest'] as const;
+const VALID_ROLES = ['admin_rh', 'employee'] as const;
 const INVITATION_EXPIRY_DAYS = 7;
 
 export async function GET() {

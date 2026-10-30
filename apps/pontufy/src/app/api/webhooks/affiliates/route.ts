@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { prisma } from '@/backend/db';
-import { persistCommission } from '@/backend/postbackHandler';
-import type { CommissionEvent } from '@/backend/types';
+import { prisma } from '@/infra/db';
+import { persistCommission } from '@/domain/rewards';
 
 const WEBHOOK_SECRET = process.env.AFFILIATE_WEBHOOK_SECRET || '';
 
@@ -75,10 +74,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'USER_NOT_FOUND' }, { status: 404 });
     }
 
-    const event: CommissionEvent = {
+    const event = {
       id: `comm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      tenantId: tenantId as any,
-      network: (payload.network as any) || 'amazon',
+      tenantId,
+      network: payload.network || 'amazon',
       trackingId: payload.trackingId,
       userId,
       orderId: payload.orderId,

@@ -1,6 +1,5 @@
 import useSWR, { mutate } from 'swr';
 import { useStore } from '@/store/useStore';
-import { enqueueOfflineCompletion } from '@/lib/sync-engine';
 
 const fetcher = async (url: string) => {
   const r = await fetch(url);
@@ -71,23 +70,7 @@ export async function triggerLessonCompletion(
     body: JSON.stringify({ lessonId, coursePayload }),
   }).catch(() => null);
 
-  // Sem conexão: fila local (IndexedDB, escopo tenantId:userId) — o motor de
-  // sync reenvia para /api/lessons/sync quando a rede voltar.
   if (!res) {
-    const user = useStore.getState().currentUser;
-    if (user) {
-      await enqueueOfflineCompletion(
-        user.tenantId,
-        user.userId,
-        lessonId,
-        coursePayload?.courseId ?? '',
-      );
-      return {
-        success: false,
-        queued: true,
-        message: 'Sem conexão — conclusão salva e será sincronizada automaticamente.',
-      };
-    }
     return { success: false, error: 'Sem conexão.' };
   }
 

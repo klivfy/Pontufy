@@ -3,6 +3,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
   LayoutDashboard,
   BarChart3,
@@ -16,7 +17,6 @@ import {
   X,
   ChevronDown,
   LogOut,
-  Bell,
   CreditCard,
   Building2,
 } from 'lucide-react';
@@ -73,6 +73,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: 'Configurações',
     items: [
       { href: '/admin/settings/branding', icon: <Settings size={20} />, label: 'Marca & Identidade' },
+      { href: '/admin/billing', icon: <CreditCard size={20} />, label: 'Assinatura' },
       { href: '/admin/audit-logs', icon: <ShieldCheck size={20} />, label: 'Auditoria' },
     ],
   },
@@ -82,7 +83,6 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
   const [tenant, setTenant] = useState<{ name: string; aiCredits: number } | null>(null);
 
@@ -105,9 +105,6 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
       const target = e.target as HTMLElement;
       if (!target.closest('[data-profile-dropdown]')) {
         setProfileOpen(false);
-      }
-      if (!target.closest('[data-notifications-dropdown]')) {
-        setNotificationsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -280,24 +277,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
 
               {/* Actions */}
               <div className="flex items-center gap-2">
-                {/* Notifications */}
-                <div className="relative" data-notifications-dropdown>
-                  <button
-                    type="button"
-                    onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="p-2 rounded-xl text-md-on-surface-variant hover:bg-md-surface-container-high hover:text-md-on-surface transition-colors"
-                    aria-label="Notificações"
-                    aria-expanded={notificationsOpen}
-                  >
-                    <Bell size={22} />
-                    {/* Badge would go here */}
-                  </button>
-                  {notificationsOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-80 bg-md-surface-container border border-md-outline rounded-2xl shadow-lg p-4 md-elevation-3">
-                      <p className="text-body-md text-md-on-surface-variant text-center py-8">Nenhuma notificação</p>
-                    </div>
-                  )}
-                </div>
+                <NotificationBell />
 
                 {/* Profile Dropdown */}
                 <div className="relative" data-profile-dropdown>

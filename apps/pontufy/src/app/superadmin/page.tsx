@@ -2,6 +2,8 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, Building2, ShieldAlert, CreditCard, Server } from 'lucide-react';
+import { getRawPrisma } from '@/infra/db';
+import { getRedis } from '@/infra/redis';
 
 export default async function SuperAdminPage() {
   const session = await auth();
@@ -14,21 +16,28 @@ export default async function SuperAdminPage() {
     redirect('/superadmin/login');
   }
 
+  const prisma = getRawPrisma();
+  const [tenantCount, creditSum, blockedIps] = await Promise.all([
+    prisma.tenant.count(),
+    prisma.tenant.aggregate({ _sum: { aiCredits: true } }),
+    countBlockedIps(),
+  ]);
+
   const cards = [
     {
       href: '/superadmin/tenants',
       icon: <Building2 size={22} />,
       title: 'Locatários & Consumo de IA',
       description: 'Governança global de tenants, créditos e planos.',
-      badge: '3 tenants',
+      badge: `${tenantCount} tenant${tenantCount === 1 ? '' : 's'}`,
       badgeColor: 'bg-md-tertiary-container text-md-on-tertiary-container',
     },
     {
       href: '/superadmin/security',
       icon: <ShieldAlert size={22} />,
       title: 'IPs Bloqueados',
-      description: 'Monitoramento de força bruta e abuso (TAREFA 6.5).',
-      badge: '12 IPs',
+      description: 'Monitoramento de força bruta e abuso.',
+      badge: `${blockedIps} IP${blockedIps === 1 ? '' : 's'}`,
       badgeColor: 'bg-md-error/10 text-md-error',
     },
     {
@@ -36,14 +45,14 @@ export default async function SuperAdminPage() {
       icon: <CreditCard size={22} />,
       title: 'Créditos de IA',
       description: 'Gerenciar e distribuir créditos de geração por tenant.',
-      badge: '2.847',
+      badge: String(creditSum._sum.aiCredits ?? 0),
       badgeColor: 'bg-md-primary-container text-md-on-primary-container',
     },
     {
       href: '/superadmin/tenants',
       icon: <Server size={22} />,
-      title: 'Infraestrutura & Logs',
-      description: 'Observabilidade da plataforma, migrações e auditoria.',
+      title: 'Infraestrutura',
+      description: 'Tenants ativos no PostgreSQL compartilhado.',
       badge: 'Ativo',
       badgeColor: 'bg-md-tertiary-container text-md-on-tertiary-container',
     },
@@ -63,7 +72,7 @@ export default async function SuperAdminPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5 md:gap-6">
           {cards.map((card) => (
             <Link
-              key={card.href}
+              key={card.title}
               href={card.href}
               className="group md-card-outlined md-elevation-1 p-6 hover:md-elevation-3 hover:border-md-primary/40 transition-all duration-300"
             >
@@ -87,4 +96,15 @@ export default async function SuperAdminPage() {
       </div>
     </main>
   );
+}
+
+async function countBlockedIps(): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return 0;
+  try {
+    const keys = await redis.keys('blocked-ip:*');
+    return Array.isArray(keys) ? keys.length : 0;
+  } catch {
+    return 0;
+  }
 }

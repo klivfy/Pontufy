@@ -3,8 +3,12 @@
 // Rodado pelo migrate.mjs em cada deploy (Vercel) ou manualmente:
 //   npx tsx scripts/check-and-seed.ts
 //
-// 1. CONECTIVIDADE: valida a ligação ao PostgreSQL (Supabase) via aliases
-//    DATABASE_URL / POSTGRES_PRISMA_URL / SUPABASE_DATABASE_URL.
+// 1. CONECTIVIDADE: valida a ligação ao PostgreSQL (Supabase). A resolução
+//    de URL vive em src/infra/db.ts (e migrate.mjs remapeia para o Prisma CLI):
+//    DATABASE_URL → POSTGRES_PRISMA_URL → POSTGRES_URL → SUPABASE_DATABASE_URL
+//    → KLIV_PONT_POSTGRES_PRISMA_URL → KLIV_PONT_POSTGRES_URL
+//    DIRECT_URL → POSTGRES_URL_NON_POOLING → SUPABASE_DIRECT_URL
+//    → KLIV_PONT_POSTGRES_URL_NON_POOLING
 // 2. POVOAMENTO: upserts idempotentes do tenant de homologação + utilizadores
 //    de teste (credenciais determinísticas: senha 123456, scrypt canónico).
 // 3. VALIDAÇÃO: verifica cada hash com verifyPassword (timingSafeEqual).

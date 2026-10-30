@@ -10,6 +10,7 @@ const BRANDING_SELECT = {
   faviconUrl: true,
   primaryColor: true,
   accentColor: true,
+  aiCredits: true,
 } as const;
 
 // GET é acessível a qualquer utilizador autenticado: o DynamicThemeProvider
@@ -34,6 +35,7 @@ export async function GET() {
       faviconUrl: tenant.faviconUrl ?? null,
       primaryColor: tenant.primaryColor ?? DEFAULT_PRIMARY_COLOR,
       accentColor: tenant.accentColor ?? DEFAULT_ACCENT_COLOR,
+      aiCredits: tenant.aiCredits,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Não autenticado.') {

@@ -34,6 +34,7 @@ const ROUTE_RULES: Array<{ prefix: string; rule: RouteRule }> = [
   { prefix: '/forgot-password', rule: { public: true } },
   { prefix: '/reset-password', rule: { public: true } },
   { prefix: '/unlock-account', rule: { public: true } },
+  { prefix: '/verify', rule: { public: true } },
   { prefix: '/superadmin/login', rule: { public: true } },
 
   // ── Zona Super Admin (403 opaco, sem redirect) ──────────────────────────

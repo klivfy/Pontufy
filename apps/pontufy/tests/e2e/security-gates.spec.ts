@@ -58,4 +58,10 @@ test.describe('Barreiras de UI', () => {
     expect(response?.status()).toBe(200);
     expect(page.url()).toContain('/unlock-account');
   });
+
+  test('/verify é rota pública (não redireciona para /login)', async ({ page }) => {
+    await page.goto('/verify/not-a-real-certificate', { waitUntil: 'domcontentloaded' });
+    expect(page.url()).toContain('/verify/');
+    expect(page.url()).not.toContain('/login');
+  });
 });
