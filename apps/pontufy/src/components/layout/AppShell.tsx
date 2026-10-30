@@ -8,6 +8,7 @@ import Footer from './Footer';
 const NO_SHELL_ROUTES = [
   '/login',
   '/register',
+  '/auth',
   '/forgot-password',
   '/reset-password',
   '/superadmin',

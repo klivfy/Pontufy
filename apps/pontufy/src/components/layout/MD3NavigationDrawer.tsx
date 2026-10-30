@@ -4,7 +4,8 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { LayoutDashboard, LogOut, ShieldCheck, User, X } from 'lucide-react';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signOutAll } from '@/components/auth/signOutAll';
 import { MD3SearchBar } from '@/components/ui/MD3SearchBar';
 
 export interface MD3DrawerLink {
@@ -172,7 +173,7 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
                 </Link>
                 <button
                   type="button"
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={() => signOutAll('/login')}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors"
                 >
                   <LogOut size={15} />

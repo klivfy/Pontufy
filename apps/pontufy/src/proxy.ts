@@ -31,6 +31,7 @@ const ROUTE_RULES: Array<{ prefix: string; rule: RouteRule }> = [
   { prefix: '/privacidade', rule: { public: true } },
   { prefix: '/login', rule: { public: true } },
   { prefix: '/register', rule: { public: true } },
+  { prefix: '/auth', rule: { public: true } },
   { prefix: '/forgot-password', rule: { public: true } },
   { prefix: '/reset-password', rule: { public: true } },
   { prefix: '/unlock-account', rule: { public: true } },

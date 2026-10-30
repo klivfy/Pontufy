@@ -2,6 +2,8 @@ import { getSessionContext } from '@/infra/session';
 
 export { getSessionContext } from '@/infra/session';
 export { hashPassword, verifyPassword } from '@/infra/crypto';
+export { upsertGoogleUser, parseGoogleIntent } from './google';
+export { issueGoogleBridgeTicket, verifyGoogleBridgeTicket } from './google-ticket';
 
 export class DomainError extends Error {
   constructor(

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Eye, EyeOff, CheckCircle2, Building2, User, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { AuthDivider, GoogleButton, googleAuthErrorMessage } from '@/components/auth/GoogleButton';
 
 const SECTORS = [
   { value: 'tech', label: 'Tecnologia' },
@@ -12,8 +13,10 @@ const SECTORS = [
   { value: 'industry', label: 'Indústria' },
 ] as const;
 
-export default function TenantRegisterPage() {
+function TenantRegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const googleError = googleAuthErrorMessage(searchParams.get('error'));
 
   const [companyName, setCompanyName] = useState('');
   const [sector, setSector] = useState<string>('tech');
@@ -128,12 +131,12 @@ export default function TenantRegisterPage() {
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
-            {error && (
+            {(error || googleError) && (
               <div
                 role="alert"
                 className="bg-md-error/10 border border-md-error/30 text-md-error text-body-sm p-3 rounded-xl text-center font-medium"
               >
-                {error}
+                {error || googleError}
               </div>
             )}
 
@@ -270,6 +273,14 @@ export default function TenantRegisterPage() {
             </button>
           </form>
 
+          <AuthDivider />
+          <GoogleButton
+            intent="tenant"
+            companyName={companyName}
+            sector={sector}
+            label="Cadastrar empresa com o Google"
+          />
+
           <div className="mt-6 space-y-3 text-center">
             <p className="text-body-sm text-md-on-surface-variant">
               <Link href="/login" className="font-semibold text-md-primary hover:text-md-primary-container transition-colors flex items-center justify-center gap-1">
@@ -287,5 +298,21 @@ export default function TenantRegisterPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function TenantRegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-md-surface-dim flex items-center justify-center px-4">
+          <div className="md-card-outlined md-elevation-3 p-8 w-full max-w-md text-center">
+            <Loader2 className="animate-spin mx-auto text-md-primary" size={28} aria-hidden />
+          </div>
+        </main>
+      }
+    >
+      <TenantRegisterForm />
+    </Suspense>
   );
 }

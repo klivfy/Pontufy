@@ -5,9 +5,12 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { AuthDivider, GoogleButton, googleAuthErrorMessage } from '@/components/auth/GoogleButton';
 
 function errorMessage(error: string | null): string | null {
   if (!error) return null;
+  const googleMessage = googleAuthErrorMessage(error);
+  if (googleMessage) return googleMessage;
   switch (error) {
     case 'CredentialsSignin':
     case 'credentials':
@@ -160,6 +163,16 @@ export function LoginForm() {
           )}
         </button>
       </form>
+
+      <AuthDivider />
+      <GoogleButton
+        intent="login"
+        next={
+          callbackUrlParam && callbackUrlParam.startsWith('/') && !callbackUrlParam.startsWith('//')
+            ? callbackUrlParam
+            : '/dashboard'
+        }
+      />
 
       <p className="mt-6 text-center text-body-sm text-md-on-surface-variant">
         Recebeu um convite?{' '}

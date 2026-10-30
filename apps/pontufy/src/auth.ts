@@ -13,6 +13,7 @@ import { resolveBaseUrl, sendAccountLockedEmail } from '@/lib/email';
 import { getRedis } from '@/lib/redis';
 import { logAudit } from '@/lib/audit';
 import { getTenantDb } from '@/backend/db';
+import { verifyGoogleBridgeTicket } from '@/domain/auth/google-ticket';
 
 declare module 'next-auth' {
   interface Session {
@@ -176,6 +177,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         } catch (err) {
           console.error('[auth] authorize error:', err);
+          return null;
+        }
+      },
+    }),
+    CredentialsProvider({
+      id: 'google-bridge',
+      name: 'Google',
+      credentials: {
+        ticket: { label: 'ticket', type: 'text' },
+      },
+      async authorize(credentials) {
+        try {
+          const ticket = typeof credentials?.ticket === 'string' ? credentials.ticket : '';
+          const userId = verifyGoogleBridgeTicket(ticket);
+          if (!userId) return null;
+
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          if (!user) return null;
+
+          const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+          const tenantBlocked =
+            !tenant ||
+            tenant.contractStatus === 'suspended' ||
+            tenant.contractStatus === 'cancelled' ||
+            tenant.subscriptionStatus === 'canceled';
+          if (tenantBlocked) return null;
+
+          if (user.role === 'super_admin' && !user.email.endsWith('@pontufy.com')) {
+            return null;
+          }
+
+          await logAudit({
+            tenantId: user.tenantId,
+            userId: user.id,
+            action: 'LOGIN_SUCCESS',
+            entity: 'User',
+            entityId: user.id,
+            newValue: { role: user.role, via: 'google' },
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            tenantId: user.tenantId,
+            role: user.role,
+          };
+        } catch (err) {
+          console.error('[auth] google-bridge authorize error:', err);
           return null;
         }
       },

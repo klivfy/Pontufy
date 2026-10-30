@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import Link from 'next/link';
-import { signOut } from 'next-auth/react';
+import { signOutAll } from '@/components/auth/signOutAll';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
   LayoutDashboard,
@@ -111,7 +111,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSignOut = () => signOut({ callbackUrl: '/login' });
+  const handleSignOut = () => signOutAll('/login');
 
   return (
     <AdminLayoutContext.Provider value={{ navOpen, setNavOpen }}>

@@ -1,7 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { User, LogOut, LayoutDashboard, ShieldCheck, Building2, Menu, X } from 'lucide-react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signOutAll } from '@/components/auth/signOutAll';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore } from '@/store/useStore';
@@ -182,7 +183,7 @@ export default function Navbar() {
                     )}
                     <button
                       type="button"
-                      onClick={() => signOut({ callbackUrl: '/login' })}
+                      onClick={() => signOutAll('/login')}
                       className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors font-medium"
                     >
                       <LogOut size={15} />

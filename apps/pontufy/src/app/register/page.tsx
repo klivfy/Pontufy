@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Eye, EyeOff, CheckCircle2, Building2, Mail, Lock, User } from 'lucide-react';
+import { AuthDivider, GoogleButton, googleAuthErrorMessage } from '@/components/auth/GoogleButton';
 
 interface InvitationInfo {
   email: string;
@@ -21,6 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
 function RegisterForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const googleError = googleAuthErrorMessage(searchParams.get('error'));
   const router = useRouter();
 
   const [invitation, setInvitation] = useState<InvitationInfo | null>(null);
@@ -71,6 +73,16 @@ function RegisterForm() {
         <p className="text-body-md text-md-on-surface-variant mb-6">
           Para criar uma conta, você precisa de um convite do gestor da sua empresa.
         </p>
+        {googleError && (
+          <div
+            role="alert"
+            className="bg-md-error/10 border border-md-error/30 text-md-error text-body-sm p-3 rounded-xl text-center font-medium mb-4"
+          >
+            {googleError}
+          </div>
+        )}
+        <GoogleButton intent="login" label="Cadastrar com o Google" />
+        <AuthDivider />
         <Link href="/register/tenant" className="md-btn md-btn-filled w-full mb-3">
           <Building2 size={18} className="mr-2" />
           Cadastrar minha empresa
@@ -184,12 +196,12 @@ function RegisterForm() {
           </div>
         )}
 
-        {error && (
+        {(error || googleError) && (
           <div
             role="alert"
             className="bg-md-error/10 border border-md-error/30 text-md-error text-body-sm p-3 rounded-xl text-center font-medium"
           >
-            {error}
+            {error || googleError}
           </div>
         )}
 
@@ -267,6 +279,9 @@ function RegisterForm() {
             'Criar minha conta'
           )}
         </button>
+
+        <AuthDivider />
+        <GoogleButton intent="invite" token={token} label="Criar conta com o Google" />
 
         <p className="text-center text-body-sm text-md-on-surface-variant pt-2">
           Já tem conta?{' '}
