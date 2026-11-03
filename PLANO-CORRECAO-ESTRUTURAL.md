@@ -184,15 +184,17 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 ---
 
-## 7. Decisões que bloqueiam (responder antes do E1)
+## 7. Decisões (resolvidas em 03/11/2026)
 
-| # | Decisão | Opções | Recomendação | Bloqueia |
-|---|---|---|---|---|
-| **D1** | Self-service continua aberto? | (a) fechado: só por convite (b) aberto com verificação de e-mail (c) aberto sem verificação | **(b)** — mantém aquisição e mata o farm | E1.1 |
-| **D2** | Upstash é obrigatório? | (a) sim, boot falha (b) fail-closed em auth apenas | **(b)** | E1.2 |
-| **D3** | Superadmin por SSO obrigatório? | (a) sim, senha desabilitada (b) manter senha + TOTP depois | **(a)** — zero dependência nova | E2.1 |
-| **D4** | Repositório privado? | (a) privado (b) público + secret scanning | **(a)** se não há ganho de marketing | E3.4 |
-| **D5** | Orçamento de IA por tenant | teto diário de créditos concedidos (ex.: 100/dia global) | definir número | E1.1 |
+| # | Decisão | **Resolvido** | Consequência para a execução |
+|---|---|---|---|
+| **D1** | Self-service continua aberto? | ✅ **Aberto com verificação de e-mail** | `provisionTenant` cria o tenant em `contractStatus: 'pending_verification'`; `aiCredits` inicial **0**; libera os 20 créditos do trial e muda o status quando o e-mail é confirmado (token de 24 h, reutilizando a infra de e-mail existente) |
+| **D2** | Política quando o Redis cai | ✅ **Fail-closed apenas nas rotas de login** | `login`, `register`, `forgot-password`, `reset`, `unlock`, `onboarding` → 503 + `Retry-After`; todo o resto do app continua funcionando; `/api/health` reporta `redis: down` |
+| **D5** | Teto de créditos de IA por trial | ✅ **100 créditos/dia no total** | Contador diário global em `provisionTenant`; ao atingir, o tenant é criado com `aiCredits: 0` e entra em fila de revisão manual (não bloqueia o cadastro) |
+| D3 | Superadmin por SSO obrigatório? | ⏳ **pendente** (necessário só no E2.1, semana 2) | recomendação mantida: senha desabilitada, login só por Google `@pontufy.com` |
+| D4 | Repositório privado? | ⏳ **pendente** (necessário só no E3.4, semana 3) | recomendação mantida: privado, ou secret scanning no CI |
+
+Com D1 e D2 definidas, o **E1.1 e o E1.2 estão desbloqueados**. D3 e D4 têm prazo próprio e não impedem o início.
 
 ---
 
