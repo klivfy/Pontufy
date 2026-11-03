@@ -40,7 +40,7 @@ Todas abaixo falam `POST /chat/completions`, o mesmo contrato do OpenAI — por 
 
 | Provedor | `AI_BASE_URL` | Modelo sugerido | Limite gratuito | Observação |
 |---|---|---|---|---|
-| **Groq** | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | por minuto/dia, generoso p/ teste | o mais rápido; ótimo p/ iterar prompt |
+| **Groq** | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` ✅ *testado* | por minuto/dia, generoso p/ teste | o mais rápido; modelo disponível varia por conta — **sempre liste** `GET /models` |
 | **OpenRouter** | `https://openrouter.ai/api/v1` | `<modelo>:free` | ~20 req/min, cota diária | agrega vários modelos; modelos `:free` mudam |
 | **GitHub Models** | `https://models.github.ai/inference` | `gpt-4o-mini` | cota por token/dia | usa PAT do GitHub como chave |
 | **Google Gemini** | — (SDK nativo) | `gemini-2.0-flash` | cota diária no AI Studio | já suportado; melhor qualidade free |
@@ -51,6 +51,18 @@ Todas abaixo falam `POST /chat/completions`, o mesmo contrato do OpenAI — por 
 Fontes para conferir limites (mudam com frequência): [Gemini free tier](https://apidog.com/blog/gemini-api-free-tier/), [OpenRouter](https://benchlm.ai/free-tier/openrouter), [Mistral](https://benchlm.ai/free-tier/mistral), [GitHub Models](https://github.blog/ai-and-ml/llms/solving-the-inference-problem-for-open-source-ai-projects-with-github-models/), [lista de créditos gratuitos](https://github.com/Moh4696/free-llm-credits).
 
 > **O que foi implementado nesta rodada:** [`ai-providers.ts`](apps/pontufy/src/lib/ai-providers.ts) lê `AI_BASE_URL`/`AI_API_KEY`/`AI_MODEL`/`AI_LABEL`, monta o provedor com `.chat()` (endpoint `/chat/completions` — `openai(model)` usaria a Responses API, exclusiva da OpenAI) e o coloca **antes** de Gemini na cadeia. Configuração parcial ou URL inválida é ignorada com aviso, nunca derruba a geração. Coberto por `tests/api/ai-providers.spec.ts` (7 casos, sem rede).
+
+> **Bug real encontrado na primeira geração (e corrigido):** o schema do curso tinha `.default()` em `pointsAwarded`, `category` e `estimatedDurationMinutes`. Provedores de *structured output* estrito exigem que **toda** propriedade apareça em `required` — o request foi rejeitado com 400:
+>
+> ```
+> invalid JSON schema for response_format:
+> /properties/lessons/items/required: The following properties must be listed
+> in `required`: pointsAwarded
+> ```
+>
+> Consequência silenciosa: o motor caía no template local e o RH recebia um curso genérico sem saber. Corrigido com um schema estrito (`courseGenerationSchema`) só para a chamada ao modelo, normalizado de volta pelo canônico. Travado por `tests/api/course-schema-strict.spec.ts`.
+>
+> **Resultado da geração real (Groq, `openai/gpt-oss-120b`):** 8,1 s · 5 aulas (1.889–2.351 caracteres cada) · 5 questões · conteúdo aderente ao material de referência (DPO em 24 h, menor privilégio, retenção e descarte) · `correctIndex` sempre dentro das opções.
 
 ### ⚠️ Regra de ouro para testes
 
@@ -92,11 +104,12 @@ Saídas versionadas em `tests/fixtures/ai-golden/` para comparação estrutural 
 
 | Fase | Entrega | Critério de aceite |
 |---|---|---|
-| **IA-0** ✅ *(feito)* | provedor OpenAI-compatible plugável + testes de cadeia | 7 casos passando, sem rede |
+| **IA-0** ✅ *(feito)* | provedor OpenAI-compatible plugável + motor extraído para `domain/ai` + schema estrito + testes de cadeia | 10 casos passando, sem rede |
+| **IA-0.1** ✅ *(feito)* | **bug real corrigido:** schema com `.default()` era rejeitado por provedor estrito | geração real contra Groq em 8,1 s, 5 aulas, 5 questões |
 | **IA-1** (1 d) | provedor falso (L1) + spec do `generateCourseWithFallback`: 200, 429, JSON inválido, timeout; verifica débito de crédito | suíte roda em CI sem chave de IA |
-| **IA-2** (1 d) | telemetria: `provider`, latência, tokens e fallback no `AuditLog`/log estruturado; expor em `/api/admin/ai-status` | uma geração real mostra qual provedor respondeu e quanto custou |
-| **IA-3** (2 d) | golden set + rubrica + primeiro provedor gratuito plugado em dev (Groq) | 3 gerações comparadas, relatório em `EXECUCAO-IA.md` |
-| **IA-4** (futuro) | versionamento de prompt (`PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |
+| **IA-2** (1 d) | telemetria: `provider`, latência, tokens e fallback no log estruturado; expor em `/api/admin/ai-status` | uma geração real mostra qual provedor respondeu e quanto custou |
+| **IA-3** (2 d) | golden set + rubrica + provedor gratuito em dev | 3 gerações comparadas, relatório em `EXECUCAO-IA.md` |
+| **IA-4** (futuro) | versionamento de prompt (`COURSE_PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |
 
 **Dependência:** IA-1 não depende de nenhuma conta externa. IA-3 depende de você gerar uma chave gratuita (Groq ou Gemini) — é o único passo que só você pode fazer.
 
