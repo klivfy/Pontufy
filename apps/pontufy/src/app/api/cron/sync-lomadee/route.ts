@@ -10,6 +10,7 @@ import { lomadeeService, LomadeeCoupon, LomadeeOffer } from '@/lib/lomadee';
 import { logAudit } from '@/lib/audit';
 import { cacheDeletePattern } from '@/lib/redis';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock, type JobLock } from '@/infra/job-lock';
 
 interface SyncResult {
   couponsProcessed: number;
@@ -30,11 +31,19 @@ export async function POST(request: Request) {
 
 async function handleSync(request: Request): Promise<NextResponse> {
   const startedAt = Date.now();
+  let lock: JobLock | null = null;
 
   try {
     const auth = authorizeCronRequest(request);
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    // V7 — execução única: dois syncs simultâneos duplicam recompensas
+    // (não há @@unique em partner+externalId) e disputam o mesmo catálogo.
+    lock = await acquireJobLock('cron:sync-lomadee');
+    if (!lock.acquired) {
+      return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
     }
 
     // Verifica se Lomadee está configurado
@@ -164,6 +173,8 @@ async function handleSync(request: Request): Promise<NextResponse> {
       { success: false, error: 'Erro interno na sincronização', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    if (lock) await lock.release();
   }
 }
 

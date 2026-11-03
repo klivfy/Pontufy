@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRawPrisma } from '@/infra/platform-db';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock, type JobLock } from '@/infra/job-lock';
 
 export const dynamic = 'force-dynamic'; // Prevent static caching for cron endpoints
 
@@ -9,10 +10,18 @@ export const dynamic = 'force-dynamic'; // Prevent static caching for cron endpo
  * Vercel Cron target: /api/cron/rewards-sync
  */
 export async function GET(request: Request) {
+  let lock: JobLock | null = null;
+
   try {
     const auth = authorizeCronRequest(request);
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    // V7 — execução única (Vercel pode repetir a chamada; o job é longo).
+    lock = await acquireJobLock('cron:rewards-sync');
+    if (!lock.acquired) {
+      return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
     }
 
     const prisma = getRawPrisma();
@@ -63,6 +72,8 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('[CRON JOB] Erro fatal no rewards-sync:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
+  } finally {
+    if (lock) await lock.release();
   }
 }
 

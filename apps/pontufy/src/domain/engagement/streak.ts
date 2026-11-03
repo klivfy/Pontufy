@@ -15,6 +15,10 @@ export interface StreakInfo {
   atRisk: boolean;      // streak em risco (atividade hoje, ainda não feita)
 }
 
+// V7 — leitura limitada: um streak não precisa de mais que isso de histórico.
+const STREAK_WINDOW_DAYS = 400;
+const STREAK_MAX_ROWS = 2000;
+
 function startOfDay(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -47,10 +51,14 @@ export async function getStreak(userId: string, tenantId: string): Promise<Strea
   }
 
   const db = getTenantDb(tenantId);
+  // V7 — janela limitada: o streak só depende dos últimos dias. Sem o corte,
+  // a consulta crescia com o histórico inteiro do usuário.
+  const windowStart = new Date(Date.now() - STREAK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const days = await db.lessonCompletion.findMany({
-    where: { userId },
+    where: { userId, createdAt: { gte: windowStart } },
     select: { createdAt: true },
     orderBy: { createdAt: 'desc' },
+    take: STREAK_MAX_ROWS,
   });
 
   const daySet = new Set<number>();

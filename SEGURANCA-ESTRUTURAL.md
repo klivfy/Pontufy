@@ -188,6 +188,9 @@ async function createPersonalTenant(email, name) {
 
 **Como fica seguro.** Revalidação de papel/status nas rotas privilegiadas (1 query) ou `maxAge` curto com refresh; coluna `sessionVersion` no `User` (funciona sem Redis) + `status` de conta; MFA/TOTP obrigatório para `super_admin`.
 
+> **Status: fechado (parte 1).** `User.sessionVersion` no banco é comparada pelo `getSessionContext` na query que ele já fazia — revogação funciona sem Redis. `requireSuperAdmin()` relê papel e domínio do banco (as 2 rotas e a página deixaram de confiar no token). `maxAge` caiu de 7 dias para 24 h com `updateAge` de 1 h. Testes em `tests/api/session-revocation.spec.ts`.
+> **Pendente (D3):** superadmin obrigatoriamente por SSO Google. Sem dependência nova, mas é decisão de produto sobre o fluxo de acesso ao papel mais poderoso.
+
 ---
 
 ### V6 · Processamento de arquivo não confiável sem orçamento de recursos — **MÉDIO**
@@ -224,6 +227,9 @@ E os 4 crons não têm **lock de execução única**: dois disparos sobrepostos 
 **Por que é estrutural.** Não há convenção de paginação nem de idempotência de job. O código cresce em volume de dados mais rápido que em disciplina de leitura.
 
 **Como fica seguro.** Cursor obrigatório (`take` + `cursor`) em varreduras; lock de job (`cron:{nome}` no Redis, ou `advisory lock` no Postgres — este funciona sem Redis); métrica de duração por job.
+
+> **Status: fechado (parte 1).** `src/infra/job-lock.ts` dá exclusão mútua aos 4 crons por claim de TTL **em tabela** — advisory lock por sessão não é confiável atrás de pooler (acquire e release podem cair em conexões diferentes). Varreduras ganharam teto: `expire-points` (5.000 linhas/execução, com `truncated` na resposta), `streak` (janela de 400 dias), `reports/export` (50.000 linhas → 413). Testes em `tests/api/job-lock.spec.ts`.
+> **Pendente:** `getXpLeaderboard` ainda faz dois `groupBy` sem janela de tempo (ranking histórico é requisito de produto — precisa de decisão antes de cortar).
 
 ---
 

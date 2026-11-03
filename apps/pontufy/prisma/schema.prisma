@@ -64,6 +64,9 @@ model User {
   role            String   @default("employee") // 'admin_rh', 'employee', 'guest'
   pointsBalance   Int      @default(0)
   department      String?  // TAREFA 13.2 — departamento p/ ranking interdepartamental
+  /// Revogação de sessão SEM Redis (V5): cada emissão de JWT carrega a versão
+  /// atual; incrementar aqui derruba todas as sessões do usuário.
+  sessionVersion  Int      @default(1)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -276,6 +279,19 @@ model ProvisioningQuota {
   tenants   Int      @default(0)
   aiCredits Int      @default(0)
   updatedAt DateTime @updatedAt
+}
+
+// Exclusão mútua de jobs (V7). Tabela em vez de pg_advisory_lock porque o app
+// roda atrás de pooler (PgBouncer/Supabase): advisory locks são por sessão de
+// conexão e o par acquire/release pode cair em conexões diferentes — o lock
+// vazaria. Aqui o "claim" é um INSERT ... ON CONFLICT condicional, atômico e
+// independente de conexão (e funciona sem Redis).
+model JobLock {
+  name      String   @id
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model AuditLog {

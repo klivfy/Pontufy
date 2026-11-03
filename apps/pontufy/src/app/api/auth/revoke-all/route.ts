@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getRedis } from '@/lib/redis';
+import { bumpUserSessionVersion } from '@/infra/session-version';
 
 // 7.3 — Revogação instantânea de TODAS as sessões do usuário autenticado
 // (comprometimento, dispositivo roubado, troca de senha forçada).
+//
+// A versão agora vive no banco (V5). Antes, sem Redis, este endpoint era um
+// no-op: ninguém era desconectado e o JWT seguia válido por até 7 dias.
 export async function POST() {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
   }
 
-  const redis = getRedis();
-  if (redis) {
-    const current = (await redis.get<number>(`session-version:${session.user.id}`)) ?? 1;
-    await redis.set(`session-version:${session.user.id}`, current + 1);
-  }
+  const version = await bumpUserSessionVersion(session.user.id);
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, sessionVersion: version });
 }

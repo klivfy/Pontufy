@@ -50,6 +50,7 @@ const RAW_PRISMA_ALLOWLIST = [
   // pré-sessão: e-mail é a chave, ainda não existe tenant na requisição
   'src/auth.ts',
   'src/infra/session.ts',
+  'src/infra/session-version.ts',
   'src/domain/auth/google.ts',
   'src/domain/tenant/provision.ts',
   'src/app/api/auth/register/route.ts',

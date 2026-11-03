@@ -32,6 +32,28 @@ export async function requireHrAdmin() {
   return requireRole('admin_rh');
 }
 
+/**
+ * Super administrador da plataforma (V5).
+ *
+ * Antes esta regra era copiada em cada rota como `session.user.role` +
+ * `email.endsWith('@pontufy.com')` — lendo o papel do TOKEN, não do banco.
+ * RebaiXar alguém não tinha efeito até o JWT expirar (7 dias).
+ *
+ * Agora `getSessionContext` relê papel e versão de sessão no banco, então o
+ * rebaixamento corta o acesso na requisição seguinte. O domínio corporativo
+ * continua sendo requisito adicional.
+ */
+export async function requireSuperAdmin() {
+  const ctx = await getSessionContext();
+
+  if (ctx.role !== 'super_admin' || !ctx.email.endsWith('@pontufy.com')) {
+    // 403 opaco: não confirma existência da rota nem motivo da recusa.
+    throw new DomainError('Acesso restrito.', 403, 'FORBIDDEN');
+  }
+
+  return ctx;
+}
+
 export function jsonError(error: unknown) {
   if (error instanceof DomainError) {
     return { body: { error: error.message, code: error.code }, status: error.status };
@@ -44,6 +66,9 @@ export function jsonError(error: unknown) {
   }
   if (error instanceof Error && error.message === 'Conta da empresa inativa.') {
     return { body: { error: error.message }, status: 401 };
+  }
+  if (error instanceof Error && error.message === 'Sessão revogada. Entre novamente.') {
+    return { body: { error: error.message, code: 'SESSION_REVOKED' }, status: 401 };
   }
   return { body: { error: 'Erro interno.' }, status: 500 };
 }

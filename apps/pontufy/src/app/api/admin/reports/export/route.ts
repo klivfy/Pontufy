@@ -3,6 +3,9 @@ import { getSessionContext } from '@/backend/session';
 import { getTenantDb } from '@/backend/db';
 import { buildCsvRow } from '@/lib/csv-sanitizer';
 
+/** Teto de linhas por exportação (V7). */
+const MAX_EXPORT_ROWS = 50_000;
+
 export async function GET() {
   try {
     const { tenantId, role } = await getSessionContext();
@@ -25,7 +28,22 @@ export async function GET() {
     const completions = await db.lessonCompletion.findMany({
       where: { lessonId: { in: allLessonIds } },
       select: { lessonId: true, userId: true },
+      // V7 — teto de exportação: acima disso a resposta vira 413 com orientação,
+      // em vez de carregar a base inteira na memória de uma função serverless.
+      take: MAX_EXPORT_ROWS + 1,
     });
+
+    if (completions.length > MAX_EXPORT_ROWS) {
+      return NextResponse.json(
+        {
+          error:
+            `Relatório acima do limite de ${MAX_EXPORT_ROWS} conclusões. ` +
+            'Filtre por período ou solicite a exportação assíncrona.',
+          code: 'EXPORT_TOO_LARGE',
+        },
+        { status: 413 },
+      );
+    }
 
     const completionsByLesson = new Map<string, Set<string>>();
     for (const c of completions) {

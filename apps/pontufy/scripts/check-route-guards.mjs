@@ -75,6 +75,9 @@ function detectPolicy(source) {
 
   if (source.includes('requireHrAdmin')) return 'requireHrAdmin';
 
+  // Guarda de plataforma: relê papel + domínio do banco (V5).
+  if (source.includes('requireSuperAdmin')) return 'auth:super_admin_domain';
+
   if (/role\s*!==\s*'admin_rh'\s*&&\s*role\s*!==\s*'super_admin'/.test(source)) {
     return 'inline:admin_rh_or_super_admin';
   }

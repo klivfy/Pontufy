@@ -78,10 +78,11 @@ export const authConfig = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60,
-    // 7.5 — Rotação/renovação contínua: re-emite o JWT (sem relogar) quando o
-    // cookie tem mais de 24h, renovando a expiração de sessões ativas.
-    updateAge: 24 * 60 * 60,
+    // V5 — janela de 24h (era 7 dias). `updateAge` de 1h renova a sessão de
+    // quem está ativo, então o efeito prático é: usuário ativo nunca reloga,
+    // token esquecido em um dispositivo perde validade em 1 dia.
+    maxAge: 24 * 60 * 60,
+    updateAge: 60 * 60,
   },
   cookies: {
     sessionToken: {

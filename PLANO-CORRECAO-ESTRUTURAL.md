@@ -141,7 +141,9 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 ## 4. Sprint E2 — "Privilégio e volume" (semana 2 · 5 d)
 
-### E2.1 · V5 — Sessão com revalidação e MFA (3 d)
+> **Progresso em 03/11/2026:** E2.1 ✅ (revalidação + revogação; SSO aguarda D3) e E2.2 ✅ (locks + tetos; ranking histórico pendente de decisão).
+
+### E2.1 · V5 — Sessão com revalidação e MFA (3 d) ✅
 1. Coluna `User.sessionVersion Int @default(1)` (migração) — revogação **sem Redis**.
 2. `jwt` callback: carrega `sessionVersion` na emissão; revalida em rotas privilegiadas (`requireRole`, superadmin) com 1 query indexada.
 3. `revoke-all` incrementa a versão no banco (não só no Redis).
@@ -150,7 +152,7 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 **Aceite.** Rebaixar `admin_rh` → `employee` corta acesso na próxima requisição privilegiada; `revoke-all` funciona sem Redis; login por senha de `super_admin` é recusado.
 
-### E2.2 · V7 — Volume e exclusão mútua (2 d)
+### E2.2 · V7 — Volume e exclusão mútua (2 d) ✅
 1. Advisory lock de Postgres nos 4 crons: `SELECT pg_try_advisory_lock(hashtext($nome))` + release no `finally` (funciona sem Redis).
 2. Cursor obrigatório: `expire-points` (lote de 500), `reports/export` (stream por curso), `streak` (últimos 365 dias), `ranking` (janela de 90 dias).
 3. Guarda de tamanho em `reports/export`: recusar com 413 se o resultado passar de N linhas.

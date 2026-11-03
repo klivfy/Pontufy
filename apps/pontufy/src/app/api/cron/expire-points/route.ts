@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/backend/db';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock } from '@/infra/job-lock';
 
 const EXPIRY_MONTHS = 12;
+// Teto por execução (V7). O job roda diariamente: o excedente fica para amanhã.
+const MAX_LEDGER_ROWS = 5000;
 
 export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
@@ -10,10 +13,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
+  // V7 — execução única: cron sobreposto processaria o mesmo lote duas vezes.
+  const lock = await acquireJobLock('cron:expire-points');
+  if (!lock.acquired) {
+    return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
+  }
+
   try {
     const cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - EXPIRY_MONTHS);
 
+    // V7 — leitura limitada por lote. Sem o `take`, o job carregava TODO o
+    // ledger elegível da plataforma na memória de um único serverless.
+    // O restante é processado na próxima execução (o job é diário).
     const expirableGains = await prisma.pointsLedger.findMany({
       where: {
         type: 'gain',
@@ -24,7 +36,10 @@ export async function GET(request: NextRequest) {
         tenantId: true,
         pointsAmount: true,
       },
+      orderBy: { timestamp: 'asc' },
+      take: MAX_LEDGER_ROWS,
     });
+    const truncated = expirableGains.length === MAX_LEDGER_ROWS;
 
     if (expirableGains.length === 0) {
       return NextResponse.json({ success: true, expired: 0 });
@@ -94,9 +109,13 @@ export async function GET(request: NextRequest) {
       success: true,
       usersProcessed: userTotals.size,
       usersExpired: expiredCount,
+      truncated,
+      nextRunHint: truncated ? 'Lote cheio: o restante será processado na próxima execução.' : undefined,
     });
   } catch (error) {
     console.error('CRON /api/cron/expire-points:', error);
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
+  } finally {
+    await lock.release();
   }
 }

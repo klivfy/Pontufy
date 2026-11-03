@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRawPrisma } from '@/infra/platform-db';
 import { logger } from '@/infra/logger';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock } from '@/infra/job-lock';
 
 export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  // V7 — execução única. Sem o lock, dois disparos desativam as mesmas
+  // recompensas e o job paga duas vezes o custo das requisições HEAD.
+  const lock = await acquireJobLock('cron:link-health');
+  if (!lock.acquired) {
+    return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
   }
 
   const prisma = getRawPrisma();
@@ -32,6 +40,8 @@ export async function GET(request: NextRequest) {
       errors.push(`${reward.id}: ${String(error)}`);
     }
   }
+
+  await lock.release();
 
   return NextResponse.json({
     success: true,
