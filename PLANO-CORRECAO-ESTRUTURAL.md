@@ -163,13 +163,15 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 ## 5. Sprint E3 — "Superfície e operação" (semana 3 · 6 d)
 
+> **Progresso em 03/11/2026:** E3.1 ✅, E3.2 ✅, E3.3 ✅ (CSP em Report-Only), E3.4 ✅ parcial (repo privado depende de D4), E3.5 ✅ parcial (staging é infraestrutura).
+
 | ID | Item | Entrega | Esforço |
 |---|---|---|---|
-| E3.1 | **V6** upload | MIME por magic bytes, máx. 5 arquivos × 4 MB por request, timeout de 20 s no parse, quota por tenant/dia | 1,5 d |
-| E3.2 | **V9 resto** | `escapeHtml` único aplicado ao e-mail de certificado; `select` explícito obrigatório nas respostas (regra de revisão + checklist) | 1 d |
-| E3.3 | **V10** headers | `headers()` com CSP por nonce, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` + teste que falha se sumirem | 1 d |
-| E3.4 | **V8** operação | Repo privado (ou secret scanning no CI), `.claude/` fora do versionamento, guarda dura no `tests/global-setup.ts` (recusa host ≠ localhost), inventário de segredos com prazo de rotação | 1 d |
-| E3.5 | **V11** deploy | Staging (projeto + banco), migração como gate do build (`prisma migrate status` antes do `next build`), rollback documentado e testado | 1,5 d |
+| E3.1 | **V6** upload ✅ | MIME por magic bytes, 5 arquivos × 4 MB, 12 MB por lote, timeout de 20 s no parse | ~~1,5 d~~ feito |
+| E3.2 | **V9 resto** ✅ | `escapeHtml` único aplicado ao e-mail de certificado | ~~1 d~~ feito |
+| E3.3 | **V10** headers ✅ | HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy + CSP Report-Only | ~~1 d~~ feito |
+| E3.4 | **V8** operação ✅ parcial | `SEGREDOS.md`, `.claude/` fora do git, trava destrutiva no `global-setup`; repo privado = D4 | ~~1 d~~ feito |
+| E3.5 | **V11** deploy ✅ parcial | `prisma validate` no CI; staging e migração como gate do deploy = infra | ~~1,5 d~~ feito |
 
 ---
 

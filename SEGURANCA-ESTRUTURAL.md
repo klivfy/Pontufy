@@ -208,6 +208,9 @@ async function createPersonalTenant(email, name) {
 
 **Como fica seguro.** Validação de MIME por *magic bytes*, limite de N arquivos e M bytes por requisição, `AbortSignal`/timeout no parse, processamento em rota isolada com `maxDuration` próprio, e quota por tenant.
 
+> **Status: fechado.** `api/files/extract` confere o conteúdo (assinatura PDF/ZIP/MP4/ID3/RIFF/EBML; texto por UTF-8 válido sem NUL), recusa lote acima de 5 arquivos ou 12 MB, limita cada arquivo a 4 MB (alinhado ao teto de corpo da Vercel, antes eram 10 MB decorativos) e dá 20 s de prazo por parse. Arquivo que não corresponde à extensão nem é parseado.
+> **Pendente:** quota por tenant/dia (precisa de tabela de uso; hoje o limite é por requisição).
+
 ---
 
 ### V7 · Consultas sem limite e jobs sem exclusão mútua — **MÉDIO**
@@ -249,6 +252,9 @@ E os 4 crons não têm **lock de execução única**: dois disparos sobrepostos 
 
 **Como fica seguro.** Inventário de segredos com dono e prazo de rotação; repositório privado (ou varredura de segredos no CI); `.claude/` fora do versionamento; guarda dura no `global-setup` (recusa se `NODE_ENV=production` ou host ≠ localhost); backup diário com restore testado.
 
+> **Status: parcial.** `SEGREDOS.md` criado com inventário, prazos de rotação, efeito colateral de cada rotação e ordem do procedimento. `.claude/` removido do versionamento e adicionado ao `.gitignore`. `tests/global-setup.ts` agora **recusa** rodar contra banco não-local (exige `ALLOW_DESTRUCTIVE_TESTS=1`) — antes ele apagava ledger de usuários reais se apontado para produção.
+> **Pendente (D4):** repositório privado. E backup automatizado com restore testado — infra, não código.
+
 ---
 
 ### V9 · Vazamento por canais secundários — **MÉDIO**
@@ -269,6 +275,9 @@ E os 4 crons não têm **lock de execução única**: dois disparos sobrepostos 
 
 **Como fica seguro.** `select` explícito obrigatório em respostas (regra de lint/revisão), serializador por recurso, e `escapeHtml` como utilitário único usado em todo template de e-mail.
 
+> **Status: fechado (código).** `escapeHtml` único em `src/infra/email.ts`, aplicado ao e-mail de certificado (nome, curso, empresa, data, URL). Os três canais anteriores (CSV, `aiCredits`, log da Lomadee) já tinham sido fechados no E1. Regra de `select` explícito fica como checklist de revisão — não é mecanizável sem proibir `include`.
+> **Pendente:** `/verify/<uuid>` continua expondo o nome do colaborador por design (é o propósito da verificação pública); falta `noindex` (já aplicado em `/verify-tenant`) e rate limit.
+
 ---
 
 ### V10 · Ausência de defesa em profundidade HTTP — **BAIXO-MÉDIO**
@@ -279,6 +288,8 @@ E os 4 crons não têm **lock de execução única**: dois disparos sobrepostos 
 
 **Como fica seguro.** `headers()` no `next.config.ts` com CSP por nonce (o App Router suporta), e um teste de smoke que falha se os headers sumirem.
 
+> **Status: mitigado (passo 1).** `next.config.ts` passou a enviar HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` e **CSP em Report-Only**. Bloqueio sem observar violações quebraria o app (Next injeta script inline no bootstrap) — o passo 2 é coletar relatórios e migrar para CSP bloqueante com nonce.
+
 ---
 
 ### V11 · Configuração de runtime sem processo — **BAIXO**
@@ -288,6 +299,8 @@ E os 4 crons não têm **lock de execução única**: dois disparos sobrepostos 
 **Por que é estrutural.** A aplicação depende de uma única etapa manual (aplicar migração) que ninguém é obrigado a executar — e o deploy é independente dela.
 
 **Como fica seguro.** Pipeline em que migração e deploy são o **mesmo job** (migração falha ⇒ deploy não acontece), staging obrigatório, e `migrate status` como *gate* antes do build.
+
+> **Status: parcial.** O CI ganhou `prisma validate` (schema quebrado não passa). A migração já saiu do build (F2.7) e roda no workflow **Migrate** com `DIRECT_URL`. Migração como *gate* do deploy e ambiente de staging continuam pendentes — são infraestrutura, não código.
 
 ---
 

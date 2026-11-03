@@ -5,7 +5,7 @@ import {
   computeCertificateSignature,
   generateCertificatePdf,
 } from './certificate-generator';
-import { resolveBaseUrl } from '@/lib/email';
+import { escapeHtml, resolveBaseUrl } from '@/lib/email';
 
 // Serviço compartilhado de emissão de certificados (usado por
 // POST /api/certificates e POST /api/certificates/generate).
@@ -167,15 +167,18 @@ async function sendCertificateEmail(
       from: process.env.EMAIL_FROM || 'Pontufy <noreply@pontufy.com>',
       to: toEmail,
       subject: `🏆 Seu certificado: ${courseName}`,
+      // V9 — todo valor vindo de usuário/tenant passa por escape: sem isso,
+      // um nome de curso com HTML virava e-mail de phishing com remetente
+      // legítimo da Pontufy.
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
           <h2 style="color: #10b981;">Pontufy</h2>
-          <p>Parabéns, <strong>${employeeName}</strong>!</p>
-          <p>Você concluiu o curso <strong>${courseName}</strong> na <strong>${tenantName}</strong>.</p>
-          <p>Data de conclusão: ${completionDate}</p>
+          <p>Parabéns, <strong>${escapeHtml(employeeName)}</strong>!</p>
+          <p>Você concluiu o curso <strong>${escapeHtml(courseName)}</strong> na <strong>${escapeHtml(tenantName)}</strong>.</p>
+          <p>Data de conclusão: ${escapeHtml(completionDate)}</p>
           <p>Seu certificado em PDF está anexado a este email.</p>
           <p>Você também pode verificar a autenticidade online:</p>
-          <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
             Verificar certificado
           </a>
           <p style="color: #666; font-size: 12px; margin-top: 24px;">Equipe Pontufy</p>

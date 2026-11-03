@@ -51,6 +51,9 @@ jobs:
       - name: Prisma client
         run: npx prisma generate --schema apps/pontufy/prisma/schema.prisma
 
+      - name: Schema Prisma válido
+        run: npx prisma validate --schema apps/pontufy/prisma/schema.prisma
+
       - name: Typecheck
         run: npm run typecheck -w apps/pontufy
 

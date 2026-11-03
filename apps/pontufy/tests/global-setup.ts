@@ -36,6 +36,30 @@ export default async function globalSetup(): Promise<void> {
         'antes de rodar os testes (veja apps/pontufy/.env.example).',
     );
   }
+
+  // ── 1.1 Trava de segurança (V8) ─────────────────────────────────────────
+  // Este setup APAGA ledger, conclusões, certificados e reseta saldos de
+  // usuários reais (ver seção 5). Se DATABASE_URL apontar para um banco
+  // remoto por engano — inclusive produção — o estrago é irreversível.
+  const databaseHost = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL as string).hostname;
+    } catch {
+      return '';
+    }
+  })();
+  const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', 'db', 'postgres']);
+  const isLocalDatabase = LOCAL_HOSTS.has(databaseHost);
+
+  if (!isLocalDatabase && process.env.ALLOW_DESTRUCTIVE_TESTS !== '1') {
+    throw new Error(
+      `[global-setup] DATABASE_URL aponta para "${databaseHost}", que não é local.\n` +
+        'A suíte APAGA lançamentos do ledger, conclusões de aula, tentativas de quiz e\n' +
+        'certificados de usuários reais. Se este banco é descartável e você aceita o\n' +
+        'risco, rode com ALLOW_DESTRUCTIVE_TESTS=1.',
+    );
+  }
+
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     console.warn(
       '[global-setup] ⚠ Redis (UPSTASH_REDIS_REST_URL/TOKEN) não configurado. ' +

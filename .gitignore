@@ -51,3 +51,8 @@ next-env.d.ts
 
 # supabase (archive/pontufy-app-legacy)
 supabase/.temp
+
+# Config de agente / MCP local — nunca versionar
+.claude/
+apps/*/.claude/
+
