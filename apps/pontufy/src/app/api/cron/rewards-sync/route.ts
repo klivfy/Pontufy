@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRawPrisma } from '@/backend/db';
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
 
 export const dynamic = 'force-dynamic'; // Prevent static caching for cron endpoints
 
@@ -9,15 +10,9 @@ export const dynamic = 'force-dynamic'; // Prevent static caching for cron endpo
  */
 export async function GET(request: Request) {
   try {
-    // Validação: aceita Bearer token OU header x-vercel-cron do Vercel Cron
-    const authHeader = request.headers.get('authorization');
-    const vercelCronHeader = request.headers.get('x-vercel-cron');
-    const isVercelCron = vercelCronHeader === '1';
-    const cronSecret = process.env.CRON_SECRET;
-    const isAuthorized = isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`);
-
-    if (!isAuthorized) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    const auth = authorizeCronRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const prisma = getRawPrisma();

@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Gerador do certificado corporativo Pontufy (A4 paisagem, 297 x 210 mm).
 // Estética MD3: md-primary #10B981, md-tertiary, md-highlight #f7d0a9.
@@ -24,13 +24,9 @@ const MD_PRIMARY: [number, number, number] = [16, 185, 129];      // #10B981
 const MD_TERTIARY: [number, number, number] = [139, 92, 246];     // #8B5CF6
 const MD_HIGHLIGHT: [number, number, number] = [247, 208, 169];   // #F7D0A9
 const WHITE: [number, number, number] = [255, 255, 255];
-const GRAY_100: [number, number, number] = [241, 241, 241];
 const GRAY_400: [number, number, number] = [161, 161, 161];
 const GRAY_600: [number, number, number] = [115, 115, 115];
-const GRAY_800: [number, number, number] = [38, 38, 38];
 const BG_DARK: [number, number, number] = [18, 18, 18];
-
-const VERIFICATION_SECRET = process.env.CERTIFICATE_VERIFICATION_SECRET || 'pontufy-cert-secret-dev';
 
 export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffer> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -152,22 +148,69 @@ function getRarityFromHash(hash: string): 'common' | 'rare' | 'epic' | 'legendar
   return 'common';                    // 77%
 }
 
-// Assinatura HMAC-SHA256 determinística sobre os campos imutáveis do certificado.
-export function computeCertificateSignature(data: Omit<CertificateData, 'signature'>): string {
-  const payload = [
-    data.verificationHash,
-    data.employeeName,
-    data.courseName,
-    data.tenantName,
-    data.completionDate,
-    data.workloadHours,
-    data.lessonCount,
-  ].join('|');
-  return createHmac('sha256', VERIFICATION_SECRET).update(payload).digest('hex');
+// ── Assinatura do certificado ────────────────────────────────────────────────
+// Payload canônico: JSON com CHAVES ORDENADAS. O `join('|')` anterior colidia
+// quando um campo continha o separador (employeeName "A|B" + courseName "C" vs
+// employeeName "A" + courseName "B|C" produziam o mesmo HMAC) e não sobrevivia
+// a renomeações de campo.
+export const CERTIFICATE_PAYLOAD_VERSION = 2;
+
+export function buildCertificatePayload(data: Omit<CertificateData, 'signature'>): string {
+  return JSON.stringify({
+    v: CERTIFICATE_PAYLOAD_VERSION,
+    courseName: data.courseName,
+    completionDate: data.completionDate,
+    employeeName: data.employeeName,
+    lessonCount: data.lessonCount,
+    tenantName: data.tenantName,
+    verificationHash: data.verificationHash,
+    workloadHours: data.workloadHours,
+  });
 }
 
-// Verifica se uma assinatura é válida para os dados do certificado.
+function resolveVerificationSecret(): string {
+  const secret = process.env.CERTIFICATE_VERIFICATION_SECRET;
+
+  if (secret && secret.length >= 32) return secret;
+
+  // Fail-closed: sem segredo forte, produção não assina certificado nenhum.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[SECURITY] CERTIFICATE_VERIFICATION_SECRET ausente ou com menos de 32 caracteres. ' +
+        'Certificados não podem ser assinados com segredo default/previsível.',
+    );
+  }
+
+  // Desenvolvimento local: derivado do AUTH_SECRET para não existir segredo
+  // constante no código. Nunca é usado em produção (o throw acima impede).
+  return `dev-only-${process.env.AUTH_SECRET ?? 'local'}-certificate-secret`;
+}
+
+// Assinatura HMAC-SHA256 determinística sobre o payload canônico.
+export function signPayload(payload: string): string {
+  return createHmac('sha256', resolveVerificationSecret()).update(payload).digest('hex');
+}
+
+export function computeCertificateSignature(data: Omit<CertificateData, 'signature'>): string {
+  return signPayload(buildCertificatePayload(data));
+}
+
+// Verifica a assinatura de um payload já persistido (verificação pública).
+// O payload gravado é a string exata que foi assinada — nunca reconstruída
+// com defaults, que era a causa de todo certificado legítimo parecer inválido.
+export function verifyPayload(payload: string, signature: string): boolean {
+  if (!payload || !signature) return false;
+
+  const expected = signPayload(payload);
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const providedBuffer = Buffer.from(signature, 'utf8');
+
+  if (expectedBuffer.length !== providedBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+// Verifica a assinatura a partir dos dados (usado em testes/emissão).
 export function verifyCertificateSignature(data: CertificateData): boolean {
-  const expected = computeCertificateSignature(data);
-  return expected === data.signature;
+  if (!data.signature) return false;
+  return verifyPayload(buildCertificatePayload(data), data.signature);
 }

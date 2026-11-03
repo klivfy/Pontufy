@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/backend/db';
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
 
 const EXPIRY_MONTHS = 12;
 
 export async function GET(request: NextRequest) {
-  // Validação: aceita Bearer token OU header x-vercel-cron do Vercel Cron
-  const authHeader = request.headers.get('authorization');
-  const vercelCronHeader = request.headers.get('x-vercel-cron');
-  const isVercelCron = vercelCronHeader === '1';
-  const cronSecret = process.env.CRON_SECRET;
-  const isAuthorized = isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`);
-
-  if (!isAuthorized) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const auth = authorizeCronRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {

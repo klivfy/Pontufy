@@ -28,9 +28,14 @@ durable database.
 
    | Variable | Required? | Value |
    |---|---|---|
-   | `AUTH_SECRET` | **yes** | `openssl rand -base64 32` — **currently unset; sessions are forgeable until you set this** |
+   | `AUTH_SECRET` | **yes** | `openssl rand -base64 32` |
    | `DATABASE_URL` | **yes** | the **pooled** connection string (PgBouncer / port 6543) |
    | `DIRECT_URL` | optional | the **direct** connection string (port 5432) |
+   | `CRON_SECRET` | **yes** | `openssl rand -hex 32` — os 4 crons são fail-closed e só aceitam `Authorization: Bearer` |
+   | `AFFILIATE_WEBHOOK_SECRET` | **yes** | `openssl rand -hex 32` — sem ele o postback de afiliados responde 503 (nunca aceita anônimo) |
+   | `LOMADEE_POSTBACK_SECRET` | **yes** | `openssl rand -hex 32` |
+   | `CERTIFICATE_VERIFICATION_SECRET` | **yes** | `openssl rand -hex 32` (mín. 32 chars) — assina os certificados |
+   | `UPSTASH_REDIS_REST_URL/TOKEN` | **yes** | sem Redis, rate-limit/lockout/revogação de sessão ficam desligados |
 
    `DIRECT_URL` is optional: the build (`prisma migrate deploy`) falls back to
    `DATABASE_URL` when it is unset. Set it only if your `DATABASE_URL` is a
@@ -42,7 +47,13 @@ durable database.
 `npm run build` applies pending migrations (`scripts/migrate.mjs`) and then
 builds. Migration is **fail-soft**: if it can't run (e.g. `DATABASE_URL` is a
 transaction-mode pooler that rejects DDL), the build still succeeds and logs a
-warning instead of failing the deploy.
+warning instead of failing the deploy. *(Correção prevista: F2.7 do
+[PLANO-DE-ACAO](../../PLANO-DE-ACAO.md) — fail-closed e migração fora do build.)*
+
+> ⚠️ **O build NÃO semeia mais o banco.** Até 02/11/2026 o `scripts/migrate.mjs`
+> executava `check-and-seed.ts` a cada deploy, redefinindo a senha de contas seed
+> (inclusive um `super_admin`) para `123456` — backdoor re-armado a cada push.
+> Removido. O bootstrap de dados agora é manual e local (ver "Seed").
 
 - **Direct/reachable `DATABASE_URL`** → migrations apply automatically; tables are
   created on the first deploy. Nothing else to do.
@@ -55,16 +66,20 @@ warning instead of failing the deploy.
   DATABASE_URL="postgresql://…:5432/db" npm run db:migrate
   ```
 
-## Seed (optional demo data)
+## Seed (somente local — nunca em produção, nunca no deploy)
+
+O deploy não cria mais nenhuma conta. Para um ambiente local:
 
 ```bash
-# locally, with DATABASE_URL pointing at the new Postgres
-npm run db:seed
+SEED_ADMIN_PASSWORD='<senha-forte-12+>' npx tsx scripts/check-and-seed.ts
 ```
 
-Demo login after seeding: `admin@empresaalpha.com` / `123456` (role `admin_rh`).
-In production, prefer onboarding real admins via Stripe checkout (which emails a
-password-setup link) or the CSV import + "forgot password" flow.
+O script recusa rodar com `NODE_ENV=production` ou `VERCEL_ENV` definido e
+**nunca** sobrescreve o `passwordHash` de uma conta existente.
+
+Em produção, crie o `super_admin` manualmente (senha forte, em cofre) e faça o
+onboarding de clientes via Stripe checkout (que envia link de definição de senha)
+ou import CSV + "esqueci a senha".
 
 ## Local development
 

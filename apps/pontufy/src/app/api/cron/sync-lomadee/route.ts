@@ -4,12 +4,12 @@
 // Segurança: Bearer token no header Authorization
 
 import { NextResponse } from 'next/server';
+import type { PrismaClient } from '@prisma/client';
 import { getRawPrisma } from '@/backend/db';
 import { lomadeeService, LomadeeCoupon, LomadeeOffer } from '@/lib/lomadee';
 import { logAudit } from '@/lib/audit';
 import { cacheDeletePattern } from '@/lib/redis';
-
-const CRON_SECRET = process.env.CRON_SECRET;
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
 
 interface SyncResult {
   couponsProcessed: number;
@@ -32,13 +32,9 @@ async function handleSync(request: Request): Promise<NextResponse> {
   const startedAt = Date.now();
 
   try {
-    const authHeader = request.headers.get('authorization');
-    const vercelCronHeader = request.headers.get('x-vercel-cron');
-    const isVercelCron = vercelCronHeader === '1';
-    const isAuthorized = isVercelCron || (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`);
-
-    if (!isAuthorized) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    const auth = authorizeCronRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Verifica se Lomadee está configurado
@@ -143,8 +139,7 @@ async function handleSync(request: Request): Promise<NextResponse> {
   }
 }
 
-async function processCoupon(
-  prisma: any,
+async function processCoupon(prisma: PrismaClient,
   coupon: LomadeeCoupon,
   result: SyncResult,
 ): Promise<void> {
@@ -185,8 +180,7 @@ async function processCoupon(
   }
 }
 
-async function processOffer(
-  prisma: any,
+async function processOffer(prisma: PrismaClient,
   offer: LomadeeOffer,
   result: SyncResult,
 ): Promise<void> {

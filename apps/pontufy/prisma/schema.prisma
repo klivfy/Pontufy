@@ -304,6 +304,7 @@ model IssuedCertificate {
   courseName       String
   verificationHash String?  @unique // Código único de verificação impresso no PDF
   signature        String?  // Assinatura HMAC-SHA256 para verificação criptográfica
+  signedPayload    String?  @db.Text // Payload canônico EXATO que foi assinado (JSON, chaves ordenadas)
   issuedAt         DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)

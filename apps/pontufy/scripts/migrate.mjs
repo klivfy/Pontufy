@@ -76,15 +76,15 @@ try {
   );
 }
 
-// Bootstrap idempotente: o pipeline de deploy NÃO roda o seed — se o banco está
-// vazio (sem usuários), nenhum login é possível ("Email ou senha incorretos").
-// scripts/check-and-seed.ts roda SEMPRE (idempotente): valida conectividade,
-// faz upsert do tenant + utilizadores de teste (scrypt canónico, senha 123456)
-// e verifica cada hash com PASSED/FAILED. Nunca bloqueia o deploy em caso de
-// falha — apenas alerta, para que o `next build` prossiga.
-try {
-  execSync('npx tsx scripts/check-and-seed.ts', { stdio: 'inherit', env });
-} catch (err) {
-  // Intentionally non-fatal: never block the deploy on a seed problem.
-  console.warn(`🟠 Auto-seed falhou (deploy continua): ${err?.message ?? err}`);
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// NUNCA semear o banco a partir do build/deploy.
+// ───────────────────────────────────────────────────────────────────────────
+// Este script já executou `scripts/check-and-seed.ts` a cada deploy, o que
+// reescrevia o `passwordHash` de contas seed (inclusive um `super_admin`
+// @pontufy.com) para uma senha conhecida ('123456') — backdoor permanente em
+// produção, re-armado em todo push.
+//
+// O bootstrap de dados agora é MANUAL e LOCAL:
+//   SEED_ADMIN_PASSWORD='<senha-forte>' npx tsx scripts/check-and-seed.ts
+// O script se recusa a rodar em produção e nunca sobrescreve senha existente.
+// ═══════════════════════════════════════════════════════════════════════════

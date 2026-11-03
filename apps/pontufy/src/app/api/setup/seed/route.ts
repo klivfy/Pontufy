@@ -1,13 +1,60 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { prisma } from '@/backend/db';
 import { hashPassword } from '@/lib/crypto';
 
-export async function POST(request: Request) {
-  const authHeader = request.headers.get('x-setup-secret');
-  const secret = process.env.AUTH_SECRET;
+// ═══════════════════════════════════════════════════════════════════════════
+// Bootstrap de dados — SOMENTE ambiente local de desenvolvimento.
+//
+// Regras de segurança (não flexibilizar):
+//  1. 404 fora de desenvolvimento — nunca em produção/preview da Vercel.
+//  2. Segredo PRÓPRIO (`SETUP_SECRET`), nunca `AUTH_SECRET`: o segredo de
+//     assinatura de sessão não pode ser aceito como credencial de API.
+//  3. Comparação em tempo constante.
+//  4. `upsert` NUNCA reescreve `passwordHash` de conta existente — o endpoint
+//     não é um reset de senha disfarçado.
+//  5. Nada de `details: String(error)` na resposta (vazava SQL/schema).
+// ═══════════════════════════════════════════════════════════════════════════
 
-  if (!secret || authHeader !== secret) {
+const SETUP_SECRET_MIN_LENGTH = 24;
+const MIN_SEED_PASSWORD_LENGTH = 12;
+
+function isProductionRuntime(): boolean {
+  return process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL_ENV);
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  const bufferA = Buffer.from(a, 'utf8');
+  const bufferB = Buffer.from(b, 'utf8');
+  if (bufferA.length !== bufferB.length) return false;
+  return timingSafeEqual(bufferA, bufferB);
+}
+
+export async function POST(request: Request) {
+  // Fora do ambiente local a rota simplesmente não existe.
+  if (isProductionRuntime()) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
+  const secret = process.env.SETUP_SECRET;
+  if (!secret || secret.length < SETUP_SECRET_MIN_LENGTH) {
+    return NextResponse.json(
+      { error: `SETUP_SECRET ausente ou com menos de ${SETUP_SECRET_MIN_LENGTH} caracteres.` },
+      { status: 503 },
+    );
+  }
+
+  const provided = request.headers.get('x-setup-secret') ?? '';
+  if (!constantTimeEqual(provided, secret)) {
     return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
+  }
+
+  const seedPassword = process.env.SETUP_ADMIN_PASSWORD;
+  if (!seedPassword || seedPassword.length < MIN_SEED_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: `SETUP_ADMIN_PASSWORD ausente ou com menos de ${MIN_SEED_PASSWORD_LENGTH} caracteres.` },
+      { status: 503 },
+    );
   }
 
   try {
@@ -50,11 +97,12 @@ export async function POST(request: Request) {
     ];
 
     const seededUsers: string[] = [];
+    const hash = hashPassword(seedPassword);
     for (const u of users) {
-      const hash = hashPassword('123456');
       await prisma.user.upsert({
         where: { email: u.email },
-        update: { passwordHash: hash },
+        // Nunca reescrever a senha de uma conta existente.
+        update: {},
         create: {
           id: u.id,
           tenantId: u.tenantId,
@@ -170,6 +218,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('POST /api/setup/seed:', error);
-    return NextResponse.json({ error: 'Erro ao semear banco de dados.', details: String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao semear banco de dados.' }, { status: 500 });
   }
 }

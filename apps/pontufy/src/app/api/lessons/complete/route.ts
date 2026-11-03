@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/infra/session';
-import { acquireLock, releaseLock } from '@/infra/mutex';
+import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
 import { completeLesson } from '@/domain/learning';
 import { getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Muitas requisições. Aguarde um instante.' }, { status: 429 });
   }
 
-  let lockKey = '';
+  let lock: LockHandle | null = null;
   try {
     const { tenantId, userId } = await getSessionContext();
     const tenantRate = await tenantRateLimit(tenantId, 'lessons-complete', LESSON_TENANT_MAX, LESSON_TENANT_WINDOW);
@@ -32,9 +32,8 @@ export async function POST(request: Request) {
     const { data: body, error: validationError } = parseBody(completeLessonSchema, raw);
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
-    lockKey = `lock:lesson:${tenantId}:${userId}:${body.lessonId}`;
-    const lockAcquired = await acquireLock(lockKey, 10);
-    if (!lockAcquired) {
+    lock = await acquireLock(`lock:lesson:${tenantId}:${userId}:${body.lessonId}`, 10);
+    if (!lock) {
       return NextResponse.json({ error: 'Transação já em andamento. Aguarde.' }, { status: 429 });
     }
 
@@ -45,6 +44,6 @@ export async function POST(request: Request) {
     if (mapped.status >= 500) logger.error('POST /api/lessons/complete', { error: String(error) }, 'learning');
     return NextResponse.json(mapped.body, { status: mapped.status });
   } finally {
-    if (lockKey) await releaseLock(lockKey);
+    await releaseLock(lock);
   }
 }

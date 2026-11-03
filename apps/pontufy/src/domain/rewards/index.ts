@@ -1,15 +1,19 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { getTenantDb, getRawPrisma } from '@/infra/db';
 import { cacheGet, cacheSet, cacheDeletePattern } from '@/infra/redis';
 import { createLomadeeTrackedLink } from '@/infra/lomadee';
-import { creditPoints, debitPoints, PointsError } from '@/domain/points';
+import { asPointsTx, creditPoints, debitPoints, PointsError } from '@/domain/points';
 import { DomainError } from '@/domain/auth';
 import { logAudit } from '@/lib/audit';
 import { notifyRewardRedeemed } from '@/lib/notifications';
-import { validateAffiliateUrl, sanitizeAiText } from '@/lib/validations/security';
+import { validateAffiliateUrl } from '@/lib/validations/security';
 import { logger } from '@/infra/logger';
 
 export { PointsError };
+
+// Teto de pontos gerados por uma única comissão de afiliado. Protege contra
+// postback adulterado/absurdo (commissionValue * 10 sem limite).
+export const MAX_POINTS_PER_COMMISSION = 100_000;
 
 export async function listRewards(tenantId: string, opts: { page: number; limit: number; category?: string | null }) {
   const db = getTenantDb(tenantId);
@@ -51,7 +55,6 @@ export type RedeemInput = {
   userId: string;
   rewardId?: string;
   productUrl?: string;
-  pointsCost?: number;
   productTitle?: string;
 };
 
@@ -61,13 +64,19 @@ export async function redeemReward(input: RedeemInput) {
   if (input.rewardId) {
     return redeemCatalog(db, input.tenantId, input.userId, input.rewardId);
   }
-  if (input.productUrl && typeof input.pointsCost === 'number' && input.pointsCost > 0) {
-    return redeemLomadeeProduct(db, input.tenantId, input.userId, input.productUrl, input.pointsCost, input.productTitle);
-  }
+
+  // Fluxo "abrir oferta": gera o link rastreado e NÃO debita pontos.
+  // O preço de qualquer resgate real vem do catálogo (Reward.pricePoints),
+  // nunca do corpo da requisição.
   if (input.productUrl) {
+    const check = validateAffiliateUrl(input.productUrl);
+    if (!check.valid) {
+      throw new DomainError(`URL do produto inválida: ${check.reason}`, 400, 'INVALID_URL');
+    }
     const affiliateUrl = await createLomadeeTrackedLink(input.productUrl, `browse_${randomUUID()}`);
     return { success: true as const, affiliateUrl, browseOnly: true as const };
   }
+
   throw new DomainError('Requisição inválida.', 400);
 }
 
@@ -81,22 +90,27 @@ async function redeemCatalog(db: ReturnType<typeof getTenantDb>, tenantId: strin
     if (!check.valid) throw new DomainError(`URL da recompensa inválida: ${check.reason}`, 400, 'INVALID_URL');
   }
 
-  const result = await db.$transaction(async (tx: any) => {
-    const updatedUser = await debitPoints(tx as never, {
+  const trackingSubId = `ptfy_${tenantId.slice(0, 8)}_${userId.slice(0, 8)}_${rewardId.slice(0, 8)}_${Date.now().toString(36)}`;
+
+  // A chamada HTTP à Lomadee acontece ANTES da transação: I/O de rede dentro
+  // de uma transação aberta segura conexão do pool e trava linha por segundos.
+  let affiliateLink = reward.affiliateUrl || reward.originalUrl;
+  if (reward.partner === 'LOMADEE' && reward.originalUrl) {
+    try {
+      affiliateLink = await createLomadeeTrackedLink(reward.originalUrl, trackingSubId);
+    } catch (e) {
+      logger.warn('Falha ao gerar link rastreado da Lomadee', { error: String(e) }, 'rewards');
+    }
+  }
+
+  const result = await db.$transaction(async (tx) => {
+    const updatedUser = await debitPoints(asPointsTx(tx), {
       userId,
       tenantId,
       amount: reward.pricePoints,
       description: `Resgate: ${reward.title}`,
     });
-    const trackingSubId = `ptfy_${tenantId.slice(0, 8)}_${userId.slice(0, 8)}_${rewardId.slice(0, 8)}_${Date.now().toString(36)}`;
-    let affiliateLink = reward.affiliateUrl || reward.originalUrl;
-    if (reward.partner === 'LOMADEE' && reward.originalUrl) {
-      try {
-        affiliateLink = await createLomadeeTrackedLink(reward.originalUrl, trackingSubId);
-      } catch (e) {
-        logger.warn('Failed to create Lomadee tracked link', { error: String(e) }, 'rewards');
-      }
-    }
+
     const redemption = await tx.redemption.create({
       data: {
         tenantId,
@@ -108,7 +122,8 @@ async function redeemCatalog(db: ReturnType<typeof getTenantDb>, tenantId: strin
         status: 'PENDING',
       },
     });
-    return { updatedUser, redemption, reward, trackingSubId, affiliateLink };
+
+    return { updatedUser, redemption };
   });
 
   await logAudit({
@@ -126,63 +141,16 @@ async function redeemCatalog(db: ReturnType<typeof getTenantDb>, tenantId: strin
     userId,
     rewardTitle: reward.title,
     pointsSpent: reward.pricePoints,
-    link: result.affiliateLink,
+    link: affiliateLink,
   });
 
   return {
     success: true as const,
     message: 'Resgate concluído com sucesso!',
     newBalance: result.updatedUser.pointsBalance,
-    affiliateUrl: result.affiliateLink,
+    affiliateUrl: affiliateLink,
     redemptionId: result.redemption.id,
-    trackingSubId: result.trackingSubId,
-  };
-}
-
-async function redeemLomadeeProduct(
-  db: ReturnType<typeof getTenantDb>,
-  tenantId: string,
-  userId: string,
-  productUrl: string,
-  pointsCost: number,
-  productTitle?: string,
-) {
-  const sanitizedTitle = sanitizeAiText(String(productTitle ?? productUrl).slice(0, 200));
-  const result = await db.$transaction(async (tx: any) => {
-    const updatedUser = await debitPoints(tx as never, {
-      userId,
-      tenantId,
-      amount: pointsCost,
-      description: `Resgate Lomadee: ${sanitizedTitle}`,
-    });
-    const trackingSubId = `ptfy_lomadee_${tenantId.slice(0, 8)}_${userId.slice(0, 8)}_${Date.now().toString(36)}`;
-    let affiliateLink = productUrl;
-    try {
-      affiliateLink = await createLomadeeTrackedLink(productUrl, trackingSubId);
-    } catch (e) {
-      logger.warn('Failed to create Lomadee tracked link for product', { error: String(e) }, 'rewards');
-    }
-    const redemption = await tx.redemption.create({
-      data: {
-        tenantId,
-        userId,
-        rewardId: 'lomadee-product',
-        pointsDebited: pointsCost,
-        trackingSubId,
-        affiliateLink,
-        status: 'PENDING',
-      },
-    });
-    return { updatedUser, redemption, trackingSubId, affiliateLink };
-  });
-
-  return {
-    success: true as const,
-    message: 'Resgate concluído!',
-    newBalance: result.updatedUser.pointsBalance,
-    affiliateUrl: result.affiliateLink,
-    redemptionId: result.redemption.id,
-    trackingSubId: result.trackingSubId,
+    trackingSubId,
   };
 }
 
@@ -198,8 +166,20 @@ type LomadeePostbackPayload = {
 
 export function assertLomadeePostbackToken(token: string | null) {
   const expected = process.env.LOMADEE_POSTBACK_SECRET;
-  if (!expected) throw new DomainError('Configuração de segurança ausente', 500);
-  if (!token || token !== expected) throw new DomainError('Token inválido', 401);
+
+  // Fail-closed: sem segredo configurado o postback não opera (nunca "aceita tudo").
+  if (!expected || expected.length < 16) {
+    throw new DomainError('Configuração de segurança ausente', 503);
+  }
+
+  if (!token) throw new DomainError('Token inválido', 401);
+
+  const provided = Buffer.from(token, 'utf8');
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const matches =
+    provided.length === expectedBuffer.length && timingSafeEqual(provided, expectedBuffer);
+
+  if (!matches) throw new DomainError('Token inválido', 401);
 }
 
 function mapLomadeeStatus(lomadeeStatus: string): string {
@@ -228,40 +208,56 @@ export async function persistCommission(event: {
   });
   if (existing) return { commissionId: existing.id, alreadyProcessed: true };
 
-  const pointsAwarded =
+  // Teto de pontos por comissão: um postback com valor absurdo (ou adulterado)
+  // não pode virar uma fortuna em pontos.
+  const rawPoints =
     event.status === 'approved' && event.commissionValue > 0
       ? Math.round(event.commissionValue * 10)
       : 0;
+  const pointsAwarded = Math.min(rawPoints, MAX_POINTS_PER_COMMISSION);
 
-  const commission = await db.$transaction(async (tx: any) => {
-    const created = await tx.commission.create({
-      data: {
-        id: event.id,
-        tenantId: event.tenantId,
-        network: event.network,
-        trackingId: event.trackingId,
-        userId: event.userId,
-        orderId: event.orderId,
-        orderValue: event.orderValue,
-        commissionValue: event.commissionValue,
-        currency: event.currency,
-        status: event.status,
-        pointsAwarded,
-        receivedAt: new Date(event.receivedAt),
-      },
-    });
-    if (pointsAwarded > 0) {
-      await creditPoints(tx as never, {
-        userId: event.userId,
-        tenantId: event.tenantId,
-        amount: pointsAwarded,
-        description: `Comissão ${event.network} - Pedido ${event.orderId}`,
+  try {
+    const commission = await db.$transaction(async (tx) => {
+      const created = await tx.commission.create({
+        data: {
+          id: event.id,
+          tenantId: event.tenantId,
+          network: event.network,
+          trackingId: event.trackingId,
+          userId: event.userId,
+          orderId: event.orderId,
+          orderValue: event.orderValue,
+          commissionValue: event.commissionValue,
+          currency: event.currency,
+          status: event.status,
+          pointsAwarded,
+          receivedAt: new Date(event.receivedAt),
+        },
       });
-    }
-    return created;
-  });
+      if (pointsAwarded > 0) {
+        await creditPoints(asPointsTx(tx), {
+          userId: event.userId,
+          tenantId: event.tenantId,
+          amount: pointsAwarded,
+          description: `Comissão ${event.network} - Pedido ${event.orderId}`,
+        });
+      }
+      return created;
+    });
 
-  return { commissionId: commission.id, alreadyProcessed: false };
+    return { commissionId: commission.id, alreadyProcessed: false };
+  } catch (error) {
+    // P2002 = @@unique([tenantId, network, orderId]) violado por uma entrega
+    // concorrente. Isso é idempotência funcionando, não um erro de servidor.
+    if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'P2002') {
+      const duplicate = await db.commission.findFirst({
+        where: { orderId: event.orderId, network: event.network },
+        select: { id: true },
+      });
+      return { commissionId: duplicate?.id ?? event.id, alreadyProcessed: true };
+    }
+    throw error;
+  }
 }
 
 export async function processLomadeePostback(payload: LomadeePostbackPayload) {
@@ -283,7 +279,7 @@ export async function processLomadeePostback(payload: LomadeePostbackPayload) {
     return { success: true, message: 'Já processado' };
   }
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     await tx.redemption.update({
       where: { id: redemption.id },
       data: {

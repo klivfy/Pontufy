@@ -1,6 +1,6 @@
 import { getTenantDb } from '@/infra/db';
 import { DomainError } from '@/domain/auth';
-import { creditPoints } from '@/domain/points';
+import { asPointsTx, creditPoints } from '@/domain/points';
 import { burstMultiplier, countCompletionsToday, getStreak, getUserTier } from '@/domain/engagement';
 import { creditDepartmentStudyHours, awardDepartmentBonusIfGoalMet } from '@/domain/engagement';
 import { notifyLessonCompleted, notifyStreakMilestone, notifyLevelUp } from '@/lib/notifications';
@@ -47,19 +47,41 @@ export async function completeLesson(params: { tenantId: string; userId: string;
   const burst = burstMultiplier(completionsToday);
   const pointsToAward = Math.round(lesson.pointsAssigned * burst);
 
-  const result = await db.$transaction(async (tx: any) => {
-    await tx.lessonCompletion.create({ data: { userId, tenantId, lessonId } });
-    const updatedUser = await creditPoints(tx as never, {
-      userId,
-      tenantId,
-      amount: pointsToAward,
-      description:
-        burst > 1
-          ? `Conclusão da Aula: ${lesson.title} (burst x${burst})`
-          : `Conclusão da Aula: ${lesson.title}`,
-    });
-    return { updatedUser };
-  });
+  const result = await (async () => {
+    try {
+      return await db.$transaction(async (tx) => {
+        await tx.lessonCompletion.create({ data: { userId, tenantId, lessonId } });
+        const updatedUser = await creditPoints(asPointsTx(tx), {
+          userId,
+          tenantId,
+          amount: pointsToAward,
+          description:
+            burst > 1
+              ? `Conclusão da Aula: ${lesson.title} (burst x${burst})`
+              : `Conclusão da Aula: ${lesson.title}`,
+        });
+        return { updatedUser, duplicate: false as const };
+      });
+    } catch (error) {
+      // P2002 = @@unique([userId, lessonId]) violado por uma requisição
+      // concorrente que venceu a corrida. Não é erro de servidor: a conclusão
+      // já existe. Isso mantém a idempotência mesmo SEM o lock distribuído.
+      if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'P2002') {
+        const user = await db.user.findFirst({ where: { id: userId } });
+        return { updatedUser: { id: userId, pointsBalance: user?.pointsBalance ?? 0 }, duplicate: true as const };
+      }
+      throw error;
+    }
+  })();
+
+  if (result.duplicate) {
+    return {
+      success: true,
+      message: 'Aula já concluída anteriormente.',
+      newBalance: result.updatedUser.pointsBalance,
+      alreadyCompleted: true,
+    };
+  }
 
   const streak = await getStreak(userId, tenantId);
   const isMilestone = streak.current >= 3 && (streak.current % 3 === 0 || streak.current <= 5);
@@ -169,7 +191,7 @@ export async function submitQuiz(params: {
   let bonusAwarded = false;
   let newBalance: number | undefined;
 
-  await db.$transaction(async (tx: any) => {
+  await db.$transaction(async (tx) => {
     const attempt = await tx.quizAttempt.create({
       data: { userId, tenantId, courseId, score, total, passed },
     });
@@ -180,7 +202,7 @@ export async function submitQuiz(params: {
         select: { id: true },
       });
       if (!previousPass) {
-        const updated = await creditPoints(tx as never, {
+        const updated = await creditPoints(asPointsTx(tx), {
           userId,
           tenantId,
           amount: QUIZ_BONUS_POINTS,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/infra/session';
-import { acquireLock, releaseLock } from '@/infra/mutex';
+import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
 import { redeemReward, PointsError } from '@/domain/rewards';
 import { getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Muitos resgates em sequência. Aguarde um instante.' }, { status: 429 });
   }
 
-  let lockKey = '';
+  let lock: LockHandle | null = null;
   try {
     const { tenantId, userId } = await getSessionContext();
     const tenantRate = await tenantRateLimit(tenantId, 'rewards-redeem', REDEEM_TENANT_MAX, REDEEM_TENANT_WINDOW);
@@ -32,9 +32,8 @@ export async function POST(request: Request) {
     const { data: body, error: validationError } = parseBody(redeemSchema, raw);
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
-    lockKey = `lock:redeem:${tenantId}:${userId}`;
-    const lockAcquired = await acquireLock(lockKey, 10);
-    if (!lockAcquired) {
+    lock = await acquireLock(`lock:redeem:${tenantId}:${userId}`, 10);
+    if (!lock) {
       return NextResponse.json({ error: 'Resgate já em andamento. Aguarde.' }, { status: 429 });
     }
 
@@ -43,7 +42,6 @@ export async function POST(request: Request) {
       userId,
       rewardId: body.rewardId,
       productUrl: body.productUrl,
-      pointsCost: body.pointsCost,
       productTitle: body.productTitle,
     });
     return NextResponse.json(result);
@@ -56,6 +54,6 @@ export async function POST(request: Request) {
     if (mapped.status >= 500) logger.error('POST /api/rewards/redeem', { error: String(error) }, 'rewards');
     return NextResponse.json(mapped.body, { status: mapped.status });
   } finally {
-    if (lockKey) await releaseLock(lockKey);
+    await releaseLock(lock);
   }
 }

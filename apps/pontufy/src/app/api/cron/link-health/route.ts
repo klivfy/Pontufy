@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRawPrisma } from '@/infra/db';
 import { logger } from '@/infra/logger';
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const vercelCronHeader = request.headers.get('x-vercel-cron');
-  const isVercelCron = vercelCronHeader === '1';
-  const cronSecret = process.env.CRON_SECRET;
-  const isAuthorized = isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`);
-
-  if (!isAuthorized) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const auth = authorizeCronRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const prisma = getRawPrisma();

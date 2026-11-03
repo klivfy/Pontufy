@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { getTenantDb } from '@/backend/db';
-import { generateCertificatePdf, computeCertificateSignature } from './certificate-generator';
+import {
+  buildCertificatePayload,
+  computeCertificateSignature,
+  generateCertificatePdf,
+} from './certificate-generator';
 import { resolveBaseUrl } from '@/lib/email';
 
 // Serviço compartilhado de emissão de certificados (usado por
@@ -95,12 +99,29 @@ export async function issueCertificate(
     lessonCount: lessonIds.length,
     verificationHash,
   };
+  // Guardamos a string canônica exata: a verificação pública recalcula o HMAC
+  // sobre ela em vez de reconstruir os dados (fonte do bug de "sempre inválido").
+  const signedPayload = buildCertificatePayload(certData);
   const signature = computeCertificateSignature(certData);
 
   const certificate = await db.issuedCertificate.upsert({
     where: { userId_courseId: { userId, courseId } },
-    update: { courseName: course.title, issuedAt: new Date(), verificationHash, signature },
-    create: { userId, tenantId, courseId, courseName: course.title, verificationHash, signature },
+    update: {
+      courseName: course.title,
+      issuedAt: new Date(),
+      verificationHash,
+      signature,
+      signedPayload,
+    },
+    create: {
+      userId,
+      tenantId,
+      courseId,
+      courseName: course.title,
+      verificationHash,
+      signature,
+      signedPayload,
+    },
   });
 
   const buffer = generateCertificatePdf({

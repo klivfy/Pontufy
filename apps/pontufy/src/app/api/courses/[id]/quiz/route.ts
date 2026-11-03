@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/infra/session';
-import { acquireLock, releaseLock } from '@/infra/mutex';
+import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
 import { submitQuiz } from '@/domain/learning';
 import { logger } from '@/infra/logger';
@@ -11,15 +11,14 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  let lockKey = '';
+  let lock: LockHandle | null = null;
   try {
     const { tenantId, userId } = await getSessionContext();
     const { id } = await params;
     const body = await request.json().catch(() => null);
 
-    lockKey = `lock:quiz:${tenantId}:${userId}:${id}`;
-    const lockAcquired = await acquireLock(lockKey, 10);
-    if (!lockAcquired) {
+    lock = await acquireLock(`lock:quiz:${tenantId}:${userId}:${id}`, 10);
+    if (!lock) {
       return NextResponse.json({ error: 'Transação já em andamento. Aguarde.' }, { status: 429 });
     }
 
@@ -30,6 +29,6 @@ export async function POST(
     if (mapped.status >= 500) logger.error('POST /api/courses/[id]/quiz', { error: String(error) }, 'learning');
     return NextResponse.json(mapped.body, { status: mapped.status });
   } finally {
-    if (lockKey) await releaseLock(lockKey);
+    await releaseLock(lock);
   }
 }

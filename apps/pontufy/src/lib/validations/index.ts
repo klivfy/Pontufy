@@ -49,12 +49,13 @@ export const completeLessonSchema = z.object({
   lessonId: z.string({ message: 'lessonId é obrigatório.' }).uuid({ message: 'lessonId inválido.' }),
 });
 
+// Resgate de recompensa. O PREÇO nunca vem do cliente: só `rewardId` (o valor
+// é lido de Reward.pricePoints no servidor). `productUrl` existe apenas para o
+// fluxo "abrir oferta" da vitrine, que NÃO debita pontos.
 export const redeemSchema = z
   .object({
     rewardId: z.string().uuid().optional(),
-    productUrl: z.string().url().optional(),
-    // Campos do fluxo Lomadee (browse/resgate direto de produto)
-    pointsCost: z.number().int().nonnegative().max(1_000_000).optional(),
+    productUrl: z.string().url().max(2048).optional(),
     productTitle: z.string().max(200).optional(),
   })
   .refine((v) => v.rewardId || v.productUrl, {
