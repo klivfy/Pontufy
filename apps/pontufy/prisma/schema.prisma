@@ -52,6 +52,7 @@ model Tenant {
   userSkillProgress  UserSkillProgress[]
   battles            Battle[]
   redemptions        Redemption[]
+  emailVerifications EmailVerification[]
 }
 
 model User {
@@ -79,6 +80,7 @@ model User {
   auditLogs           AuditLog[]
   quizAttempts        QuizAttempt[]
   redemptions         Redemption[]
+  emailVerifications  EmailVerification[]
 
   @@index([tenantId])
   @@index([tenantId, pointsBalance])
@@ -237,6 +239,43 @@ model PasswordReset {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Verificação de e-mail do tenant (V3 do SEGURANCA-ESTRUTURAL.md)
+// ───────────────────────────────────────────────────────────────────────────
+// Tenant criado pelo formulário público nasce em `contractStatus =
+// 'pending_verification'` com `aiCredits = 0`. Os créditos de trial só são
+// concedidos — e o login liberado — quando o e-mail é provado por este token.
+// Substitui o provisionamento implícito que criava empresa para qualquer login
+// Google desconhecido, sem limite e com 20 créditos de IA.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model EmailVerification {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  email     String
+  tenantId  String
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([tenantId])
+}
+
+// Contadores diários de provisionamento. Kill switch de custo: limita quantos
+// tenants nascem por dia e quantos créditos de IA são concedidos por dia.
+// Vive no banco (não no Redis) para funcionar mesmo com a infra de cache fora.
+model ProvisioningQuota {
+  day       String   @id // YYYY-MM-DD (UTC)
+  tenants   Int      @default(0)
+  aiCredits Int      @default(0)
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {

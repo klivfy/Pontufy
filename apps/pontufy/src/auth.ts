@@ -12,7 +12,7 @@ import {
 import { resolveBaseUrl, sendAccountLockedEmail } from '@/lib/email';
 import { getRedis } from '@/lib/redis';
 import { logAudit } from '@/lib/audit';
-import { getTenantDb } from '@/backend/db';
+import { isTenantBlocked } from '@/domain/tenant/status';
 import { verifyGoogleBridgeTicket } from '@/domain/auth/google-ticket';
 
 declare module 'next-auth' {
@@ -101,11 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // evitando migration sem acesso ao banco; a coluna pode ser adicionada
           // depois via migration normal).
           const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-          const tenantBlocked =
-            !tenant ||
-            tenant.contractStatus === 'suspended' ||
-            tenant.contractStatus === 'cancelled' ||
-            tenant.subscriptionStatus === 'canceled';
+          const tenantBlocked = isTenantBlocked(tenant);
           if (tenantBlocked) {
             console.warn(`[auth] Login recusado: tenant inativo (${user.tenantId}).`);
             return null;
@@ -197,11 +193,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!user) return null;
 
           const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-          const tenantBlocked =
-            !tenant ||
-            tenant.contractStatus === 'suspended' ||
-            tenant.contractStatus === 'cancelled' ||
-            tenant.subscriptionStatus === 'canceled';
+          const tenantBlocked = isTenantBlocked(tenant);
           if (tenantBlocked) return null;
 
           if (user.role === 'super_admin' && !user.email.endsWith('@pontufy.com')) {

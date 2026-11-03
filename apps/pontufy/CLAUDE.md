@@ -59,10 +59,12 @@ Isolamento multi-tenant: **nunca** `prisma` direto para dado de tenant. Sempre `
 - **Não aceitar `x-vercel-cron` como autorização de cron.** Só `Authorization: Bearer $CRON_SECRET` (`src/lib/security/cron-auth.ts`)
 - **Não aceitar preço de resgate vindo do cliente.** Só `rewardId`; o valor é `Reward.pricePoints` no servidor
 - **Não voltar o débito de pontos para read-then-update.** Usar `debitPoints` (UPDATE condicional) + a constraint `User_pointsBalance_nonneg`
+- **Tenant só nasce em `provisionTenant()`** (`src/domain/tenant/provision.ts`). Nenhuma rota ou fluxo cria `Tenant` direto: é lá que ficam os tetos diários, o estado `pending_verification` e a concessão de créditos de IA
+- **`pending_verification` bloqueia login** — a regra vive em `isTenantBlocked()` (`src/domain/tenant/status.ts`). Não duplicar checagem de `contractStatus` em outro arquivo
 
 ## Rotas públicas no proxy
 
-`/login`, `/register`, `/forgot-password`, `/reset-password`, `/unlock-account`, `/verify`, `/termos`, `/privacidade`, `/superadmin/login`.
+`/login`, `/register`, `/forgot-password`, `/reset-password`, `/unlock-account`, `/verify`, `/verify-tenant`, `/termos`, `/privacidade`, `/superadmin/login`.
 
 `/admin/*` exige `admin_rh`. `/superadmin/*` exige `super_admin` + email `@pontufy.com` (403 opaco).
 

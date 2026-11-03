@@ -89,12 +89,16 @@ function TenantRegisterForm() {
           </Link>
 
           <CheckCircle2 size={48} className="text-md-tertiary mx-auto mb-4" />
-          <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Empresa criada com sucesso!</h1>
+          <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Empresa criada!</h1>
           <p className="text-body-md text-md-on-surface-variant mb-2">
-            Seu período de teste de 14 dias já está ativo.
+            Enviamos um link de confirmação para{' '}
+            <strong className="text-md-on-surface">{adminEmail.trim() || 'seu e-mail'}</strong>.
           </p>
-          <p className="text-body-md text-md-on-surface-variant mb-8">
-            Faça login com o email do administrador para começar.
+          <p className="text-body-md text-md-on-surface-variant mb-2">
+            Ao confirmar, sua conta é ativada e os créditos de IA do período de teste são liberados.
+          </p>
+          <p className="text-body-sm text-md-on-surface-variant/70 mb-8">
+            Não recebeu? Verifique a caixa de spam antes de tentar novamente.
           </p>
 
           <button

@@ -1,11 +1,9 @@
-import { randomBytes } from 'node:crypto';
 import { prisma } from '@/infra/db';
 import { logAudit } from '@/lib/audit';
 import { sendWelcomeEmail } from '@/lib/email';
+import { isTenantBlocked, provisionTenant, TENANT_SECTORS, type TenantSector } from '@/domain/tenant';
 
-const VALID_SECTORS = ['tech', 'health', 'retail', 'industry'] as const;
-const TRIAL_DAYS = 14;
-const TRIAL_AI_CREDITS = 20;
+const VALID_SECTORS = TENANT_SECTORS;
 
 export type GoogleAuthIntent = 'login' | 'invite' | 'tenant';
 
@@ -22,41 +20,6 @@ export type GoogleUpsertResult =
   | { ok: true; user: { id: string; email: string; name: string; tenantId: string; role: string } }
   | { ok: false; code: string; message: string };
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-}
-
-function randomSuffix(): string {
-  return randomBytes(3).toString('hex');
-}
-
-async function buildUniqueSlug(base: string): Promise<string> {
-  const candidate = slugify(base) || `conta-${randomSuffix()}`;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const slug = attempt === 0 ? candidate : `${candidate}-${randomSuffix()}`;
-    const existing = await prisma.tenant.findUnique({ where: { slug } });
-    if (!existing) return slug;
-  }
-  return `${candidate}-${randomSuffix()}`;
-}
-
-function isTenantBlocked(tenant: {
-  contractStatus: string;
-  subscriptionStatus: string | null;
-} | null): boolean {
-  if (!tenant) return true;
-  return (
-    tenant.contractStatus === 'suspended' ||
-    tenant.contractStatus === 'cancelled' ||
-    tenant.subscriptionStatus === 'canceled'
-  );
-}
 
 function normalizeRole(role: string): 'admin_rh' | 'employee' {
   if (role === 'admin_rh') return 'admin_rh';
@@ -145,7 +108,16 @@ export async function upsertGoogleUser(input: GoogleUpsertInput): Promise<Google
     return createCompanyTenant(email, name, input.companyName, input.sector);
   }
 
-  return createPersonalTenant(email, name);
+  // V3: login comum com e-mail desconhecido NÃO cria empresa. Antes, qualquer
+  // conta Google nova provisionava tenant + trial + 20 créditos de IA sem
+  // nenhum limite. Agora a criação exige intenção explícita (formulário de
+  // empresa ou convite).
+  return {
+    ok: false,
+    code: 'signup_required',
+    message:
+      'Não encontramos uma conta para este e-mail. Peça um convite ao seu gestor ou cadastre sua empresa.',
+  };
 }
 
 async function createFromInvitation(
@@ -225,107 +197,39 @@ async function createCompanyTenant(
     typeof companyName === 'string' && companyName.trim().length >= 2
       ? companyName.trim().slice(0, 80)
       : `Empresa de ${name}`;
-  const resolvedSector = VALID_SECTORS.includes(sector as (typeof VALID_SECTORS)[number])
-    ? (sector as (typeof VALID_SECTORS)[number])
+  const resolvedSector: TenantSector = VALID_SECTORS.includes(sector as TenantSector)
+    ? (sector as TenantSector)
     : 'tech';
 
-  const slug = await buildUniqueSlug(resolvedName);
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-
-  const result = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: resolvedName,
-        slug,
-        sector: resolvedSector,
-        plan: 'trial',
-        trialEndsAt,
-        aiCredits: TRIAL_AI_CREDITS,
-        contractStatus: 'active',
-      },
-    });
-    const admin = await tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        name,
-        email,
-        role: 'admin_rh',
-        passwordHash: null,
-        pointsBalance: 0,
-      },
-    });
-    return { tenant, admin };
+  // Ponto único de criação de tenant (V3). O Google só entrega o e-mail após
+  // verificá-lo, então esta origem entra ativa e recebe os créditos do trial
+  // — respeitando o teto diário global dentro de provisionTenant.
+  const provisioned = await provisionTenant({
+    companyName: resolvedName,
+    sector: resolvedSector,
+    adminName: name,
+    adminEmail: email,
+    adminPasswordHash: null,
+    emailVerified: true,
+    origin: 'google',
   });
 
-  sendWelcomeEmail(email, name).catch(() => {});
-  await logAudit({
-    tenantId: result.tenant.id,
-    userId: result.admin.id,
-    action: 'TENANT_ONBOARDED',
-    entity: 'Tenant',
-    entityId: result.tenant.id,
-    newValue: { via: 'google', companyName: resolvedName, sector: resolvedSector },
-  });
+  if (!provisioned.ok) {
+    return {
+      ok: false,
+      code: provisioned.code === 'EMAIL_TAKEN' ? 'google_email_taken' : 'google_provision_limit',
+      message: provisioned.message,
+    };
+  }
 
   return {
     ok: true,
     user: {
-      id: result.admin.id,
-      email: result.admin.email,
-      name: result.admin.name,
-      tenantId: result.admin.tenantId,
-      role: result.admin.role,
-    },
-  };
-}
-
-async function createPersonalTenant(email: string, name: string): Promise<GoogleUpsertResult> {
-  const slug = await buildUniqueSlug(email.split('@')[0] || name);
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-
-  const result = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: `Conta de ${name}`,
-        slug,
-        sector: 'tech',
-        plan: 'trial',
-        trialEndsAt,
-        aiCredits: TRIAL_AI_CREDITS,
-        contractStatus: 'active',
-      },
-    });
-    const user = await tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        name,
-        email,
-        role: 'employee',
-        passwordHash: null,
-        pointsBalance: 0,
-      },
-    });
-    return user;
-  });
-
-  sendWelcomeEmail(email, name).catch(() => {});
-  await logAudit({
-    tenantId: result.tenantId,
-    userId: result.id,
-    action: 'USER_REGISTERED_GOOGLE',
-    entity: 'User',
-    entityId: result.id,
-    newValue: { role: 'employee', via: 'personal' },
-  });
-
-  return {
-    ok: true,
-    user: {
-      id: result.id,
-      email: result.email,
-      name: result.name,
-      tenantId: result.tenantId,
-      role: result.role,
+      id: provisioned.adminId,
+      email,
+      name,
+      tenantId: provisioned.tenantId,
+      role: 'admin_rh',
     },
   };
 }

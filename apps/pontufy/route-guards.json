@@ -57,6 +57,7 @@
   "/api/superadmin/security/ips": "auth:super_admin_domain",
   "/api/superadmin/tenants/[id]/credits": "auth:super_admin_domain",
   "/api/tenants/onboarding": "public",
+  "/api/tenants/verify": "public",
   "/api/users/me": "session",
   "/api/users/me/history": "session",
   "/api/users/profile": "session",

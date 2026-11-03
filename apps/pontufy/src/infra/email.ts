@@ -4,6 +4,20 @@ type EmailPayload = {
   html: string;
 };
 
+/**
+ * Escape para conteúdo interpolado em templates de e-mail.
+ * Nomes, títulos de curso e nomes de empresa são editáveis por usuário: sem
+ * escape, HTML/e-mail injection com remetente legítimo da Pontufy.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendEmail(payload: EmailPayload): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -65,8 +79,38 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   });
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+/**
+ * Confirmação de e-mail do administrador na criação da empresa (V3).
+ * O link aponta para uma PÁGINA (não para a API): scanners de e-mail fazem
+ * prefetch de links e consumiriam um token de uso único.
+ */
+export async function sendEmailVerificationEmail(
+  to: string,
+  name: string,
+  token: string,
+): Promise<boolean> {
+  const verifyUrl = `${resolveBaseUrl()}/verify-tenant?token=${encodeURIComponent(token)}`;
+
   return sendEmail({
+    to,
+    subject: 'Pontufy — confirme seu e-mail para ativar a empresa',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #10b981;">Pontufy</h2>
+        <p>Olá <strong>${escapeHtml(name)}</strong>, sua empresa foi criada.</p>
+        <p>Para ativar a conta e liberar os créditos de IA do período de teste, confirme seu e-mail:</p>
+        <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Confirmar e-mail
+        </a>
+        <p style="color: #666; font-size: 12px; margin-top: 24px;">
+          Este link é de uso único e expira em 24 horas. Se você não criou esta conta, ignore este email.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {  return sendEmail({
     to,
     subject: 'Bem-vindo ao Pontufy!',
     html: `

@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/infra/db';
 import { getRedis } from '@/infra/redis';
+import { isTenantBlocked } from '@/domain/tenant/status';
 
 export async function getSessionContext() {
   const session = await auth();
@@ -22,11 +23,7 @@ export async function getSessionContext() {
     select: { contractStatus: true, subscriptionStatus: true },
   });
 
-  const tenantBlocked =
-    !tenant ||
-    tenant.contractStatus === 'suspended' ||
-    tenant.contractStatus === 'cancelled' ||
-    tenant.subscriptionStatus === 'canceled';
+  const tenantBlocked = isTenantBlocked(tenant);
 
   if (tenantBlocked) {
     throw new Error('Conta da empresa inativa.');
