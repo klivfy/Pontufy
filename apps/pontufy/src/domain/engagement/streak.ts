@@ -212,11 +212,29 @@ export async function getXpLeaderboard(tenantId: string, userId: string) {
     take: 10,
   });
 
-  const allRanks = await db.pointsLedger.groupBy({
-    by: ['userId'],
-    where: { type: 'gain' },
+  // V7 — o ranking geral era materializado em Node (`groupBy` de TODOS os
+  // usuários) só para descobrir o total e a posição de uma pessoa. Agora:
+  //   • total: um `aggregate` que devolve uma linha;
+  //   • posição: um COUNT agregado no Postgres.
+  // Nenhum dos dois trafega O(usuários) linhas para a função serverless.
+  const myAggregate = await db.pointsLedger.aggregate({
+    where: { type: 'gain', userId },
     _sum: { pointsAmount: true },
   });
+  const myTotal = myAggregate._sum.pointsAmount ?? 0;
+
+  // `$queryRaw` não passa pelo interceptor de tenant — o tenantId vai explícito.
+  const aheadRows = await db.$queryRaw<Array<{ ahead: bigint | number }>>`
+    SELECT COUNT(*) AS ahead
+    FROM (
+      SELECT "userId", SUM("pointsAmount") AS total
+      FROM "PointsLedger"
+      WHERE "tenantId" = ${tenantId} AND "type" = 'gain'
+      GROUP BY "userId"
+    ) ranked
+    WHERE ranked.total > ${myTotal}
+  `;
+  const myPosition = Number(aheadRows[0]?.ahead ?? 0) + 1;
 
   const userIds = rankingRows.map((r: { userId: string }) => r.userId);
   const users = userIds.length > 0
@@ -226,9 +244,6 @@ export async function getXpLeaderboard(tenantId: string, userId: string) {
       })
     : [];
   const userMap = new Map(users.map((u: { id: string; name: string; email: string }) => [u.id, u]));
-
-  const myTotal = allRanks.find((r: { userId: string; _sum: { pointsAmount: number | null } }) => r.userId === userId)?._sum.pointsAmount ?? 0;
-  const myPosition = allRanks.filter((r: { _sum: { pointsAmount: number | null } }) => (r._sum.pointsAmount ?? 0) > myTotal).length + 1;
 
   const ranking = rankingRows
     .map((row: { userId: string; _sum: { pointsAmount: number | null } }, index: number) => ({
