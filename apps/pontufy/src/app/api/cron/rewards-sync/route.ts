@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRawPrisma } from '@/backend/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
 
 export const dynamic = 'force-dynamic'; // Prevent static caching for cron endpoints

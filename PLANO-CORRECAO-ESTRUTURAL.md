@@ -56,7 +56,7 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 ## 3. Sprint E1 — "Fechar o que dá dinheiro e o que desliga sozinho" (semana 1 · 5 d)
 
-> **Progresso em 03/11/2026:** E1.1 ✅ e E1.2 ✅ concluídos e publicados na branch `sec/fase-1-2`. E1.3 (V2) em andamento.
+> **Progresso em 03/11/2026:** E1.1 ✅, E1.2 ✅ e E1.3 ✅ concluídos e publicados na branch `sec/fase-1-2`. Sprint E1 fechado.
 
 ### E1.1 · V3 — Provisionamento unificado (2 d) ✅
 
@@ -116,7 +116,7 @@ As correções já feitas (Fases 1–2 + V1 + V9 parcial) **não estão em produ
 
 ---
 
-### E1.3 · V2 — Interceptor vira barreira (2 d)
+### E1.3 · V2 — Interceptor vira barreira (2 d) ✅
 
 **Problema.** 36 chamadas diretas a modelos de tenant em 15 arquivos; `$queryRaw` e escrita aninhada passam por fora; nada impede a 37ª.
 

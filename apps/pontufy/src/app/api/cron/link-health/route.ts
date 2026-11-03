@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRawPrisma } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { logger } from '@/infra/logger';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
 

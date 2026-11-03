@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import type { PrismaClient } from '@prisma/client';
-import { getRawPrisma } from '@/backend/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { lomadeeService, LomadeeCoupon, LomadeeOffer } from '@/lib/lomadee';
 import { logAudit } from '@/lib/audit';
 import { cacheDeletePattern } from '@/lib/redis';

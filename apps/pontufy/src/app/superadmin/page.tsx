@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, Building2, ShieldAlert, CreditCard, Server } from 'lucide-react';
-import { getRawPrisma } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { getRedis } from '@/infra/redis';
 
 export default async function SuperAdminPage() {

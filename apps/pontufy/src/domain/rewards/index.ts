@@ -1,5 +1,6 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { getTenantDb, getRawPrisma } from '@/infra/db';
+import { getTenantDb } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { cacheGet, cacheSet, cacheDeletePattern } from '@/infra/redis';
 import { createLomadeeTrackedLink } from '@/infra/lomadee';
 import { asPointsTx, creditPoints, debitPoints, PointsError } from '@/domain/points';

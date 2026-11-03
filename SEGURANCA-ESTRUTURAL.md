@@ -120,6 +120,8 @@ export const ROUTE_POLICY = {
 2. `getRawPrisma()` movido para um módulo separado com nome hostil (`platform-db.ts`) — importar passa a ser um ato deliberado.
 3. Teste de contrato por modelo (já sugerido na Fase 2) provando que leitura/escrita escopada não vaza.
 
+> **Status: fechado.** `src/infra/platform-db.ts` é o único módulo que entrega client sem escopo (removido de `infra/db.ts` e de `backend/db.ts`). A regra `no-restricted-syntax` cobre os 19 modelos de tenant com allowlist de 19 arquivos justificados em `eslint.config.mjs`; provado por arquivo-sonda que dispara com mensagem acionável. Contrato em `tests/api/tenant-db-contract.spec.ts`: leitura cruzada, `upsert` (que passava sem escopo), `create` com `tenantId` estrangeiro e o híbrido `Reward`.
+
 ---
 
 ### V3 · Provisionamento self-service em dois caminhos, um sem controle — **ALTO**

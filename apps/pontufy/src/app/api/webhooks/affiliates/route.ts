@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { getRawPrisma } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { persistCommission } from '@/domain/rewards';
 import { logger } from '@/infra/logger';
 

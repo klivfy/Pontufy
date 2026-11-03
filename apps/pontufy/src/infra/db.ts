@@ -203,16 +203,7 @@ export function getTenantDb(tenantId: string) {
   });
 }
 
-/**
- * Returns the raw Prisma client for administrative operations that require
- * cross-tenant access (e.g., super_admin dashboards, migrations, seeding).
- * 
- * ⚠️ USE WITH EXTREME CAUTION — bypasses all Zero Trust isolation.
- * Only permitted in:
- *   - Super admin routes (with explicit role + domain validation)
- *   - Database migrations / seeding scripts
- *   - Background jobs with explicit tenant context
- */
-export function getRawPrisma(): PrismaClient {
-  return prisma;
-}
+// O client sem escopo de tenant NÃO mora mais aqui: ver `src/infra/platform-db.ts`.
+// Manter `getRawPrisma` no mesmo módulo de `getTenantDb` tornava o atalho
+// invisível — importar do nome hostil é uma decisão deliberada.
+

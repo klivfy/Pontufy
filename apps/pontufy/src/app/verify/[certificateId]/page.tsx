@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { verifyPayload } from '@/lib/certificate-generator';
-import { getRawPrisma } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 
 interface Props {
   params: Promise<{ certificateId: string }>;
