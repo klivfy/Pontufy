@@ -34,6 +34,11 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       # Dummy: suficiente para `next build`, inútil como credencial.
       AUTH_SECRET: ci-build-only-not-a-real-secret-0000000000
+      # `prisma validate`/`generate` exigem que as variáveis referenciadas no
+      # schema existam. São valores falsos (não há conexão neste job) e não
+      # vazam nada: o `.env.example` já publica placeholders equivalentes.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
 
     steps:
       - name: Checkout
