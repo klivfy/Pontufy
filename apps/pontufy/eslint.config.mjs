@@ -51,6 +51,7 @@ const RAW_PRISMA_ALLOWLIST = [
   'src/auth.ts',
   'src/infra/session.ts',
   'src/infra/session-version.ts',
+  'src/infra/upload-quota.ts',
   'src/domain/auth/google.ts',
   'src/domain/tenant/provision.ts',
   'src/app/api/auth/register/route.ts',

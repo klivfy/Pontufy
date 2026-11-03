@@ -53,6 +53,7 @@ model Tenant {
   battles            Battle[]
   redemptions        Redemption[]
   emailVerifications EmailVerification[]
+  uploadQuotas        UploadQuota[]
 }
 
 model User {
@@ -292,6 +293,23 @@ model JobLock {
   updatedAt DateTime @updatedAt
 
   @@index([expiresAt])
+}
+
+// Quota diária de upload por tenant (V6, parte 2).
+// O limite por requisição (5 arquivos / 12 MB) não impede um cliente de fazer
+// a mesma chamada em sequência. Esta tabela mede o consumo do dia por tenant:
+// é o que transforma "limite por lote" em "limite de uso".
+model UploadQuota {
+  tenantId  String
+  day       String   // YYYY-MM-DD (UTC)
+  files     Int      @default(0)
+  bytes     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, day])
+  @@index([day])
 }
 
 model AuditLog {

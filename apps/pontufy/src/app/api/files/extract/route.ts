@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/backend/session';
+import { reserveUploadQuota } from '@/infra/upload-quota';
 import { logger } from '@/infra/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -114,6 +115,25 @@ export async function POST(request: Request) {
         code: 'PAYLOAD_TOO_LARGE',
       },
       { status: 413 },
+    );
+  }
+
+  // V6 (parte 2) — quota diária por tenant. O limite por lote não impede
+  // repetição; a reserva acontece ANTES do parse e é contabilizada mesmo que
+  // o arquivo falhe depois (é o custo de CPU que se está limitando).
+  const quota = await reserveUploadQuota(tenantId, files.length, totalBytes);
+  if (!quota.allowed) {
+    const isFiles = quota.reason === 'files';
+    return NextResponse.json(
+      {
+        error: isFiles
+          ? `Limite diário de ${quota.limit} arquivos atingido para esta empresa. Tente novamente amanhã.`
+          : `Limite diário de ${Math.round(quota.limit / 1024 / 1024)} MB de upload atingido para esta empresa.`,
+        code: 'UPLOAD_QUOTA_EXCEEDED',
+        used: quota.used,
+        limit: quota.limit,
+      },
+      { status: 429 },
     );
   }
 

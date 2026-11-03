@@ -12,6 +12,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `Verificar Certificado | Pontufy`,
     description: `Verifique a autenticidade do certificado ${certificateId} na plataforma Pontufy.`,
+    // V9 — a página expõe o nome do colaborador por design (é o propósito da
+    // verificação pública), mas não deve ser indexada nem propagar link juice.
+    robots: { index: false, follow: false, nocache: true },
     openGraph: {
       title: `Verificar Certificado ${certificateId}`,
       description: 'Verificação de autenticidade de certificado Pontufy',
