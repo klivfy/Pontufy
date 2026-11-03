@@ -4,21 +4,21 @@ import { buildProviderChain, checkAIProviders } from '../../src/lib/ai-providers
 // ═══════════════════════════════════════════════════════════════════════════
 // Cadeia de provedores de IA — contrato puro, sem rede e sem banco.
 //
-// Estes testes existem porque a escolha do provedor é invisível em execução:
-// se `AI_BASE_URL` for ignorada por engano, o sintoma é "a geração caiu no
-// template local" e ninguém descobre o motivo. Aqui a ordem é verificada.
+// A escolha do provedor é invisível em execução: se um slot for ignorado por
+// engano, o sintoma é "a geração caiu no template local". Aqui a ordem, o modo
+// de structured output e o orçamento de tokens de cada provedor são verificados.
 // ═══════════════════════════════════════════════════════════════════════════
 
+const SLOT_FIELDS = ['BASE_URL', 'API_KEY', 'MODEL', 'LABEL', 'STRUCTURED', 'TIMEOUT_MS', 'MAX_TOKENS'];
+const LEGACY_FIELDS = ['AI_BASE_URL', 'AI_API_KEY', 'AI_MODEL', 'AI_LABEL', 'AI_STRUCTURED', 'AI_TIMEOUT_MS'];
+const NATIVE = ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY'];
+
 const MANAGED = [
-  'AI_BASE_URL',
-  'AI_API_KEY',
-  'AI_MODEL',
-  'AI_LABEL',
-  'GEMINI_API_KEY',
-  'GOOGLE_GENERATIVE_AI_API_KEY',
-  'OPENAI_API_KEY',
-  'ANTHROPIC_API_KEY',
-] as const;
+  ...LEGACY_FIELDS,
+  ...NATIVE,
+  ...Array.from({ length: 10 }, (_, i) => SLOT_FIELDS.map((f) => `AI_${i + 1}_${f}`)).flat(),
+  'COURSE_MAX_OUTPUT_TOKENS',
+];
 
 let saved: Record<string, string | undefined>;
 
@@ -37,63 +37,100 @@ test.afterEach(() => {
   }
 });
 
+function configureSlot(slot: number, config: { baseUrl: string; model: string; structured?: string; maxTokens?: string }): void {
+  process.env[`AI_${slot}_BASE_URL`] = config.baseUrl;
+  process.env[`AI_${slot}_API_KEY`] = 'test-key-not-real';
+  process.env[`AI_${slot}_MODEL`] = config.model;
+  if (config.structured) process.env[`AI_${slot}_STRUCTURED`] = config.structured;
+  if (config.maxTokens) process.env[`AI_${slot}_MAX_TOKENS`] = config.maxTokens;
+}
+
 test.describe('cadeia de provedores de IA', () => {
   test('sem nenhuma chave a cadeia é vazia (o gerador cai no template local)', () => {
     expect(buildProviderChain()).toHaveLength(0);
   });
 
-  test('provedor compatível entra primeiro e usa /chat/completions', async () => {
-    process.env.AI_BASE_URL = 'https://api.groq.com/openai/v1';
-    process.env.AI_API_KEY = 'gsk_test_nao_e_uma_chave_real';
-    process.env.AI_MODEL = 'llama-3.3-70b-versatile';
-    process.env.GEMINI_API_KEY = 'AIzaChaveDeTeste0000000000000000000000';
+  test('slots numerados entram na cadeia na ordem 1, 2, 3', () => {
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', structured: 'schema' });
+    configureSlot(2, { baseUrl: 'https://ollama.com/v1', model: 'gpt-oss:120b', structured: 'json' });
+    configureSlot(3, { baseUrl: 'https://openrouter.ai/api/v1', model: 'dots-studio/dots-3-note-preview:free' });
 
     const chain = buildProviderChain();
-    expect(chain[0].name).toBe('compat:llama-3.3-70b-versatile');
-    expect(chain[0].label).toContain('api.groq.com');
-    // O modelo é construído sob demanda — aqui só provamos que não lança.
-    expect(chain[0].build()).toBeTruthy();
-
-    // Gemini continua na cadeia como fallback.
-    expect(chain.some((p) => p.name.startsWith('google:'))).toBe(true);
-
-    const diag = await checkAIProviders();
-    expect(diag.diagnostics.compat).toContain('llama-3.3-70b-versatile');
+    expect(chain.map((p) => p.name)).toEqual([
+      'compat:openai/gpt-oss-120b',
+      'compat:gpt-oss:120b',
+      'compat:dots-studio/dots-3-note-preview:free',
+    ]);
+    // O modo declarado é respeitado: Ollama Cloud sabidamente ignora json_schema.
+    expect(chain.map((p) => p.structured)).toEqual(['schema', 'json', 'auto']);
   });
 
-  test('configuração parcial do provedor compatível é ignorada (não quebra a cadeia)', () => {
-    process.env.AI_BASE_URL = 'https://api.groq.com/openai/v1';
-    process.env.AI_API_KEY = 'gsk_parcial';
-    // AI_MODEL ausente
+  test('orçamento de tokens é por provedor (Groq menor, raciocínio maior)', () => {
+    process.env.COURSE_MAX_OUTPUT_TOKENS = '8192';
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'a', maxTokens: '8192' });
+    configureSlot(2, { baseUrl: 'https://ollama.com/v1', model: 'b', maxTokens: '24000' });
+    configureSlot(3, { baseUrl: 'https://openrouter.ai/api/v1', model: 'c' }); // herda o global
 
-    const chain = buildProviderChain();
-    expect(chain).toHaveLength(0);
+    const budgets = buildProviderChain().map((p) => p.maxOutputTokens);
+    expect(budgets).toEqual([8192, 24000, 8192]);
   });
 
-  test('AI_BASE_URL malformada é ignorada em vez de derrubar a geração', () => {
-    process.env.AI_BASE_URL = 'nao-e-uma-url';
-    process.env.AI_API_KEY = 'x';
-    process.env.AI_MODEL = 'y';
+  test('timeout padrão é aplicado e pode ser sobrescrito por slot', () => {
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'a' });
+    process.env.AI_1_TIMEOUT_MS = '5000';
+    configureSlot(2, { baseUrl: 'https://ollama.com/v1', model: 'b' });
 
+    const timeouts = buildProviderChain().map((p) => p.timeoutMs);
+    expect(timeouts[0]).toBe(5000);
+    expect(timeouts[1]).toBe(90_000);
+  });
+
+  test('configuração parcial de um slot é ignorada sem derrubar os demais', () => {
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'ok' });
+    process.env.AI_2_BASE_URL = 'https://ollama.com/v1'; // sem key/model
+
+    expect(buildProviderChain().map((p) => p.name)).toEqual(['compat:ok']);
+  });
+
+  test('URL malformada é ignorada em vez de derrubar a geração', () => {
+    configureSlot(1, { baseUrl: 'nao-e-uma-url', model: 'x' });
     expect(buildProviderChain()).toHaveLength(0);
+  });
+
+  test('formato antigo (AI_BASE_URL) continua funcionando como provedor único', () => {
+    process.env.AI_BASE_URL = 'http://127.0.0.1:11434/v1';
+    process.env.AI_API_KEY = 'ollama';
+    process.env.AI_MODEL = 'llama3.2';
+
+    const chain = buildProviderChain();
+    expect(chain).toHaveLength(1);
+    expect(chain[0].name).toBe('compat:llama3.2');
   });
 
   test('chave Gemini fora do formato AIza é descartada (token OAuth não serve)', () => {
     process.env.GEMINI_API_KEY = 'AQ.tokenOAuthQueNaoFuncionaNoEndpoint';
-
-    const chain = buildProviderChain();
-    expect(chain.some((p) => p.name.startsWith('google:'))).toBe(false);
+    expect(buildProviderChain().some((p) => p.name.startsWith('google:'))).toBe(false);
   });
 
-  test('ordem final: compatível → Gemini → OpenAI → Anthropic', () => {
-    process.env.AI_BASE_URL = 'http://127.0.0.1:11434/v1';
-    process.env.AI_API_KEY = 'ollama';
-    process.env.AI_MODEL = 'llama3.2';
+  test('ordem final: compatíveis numerados → Gemini → OpenAI → Anthropic', () => {
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'a' });
+    configureSlot(2, { baseUrl: 'https://ollama.com/v1', model: 'b' });
     process.env.GEMINI_API_KEY = 'AIzaChaveDeTeste0000000000000000000000';
     process.env.OPENAI_API_KEY = 'sk-test';
     process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
 
     const names = buildProviderChain().map((p) => p.name.split(':')[0]);
-    expect(names).toEqual(['compat', 'google', 'openai', 'anthropic']);
+    expect(names).toEqual(['compat', 'compat', 'google', 'openai', 'anthropic']);
+  });
+
+  test('diagnóstico lista cada provedor compatível sem expor a chave', async () => {
+    configureSlot(1, { baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', structured: 'schema' });
+    configureSlot(2, { baseUrl: 'https://ollama.com/v1', model: 'gpt-oss:120b', structured: 'json' });
+
+    const diag = await checkAIProviders();
+    expect(diag.diagnostics.compat_1).toContain('openai/gpt-oss-120b');
+    expect(diag.diagnostics.compat_1).toContain('structured=schema');
+    expect(diag.diagnostics.compat_2).toContain('structured=json');
+    expect(JSON.stringify(diag)).not.toContain('test-key-not-real');
   });
 });

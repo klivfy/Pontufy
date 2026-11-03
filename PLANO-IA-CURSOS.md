@@ -64,36 +64,48 @@ Fontes para conferir limites (mudam com frequência): [Gemini free tier](https:/
 >
 > **Resultado da geração real (Groq, `openai/gpt-oss-120b`):** 8,1 s · 5 aulas (1.889–2.351 caracteres cada) · 5 questões · conteúdo aderente ao material de referência (DPO em 24 h, menor privilégio, retenção e descarte) · `correctIndex` sempre dentro das opções.
 
-## 2.1 Resultado medido — Groq vs OpenRouter (mesmo prompt, mesmo material)
+## 2.1 Resultado medido — os três provedores (bancada `npm run test:ai`)
 
-Geração real do motor, prompt de LGPD, material de referência sintético de 7 itens:
+Roda o motor real contra cada provedor isolado e depois a cadeia completa. Prompt de LGPD, material sintético de 7 itens.
 
-| Provedor / modelo | Resultado | Latência | Saída |
-|---|---|---|---|
-| **Groq** · `openai/gpt-oss-120b` | ✅ sucesso | **8,1 s** | 5 aulas (~2.000 chars) · 5 questões |
-| **Ollama Cloud** · `gpt-oss:120b` | ✅ sucesso **em modo JSON** (após IA-1.5) | 27,4 s | 5 aulas (~1.200 chars) · 6 questões |
-| **OpenRouter** · `dots-studio/dots-3-note-preview:free` | ✅ sucesso | 67,9 s | 7 aulas · 7 questões |
-| OpenRouter · `nvidia/nemotron-3.5-lightning:free` | ❌ `could not parse the response` | 56 s | caiu no template |
-| OpenRouter · `nvidia/nemotron-3.5-super-vl:free` | ❌ `could not parse the response` | 31 s | caiu no template |
-| OpenRouter · `google/gemma-4-31b-it:free` | ❌ 429 upstream | 2,8 s | caiu no template |
-| OpenRouter · `xingchen-agi/xing4.0-29b-a4b:free` | ❌ 429 upstream | — | — |
-| Ollama Cloud · `deepseek-v4.1-flash`, `glm-5.3-flash` | ❌ 402 (fora do plano) | — | — |
+| Provedor / modelo | Resultado | Latência | Saída | Configuração |
+|---|---|---|---|---|
+| **Groq** · `openai/gpt-oss-120b` | ✅ structured output nativo | **7,9 s** | 4 aulas · 5 questões · 10.653 chars | `schema` · 8.192 tokens |
+| **Ollama Cloud** · `gpt-oss:120b` | ✅ modo JSON | 14,2 s | 5 aulas · 6 questões · 9.494 chars | `json` · 24.000 tokens |
+| **OpenRouter** · `dots-studio/dots-3-note-preview:free` | ✅ | 54,7 s | 6 aulas · 6 questões · 7.985 chars | `auto` · 16.000 tokens |
+| **Cadeia completa** (1 → 2 → 3) | ✅ Groq respondeu | 6,4 s | 5 aulas · 5 questões | fallback pronto |
 
-**Três lições que só a execução real dá:**
+**4/4 execuções geraram conteúdo por IA — nenhuma caiu no template.**
 
-1. **Nem todo modelo `:free` suporta structured output.** O OpenRouter publica `supported_parameters` por modelo; sem `structured_outputs` ou `response_format`, o `generateObject` recebe prosa e falha com `could not parse the response`. Filtrar por esse campo antes de escolher é obrigatório — dois dos modelos "bons no papel" (contexto de 1 milhão) não serviram.
-2. **429 de upstream é rotina no plano gratuito.** `gemma-4` estava limitado no provedor de origem (Google AI Studio), não na nossa chave. Isso valida a cadeia de fallback — e mostra que confiar em um único provedor gratuito é frágil.
-3. **Latência muda a decisão de produto.** 68 s contra 8 s não é detalhe: define se a geração pode ser síncrona na UI ou precisa virar job em background. Groq é o provedor de teste; OpenRouter serve como segundo elo da cadeia.
+### Como o ambiente está montado
 
-**Quarta lição, descoberta com o Ollama Cloud:** "compatível com OpenAI" **não** significa "respeita `response_format`". O endpoint aceita o parâmetro e devolve JSON com *outra* estrutura (campos em português que inventou), dentro de bloco markdown. Por isso o **IA-1.5** foi implementado: quando o erro é de formato/schema, o motor repete a chamada em *modo JSON* — schema injetado no prompt, JSON extraído de cerca markdown, validação por Zod. Com isso o Ollama Cloud passou de inútil a funcional.
+Slots numerados no `.env.local`, cada um independente:
 
-**Quinta lição:** modelos de raciocínio (`gpt-oss`, o1-like) consomem o orçamento de saída em `reasoning`. Com `COURSE_MAX_OUTPUT_TOKENS=8192` o JSON era truncado no meio e o erro aparecia como "JSON inválido". Agora existe guarda explícita:
+```
+AI_1_LABEL / AI_1_BASE_URL / AI_1_MODEL / AI_1_API_KEY
+AI_1_STRUCTURED / AI_1_TIMEOUT_MS / AI_1_MAX_TOKENS
+AI_2_…   AI_3_…
+```
 
-> `resposta truncada por limite de tokens (COURSE_MAX_OUTPUT_TOKENS=900). Modelos de raciocínio consomem o orçamento em reasoning — aumente o limite.`
+| Campo | Por que existe |
+|---|---|
+| `STRUCTURED` | `schema` (honra `json_schema`) · `json` (ignora — vai direto ao modo JSON, sem gastar uma chamada perdida) · `auto` (tenta e recupera) |
+| `TIMEOUT_MS` | provedor lento não consome o tempo da função serverless; estourou, passa ao próximo |
+| `MAX_TOKENS` | **teto por provedor** — ver achado nº 1 |
 
-Com 24.000 tokens o mesmo modelo gerou 5 aulas e 6 questões válidas em 27 s.
+### Achados desta rodada
 
-> **Recomendação final:** Groq (`openai/gpt-oss-120b`) para desenvolvimento e testes — 8 s, structured output nativo. Ollama Cloud como segundo provedor (funciona em modo JSON, útil para testar o caminho de recuperação). OpenRouter só como terceiro elo, com `dots-studio`. Antes de fixar qualquer modelo, rode `GET /models` e filtre por `structured_outputs`.
+1. **Orçamento de tokens é por provedor, não global.** Com `COURSE_MAX_OUTPUT_TOKENS=24000` o Groq passou a falhar (`Failed to generate JSON`); com 8.192 voltou a funcionar. O mesmo teto que corrige o truncamento de modelos de raciocínio quebra o provedor de structured output. A variável era global — virou `AI_n_MAX_TOKENS`.
+2. **`STRUCTURED=schema` não significa "nunca falha".** O Groq também devolve JSON fora do schema às vezes. A recuperação em modo JSON foi liberada para `schema` e `auto`; `json` continua sendo o caminho direto.
+3. **A bancada tinha um bug próprio.** Ela apagava os slots para isolar um provedor e não os restaurava — o 2º e o 3º eram testados contra ambiente vazio e "passavam" caindo no template. Corrigido com snapshot/restore. É o mesmo falso-positivo que eu vinha criticando nos outros.
+
+### Lições anteriores (mantidas)
+
+- **Nem todo modelo `:free` suporta structured output.** Filtre por `supported_parameters` (`structured_outputs`/`response_format`) antes de escolher. Dois modelos com 1 milhão de contexto falharam nisso.
+- **429 de upstream é rotina.** `gemma-4` estava limitado no Google AI Studio, não na nossa chave — a cadeia de fallback existe por isso.
+- **Latência é decisão de produto.** 55 s vs 8 s separa geração síncrona de job em background.
+- **"Compatível com OpenAI" ≠ "respeita `response_format`".** O Ollama Cloud aceita o parâmetro e devolve outra estrutura, em bloco markdown — origem do IA-1.5 (modo JSON).
+- **Modelos de raciocínio consomem o teto em `reasoning`.** Guarda explícita de truncamento com mensagem acionável.
 
 ### ⚠️ Regra de ouro para testes
 O campo `referenceContent` carrega **material interno de RH** (até 30 mil caracteres). Planos gratuitos frequentemente usam o conteúdo para treino. Portanto:

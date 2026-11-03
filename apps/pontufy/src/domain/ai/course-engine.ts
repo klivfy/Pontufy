@@ -203,7 +203,11 @@ function extractJsonObject(text: string): unknown {
  * prompt — incluindo o schema — e valida com Zod. É o que recupera modelos como
  * `gpt-oss` no Ollama Cloud, que ignoram `response_format`.
  */
-async function generateCourseFromText(provider: ProviderAttempt, userPrompt: string): Promise<GeneratedCourse> {
+async function generateCourseFromText(
+  provider: ProviderAttempt,
+  userPrompt: string,
+  signal?: AbortSignal,
+): Promise<GeneratedCourse> {
   const jsonSchema = zodSchema(courseGenerationSchema).jsonSchema as unknown;
   const { text, finishReason } = await generateText({
     model: provider.build(),
@@ -215,7 +219,8 @@ ${JSON.stringify(jsonSchema)}`,
     prompt: userPrompt,
     temperature: 0.6,
     maxRetries: 1,
-    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    maxOutputTokens: provider.maxOutputTokens,
+    abortSignal: signal,
   });
 
   // Modelos de raciocínio (gpt-oss, o1-like) gastam o orçamento em `reasoning`
@@ -252,8 +257,21 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
 
   const errors: string[] = [];
   for (const attempt of chain) {
+    // Prazo por provedor: o OpenRouter pode levar ~70 s e não pode consumir o
+    // tempo da função serverless inteira quando há um provedor rápido atrás.
+    const signal = AbortSignal.timeout(attempt.timeoutMs);
+
     try {
-      console.log(`[course-generator] Tentando provedor: ${attempt.name}`);
+      console.log(`[course-generator] Tentando provedor: ${attempt.name} (${attempt.structured})`);
+
+      // `structured: 'json'` — o provedor já sabe que ignora json_schema
+      // (Ollama Cloud). Ir direto ao modo JSON economiza uma chamada perdida.
+      if (attempt.structured === 'json') {
+        const course = await generateCourseFromText(attempt, userPrompt, signal);
+        console.log(`[course-generator] Sucesso em modo JSON com ${attempt.name}`);
+        return { data: course, provider: `${attempt.name} (json-mode)` };
+      }
+
       const { object } = await generateObject({
         model: attempt.build(),
         // Schema ESTRITO: todo campo em `required`. Com o schema canônico
@@ -264,7 +282,8 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
         prompt: userPrompt,
         temperature: 0.6,
         maxRetries: 1,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        maxOutputTokens: attempt.maxOutputTokens,
+        abortSignal: signal,
       });
       // Normaliza para o contrato canônico (aplica defaults e descarta extras).
       const course = generatedCourseSchema.parse(object);
@@ -277,12 +296,20 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
 
       // IA-1.5 — recuperação para provedores que ignoram `json_schema`
       // (Ollama Cloud, alguns modelos :free). Só vale a pena quando o problema
-      // foi de formato/schema; erro de rede ou 429 não se resolve reescrevendo
-      // o prompt.
-      if (/did not match schema|could not parse|No object generated|json/i.test(msg)) {
+      // foi de formato/schema; erro de rede, 429 ou timeout não se resolve
+      // reescrevendo o prompt.
+      if (
+        attempt.structured !== 'json' &&
+        !/timeout|aborted|429|rate limit|fetch failed|ECONN/i.test(msg) &&
+        /did not match schema|could not parse|No object generated|json/i.test(msg)
+      ) {
         try {
           console.log(`[course-generator] Repetindo ${attempt.name} em modo JSON`);
-          const course = await generateCourseFromText(attempt, userPrompt);
+          const course = await generateCourseFromText(
+            attempt,
+            userPrompt,
+            AbortSignal.timeout(attempt.timeoutMs),
+          );
           console.log(`[course-generator] Sucesso em modo JSON com ${attempt.name}`);
           return { data: course, provider: `${attempt.name} (json-mode)` };
         } catch (retryErr) {
