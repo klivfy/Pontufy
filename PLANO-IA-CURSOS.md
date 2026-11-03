@@ -64,8 +64,28 @@ Fontes para conferir limites (mudam com frequência): [Gemini free tier](https:/
 >
 > **Resultado da geração real (Groq, `openai/gpt-oss-120b`):** 8,1 s · 5 aulas (1.889–2.351 caracteres cada) · 5 questões · conteúdo aderente ao material de referência (DPO em 24 h, menor privilégio, retenção e descarte) · `correctIndex` sempre dentro das opções.
 
-### ⚠️ Regra de ouro para testes
+## 2.1 Resultado medido — Groq vs OpenRouter (mesmo prompt, mesmo material)
 
+Geração real do motor, prompt de LGPD, material de referência sintético de 7 itens:
+
+| Provedor / modelo | Resultado | Latência | Saída |
+|---|---|---|---|
+| **Groq** · `openai/gpt-oss-120b` | ✅ sucesso | **8,1 s** | 5 aulas (~2.000 chars) · 5 questões |
+| **OpenRouter** · `dots-studio/dots-3-note-preview:free` | ✅ sucesso | 67,9 s | 7 aulas · 7 questões |
+| OpenRouter · `nvidia/nemotron-3.5-lightning:free` | ❌ `could not parse the response` | 56 s | caiu no template |
+| OpenRouter · `nvidia/nemotron-3.5-super-vl:free` | ❌ `could not parse the response` | 31 s | caiu no template |
+| OpenRouter · `google/gemma-4-31b-it:free` | ❌ 429 upstream | 2,8 s | caiu no template |
+| OpenRouter · `xingchen-agi/xing4.0-29b-a4b:free` | ❌ 429 upstream | — | — |
+
+**Três lições que só a execução real dá:**
+
+1. **Nem todo modelo `:free` suporta structured output.** O OpenRouter publica `supported_parameters` por modelo; sem `structured_outputs` ou `response_format`, o `generateObject` recebe prosa e falha com `could not parse the response`. Filtrar por esse campo antes de escolher é obrigatório — dois dos modelos "bons no papel" (contexto de 1 milhão) não serviram.
+2. **429 de upstream é rotina no plano gratuito.** `gemma-4` estava limitado no provedor de origem (Google AI Studio), não na nossa chave. Isso valida a cadeia de fallback — e mostra que confiar em um único provedor gratuito é frágil.
+3. **Latência muda a decisão de produto.** 68 s contra 8 s não é detalhe: define se a geração pode ser síncrona na UI ou precisa virar job em background. Groq é o provedor de teste; OpenRouter serve como segundo elo da cadeia.
+
+> **Recomendação:** Groq (`openai/gpt-oss-120b`) como provedor de desenvolvimento e testes automatizados; `dots-studio/dots-3-note-preview:free` só como fallback de validação cruzada. Antes de fixar qualquer modelo, rode `GET /models` e filtre por `structured_outputs`.
+
+### ⚠️ Regra de ouro para testes
 O campo `referenceContent` carrega **material interno de RH** (até 30 mil caracteres). Planos gratuitos frequentemente usam o conteúdo para treino. Portanto:
 
 - **Teste com conteúdo sintético**, nunca com material real de cliente.
@@ -107,6 +127,7 @@ Saídas versionadas em `tests/fixtures/ai-golden/` para comparação estrutural 
 | **IA-0** ✅ *(feito)* | provedor OpenAI-compatible plugável + motor extraído para `domain/ai` + schema estrito + testes de cadeia | 10 casos passando, sem rede |
 | **IA-0.1** ✅ *(feito)* | **bug real corrigido:** schema com `.default()` era rejeitado por provedor estrito | geração real contra Groq em 8,1 s, 5 aulas, 5 questões |
 | **IA-1** (1 d) | provedor falso (L1) + spec do `generateCourseWithFallback`: 200, 429, JSON inválido, timeout; verifica débito de crédito | suíte roda em CI sem chave de IA |
+| **IA-1.5** (0,5 d) | fallback de structured output: se o provedor não honrar `json_schema`, repetir em modo JSON e validar com Zod | modelos sem `structured_outputs` (NVIDIA, Llama) deixam de cair no template |
 | **IA-2** (1 d) | telemetria: `provider`, latência, tokens e fallback no log estruturado; expor em `/api/admin/ai-status` | uma geração real mostra qual provedor respondeu e quanto custou |
 | **IA-3** (2 d) | golden set + rubrica + provedor gratuito em dev | 3 gerações comparadas, relatório em `EXECUCAO-IA.md` |
 | **IA-4** (futuro) | versionamento de prompt (`COURSE_PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |

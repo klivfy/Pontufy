@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // Carrega .env.local sem dependência (Next não roda aqui).
-const envPath = path.resolve('.env.local');
+const envPath = path.resolve(process.cwd(), '.env.local');
 for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
   const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
   if (!match) continue;
@@ -12,7 +12,7 @@ for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
   if (!process.env[match[1]]) process.env[match[1]] = value;
 }
 
-const { generateCourseWithFallback } = await import('./src/domain/ai/course-engine');
+const { generateCourseWithFallback } = await import('../src/domain/ai/course-engine');
 
 const REFERENCE = `Política interna de proteção de dados (material sintético para teste).
 1. Dados pessoais são qualquer informação que identifique ou possa identificar uma pessoa.
