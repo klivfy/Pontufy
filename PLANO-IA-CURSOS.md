@@ -71,11 +71,13 @@ Geração real do motor, prompt de LGPD, material de referência sintético de 7
 | Provedor / modelo | Resultado | Latência | Saída |
 |---|---|---|---|
 | **Groq** · `openai/gpt-oss-120b` | ✅ sucesso | **8,1 s** | 5 aulas (~2.000 chars) · 5 questões |
+| **Ollama Cloud** · `gpt-oss:120b` | ✅ sucesso **em modo JSON** (após IA-1.5) | 27,4 s | 5 aulas (~1.200 chars) · 6 questões |
 | **OpenRouter** · `dots-studio/dots-3-note-preview:free` | ✅ sucesso | 67,9 s | 7 aulas · 7 questões |
 | OpenRouter · `nvidia/nemotron-3.5-lightning:free` | ❌ `could not parse the response` | 56 s | caiu no template |
 | OpenRouter · `nvidia/nemotron-3.5-super-vl:free` | ❌ `could not parse the response` | 31 s | caiu no template |
 | OpenRouter · `google/gemma-4-31b-it:free` | ❌ 429 upstream | 2,8 s | caiu no template |
 | OpenRouter · `xingchen-agi/xing4.0-29b-a4b:free` | ❌ 429 upstream | — | — |
+| Ollama Cloud · `deepseek-v4.1-flash`, `glm-5.3-flash` | ❌ 402 (fora do plano) | — | — |
 
 **Três lições que só a execução real dá:**
 
@@ -83,7 +85,15 @@ Geração real do motor, prompt de LGPD, material de referência sintético de 7
 2. **429 de upstream é rotina no plano gratuito.** `gemma-4` estava limitado no provedor de origem (Google AI Studio), não na nossa chave. Isso valida a cadeia de fallback — e mostra que confiar em um único provedor gratuito é frágil.
 3. **Latência muda a decisão de produto.** 68 s contra 8 s não é detalhe: define se a geração pode ser síncrona na UI ou precisa virar job em background. Groq é o provedor de teste; OpenRouter serve como segundo elo da cadeia.
 
-> **Recomendação:** Groq (`openai/gpt-oss-120b`) como provedor de desenvolvimento e testes automatizados; `dots-studio/dots-3-note-preview:free` só como fallback de validação cruzada. Antes de fixar qualquer modelo, rode `GET /models` e filtre por `structured_outputs`.
+**Quarta lição, descoberta com o Ollama Cloud:** "compatível com OpenAI" **não** significa "respeita `response_format`". O endpoint aceita o parâmetro e devolve JSON com *outra* estrutura (campos em português que inventou), dentro de bloco markdown. Por isso o **IA-1.5** foi implementado: quando o erro é de formato/schema, o motor repete a chamada em *modo JSON* — schema injetado no prompt, JSON extraído de cerca markdown, validação por Zod. Com isso o Ollama Cloud passou de inútil a funcional.
+
+**Quinta lição:** modelos de raciocínio (`gpt-oss`, o1-like) consomem o orçamento de saída em `reasoning`. Com `COURSE_MAX_OUTPUT_TOKENS=8192` o JSON era truncado no meio e o erro aparecia como "JSON inválido". Agora existe guarda explícita:
+
+> `resposta truncada por limite de tokens (COURSE_MAX_OUTPUT_TOKENS=900). Modelos de raciocínio consomem o orçamento em reasoning — aumente o limite.`
+
+Com 24.000 tokens o mesmo modelo gerou 5 aulas e 6 questões válidas em 27 s.
+
+> **Recomendação final:** Groq (`openai/gpt-oss-120b`) para desenvolvimento e testes — 8 s, structured output nativo. Ollama Cloud como segundo provedor (funciona em modo JSON, útil para testar o caminho de recuperação). OpenRouter só como terceiro elo, com `dots-studio`. Antes de fixar qualquer modelo, rode `GET /models` e filtre por `structured_outputs`.
 
 ### ⚠️ Regra de ouro para testes
 O campo `referenceContent` carrega **material interno de RH** (até 30 mil caracteres). Planos gratuitos frequentemente usam o conteúdo para treino. Portanto:
@@ -127,7 +137,7 @@ Saídas versionadas em `tests/fixtures/ai-golden/` para comparação estrutural 
 | **IA-0** ✅ *(feito)* | provedor OpenAI-compatible plugável + motor extraído para `domain/ai` + schema estrito + testes de cadeia | 10 casos passando, sem rede |
 | **IA-0.1** ✅ *(feito)* | **bug real corrigido:** schema com `.default()` era rejeitado por provedor estrito | geração real contra Groq em 8,1 s, 5 aulas, 5 questões |
 | **IA-1** (1 d) | provedor falso (L1) + spec do `generateCourseWithFallback`: 200, 429, JSON inválido, timeout; verifica débito de crédito | suíte roda em CI sem chave de IA |
-| **IA-1.5** (0,5 d) | fallback de structured output: se o provedor não honrar `json_schema`, repetir em modo JSON e validar com Zod | modelos sem `structured_outputs` (NVIDIA, Llama) deixam de cair no template |
+| **IA-1.5** ✅ *(feito)* | fallback de structured output: repetir em modo JSON (schema no prompt + extração de cerca markdown + Zod) e guarda de truncamento | Ollama Cloud `gpt-oss:120b` passou de inútil a funcional |
 | **IA-2** (1 d) | telemetria: `provider`, latência, tokens e fallback no log estruturado; expor em `/api/admin/ai-status` | uma geração real mostra qual provedor respondeu e quanto custou |
 | **IA-3** (2 d) | golden set + rubrica + provedor gratuito em dev | 3 gerações comparadas, relatório em `EXECUCAO-IA.md` |
 | **IA-4** (futuro) | versionamento de prompt (`COURSE_PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |

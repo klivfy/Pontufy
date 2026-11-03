@@ -1,6 +1,6 @@
-import { generateObject } from 'ai';
+import { generateObject, generateText, zodSchema } from 'ai';
 
-import { buildProviderChain } from '@/lib/ai-providers';
+import { buildProviderChain, type ProviderAttempt } from '@/lib/ai-providers';
 import { courseGenerationSchema, generatedCourseSchema } from '@/schemas/course-schema';
 import type { GeneratedCourse } from '@/schemas/course-schema';
 
@@ -171,6 +171,66 @@ function generateLocalFallback(prompt: string, sector: string, referenceContent?
 
 // ═══════════════════════ Geração com fallback ═══════════════════════
 
+/**
+ * Extrai o primeiro objeto JSON de um texto que pode vir com cerca markdown,
+ * preâmbulo ou texto depois do JSON.
+ *
+ * Necessário porque nem todo endpoint "compatível com OpenAI" honra
+ * `response_format: json_schema` — o Ollama Cloud devolve o JSON dentro de um
+ * bloco ```json mesmo quando instruído a responder só com o objeto.
+ */
+function extractJsonObject(text: string): unknown {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
+  const candidate = (fenced ? fenced[1] : text).trim();
+
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    // Fallback: recorta do primeiro `{` até o último `}` (prosa antes/depois).
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(candidate.slice(start, end + 1));
+    }
+    throw new Error('nenhum JSON encontrado na resposta do modelo');
+  }
+}
+
+/**
+ * Segunda tentativa para provedores sem structured output real.
+ *
+ * Em vez de `generateObject` (que exige `json_schema`), pede o JSON no próprio
+ * prompt — incluindo o schema — e valida com Zod. É o que recupera modelos como
+ * `gpt-oss` no Ollama Cloud, que ignoram `response_format`.
+ */
+async function generateCourseFromText(provider: ProviderAttempt, userPrompt: string): Promise<GeneratedCourse> {
+  const jsonSchema = zodSchema(courseGenerationSchema).jsonSchema as unknown;
+  const { text, finishReason } = await generateText({
+    model: provider.build(),
+    system: `${COURSE_SYSTEM_PROMPT}
+
+Responda SOMENTE com um objeto JSON válido, sem markdown, sem comentários e sem texto antes ou depois.
+O objeto deve satisfazer exatamente este JSON Schema:
+${JSON.stringify(jsonSchema)}`,
+    prompt: userPrompt,
+    temperature: 0.6,
+    maxRetries: 1,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+  });
+
+  // Modelos de raciocínio (gpt-oss, o1-like) gastam o orçamento em `reasoning`
+  // e truncam o JSON no meio. Sem esta checagem o sintoma seria "JSON inválido"
+  // e a causa real (teto de tokens) ficaria invisível.
+  if (finishReason === 'length') {
+    throw new Error(
+      `resposta truncada por limite de tokens (COURSE_MAX_OUTPUT_TOKENS=${MAX_OUTPUT_TOKENS}). ` +
+        'Modelos de raciocínio consomem o orçamento em reasoning — aumente o limite.',
+    );
+  }
+
+  return generatedCourseSchema.parse(extractJsonObject(text));
+}
+
 export async function generateCourseWithFallback(
   prompt: string,
   sector: string,
@@ -214,6 +274,23 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[course-generator] Falha em ${attempt.name}:`, msg);
       errors.push(`${attempt.name}: ${msg}`);
+
+      // IA-1.5 — recuperação para provedores que ignoram `json_schema`
+      // (Ollama Cloud, alguns modelos :free). Só vale a pena quando o problema
+      // foi de formato/schema; erro de rede ou 429 não se resolve reescrevendo
+      // o prompt.
+      if (/did not match schema|could not parse|No object generated|json/i.test(msg)) {
+        try {
+          console.log(`[course-generator] Repetindo ${attempt.name} em modo JSON`);
+          const course = await generateCourseFromText(attempt, userPrompt);
+          console.log(`[course-generator] Sucesso em modo JSON com ${attempt.name}`);
+          return { data: course, provider: `${attempt.name} (json-mode)` };
+        } catch (retryErr) {
+          const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          console.error(`[course-generator] Falha também em modo JSON (${attempt.name}):`, retryMsg);
+          errors.push(`${attempt.name} [json-mode]: ${retryMsg}`);
+        }
+      }
     }
   }
 
