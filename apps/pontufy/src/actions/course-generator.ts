@@ -9,6 +9,7 @@ import { getTenantDb } from '@/backend/db';
 import { rateLimitCheck } from '@/lib/redis';
 import { sanitizeAiHtml, sanitizeAiText } from '@/lib/validations/security';
 import { logAudit } from '@/lib/audit';
+import { logger } from '@/infra/logger';
 import type { GeneratedCourse } from '@/schemas/course-schema';
 
 export type { GeneratedCourse };
@@ -126,7 +127,7 @@ export async function generateTrainingCourse(
     return { success: false, error: `Créditos de IA insuficientes (saldo: ${tenant.aiCredits}).` };
   }
 
-  let generated: { data: GeneratedCourse; provider: string; errors?: string[] };
+  let generated: Awaited<ReturnType<typeof generateCourseWithFallback>>;
   try {
     generated = await generateCourseWithFallback(parsed.data.prompt, parsed.data.sector ?? '', parsed.data.referenceContent);
   } catch (err) {
@@ -136,6 +137,21 @@ export async function generateTrainingCourse(
       error: err instanceof Error ? err.message : 'Falha ao gerar o curso.',
     };
   }
+
+  // IA-2 — telemetria: qual provedor respondeu, se houve fallback, quanto custou.
+  // Sem isto, uma geração que caiu no template local é indistinguível de uma
+  // geração por IA bem-sucedida para quem lê os logs.
+  logger.info('Curso gerado', {
+    provider: generated.meta.provider,
+    usedFallback: generated.meta.usedFallback,
+    usedJsonMode: generated.meta.usedJsonMode,
+    durationMs: generated.meta.durationMs,
+    attempts: generated.meta.attempts,
+    inputTokens: generated.meta.usage?.inputTokens,
+    outputTokens: generated.meta.usage?.outputTokens,
+    promptChars: parsed.data.prompt.length,
+    referenceChars: parsed.data.referenceContent?.length ?? 0,
+  }, 'ai');
 
   const now = new Date();
   // Ordena pelas aulas pela ordem didática definida pelo gerador.

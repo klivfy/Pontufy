@@ -172,6 +172,27 @@ function generateLocalFallback(prompt: string, sector: string, referenceContent?
 // ═══════════════════════ Geração com fallback ═══════════════════════
 
 /**
+ * Telemetria da geração (IA-2).
+ *
+ * Existe porque uma falha de provedor pode passar por sucesso: o motor cai no
+ * template local e a resposta continua `success: true`. Sem registrar qual
+ * provedor respondeu, quanto demorou e se houve recuperação, esse tipo de
+ * problema só aparece quando um cliente reclama da qualidade do curso.
+ */
+export interface CourseGenerationMeta {
+  /** Provedor que entregou o conteúdo (`local:*` indica template). */
+  provider: string;
+  /** `true` quando o resultado veio do template, não de um modelo. */
+  usedFallback: boolean;
+  /** `true` quando a resposta foi obtida em modo JSON (provedor sem schema). */
+  usedJsonMode: boolean;
+  durationMs: number;
+  /** Tentativas na ordem em que ocorreram. */
+  attempts: Array<{ provider: string; ok: boolean; durationMs: number; error?: string }>;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+/**
  * Extrai o primeiro objeto JSON de um texto que pode vir com cerca markdown,
  * preâmbulo ou texto depois do JSON.
  *
@@ -240,12 +261,29 @@ export async function generateCourseWithFallback(
   prompt: string,
   sector: string,
   referenceContent?: string,
-): Promise<{ data: GeneratedCourse; provider: string; errors?: string[] }> {
+): Promise<{
+  data: GeneratedCourse;
+  provider: string;
+  errors?: string[];
+  meta: CourseGenerationMeta;
+}> {
+  const startedAt = Date.now();
+  const attempts: CourseGenerationMeta['attempts'] = [];
   const chain = buildProviderChain();
 
   if (chain.length === 0) {
     console.log('[course-generator] Nenhum provedor configurado, usando template local');
-    return { data: generateLocalFallback(prompt, sector, referenceContent), provider: 'local:template' };
+    return {
+      data: generateLocalFallback(prompt, sector, referenceContent),
+      provider: 'local:template',
+      meta: {
+        provider: 'local:template',
+        usedFallback: true,
+        usedJsonMode: false,
+        durationMs: Date.now() - startedAt,
+        attempts: [],
+      },
+    };
   }
 
   let userPrompt = `Setor/Vertical: ${sector || 'geral'}.
@@ -260,6 +298,28 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
     // Prazo por provedor: o OpenRouter pode levar ~70 s e não pode consumir o
     // tempo da função serverless inteira quando há um provedor rápido atrás.
     const signal = AbortSignal.timeout(attempt.timeoutMs);
+    const attemptStartedAt = Date.now();
+
+    const succeed = (
+      data: GeneratedCourse,
+      provider: string,
+      jsonMode: boolean,
+      usage?: { inputTokens?: number; outputTokens?: number },
+    ) => {
+      attempts.push({ provider, ok: true, durationMs: Date.now() - attemptStartedAt });
+      return {
+        data,
+        provider,
+        meta: {
+          provider,
+          usedFallback: provider.startsWith('local'),
+          usedJsonMode: jsonMode,
+          durationMs: Date.now() - startedAt,
+          attempts,
+          usage,
+        },
+      };
+    };
 
     try {
       console.log(`[course-generator] Tentando provedor: ${attempt.name} (${attempt.structured})`);
@@ -269,10 +329,10 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
       if (attempt.structured === 'json') {
         const course = await generateCourseFromText(attempt, userPrompt, signal);
         console.log(`[course-generator] Sucesso em modo JSON com ${attempt.name}`);
-        return { data: course, provider: `${attempt.name} (json-mode)` };
+        return succeed(course, `${attempt.name} (json-mode)`, true);
       }
 
-      const { object } = await generateObject({
+      const { object, usage } = await generateObject({
         model: attempt.build(),
         // Schema ESTRITO: todo campo em `required`. Com o schema canônico
         // (que tem `.default()`), provedores de structured output estrito
@@ -288,11 +348,20 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
       // Normaliza para o contrato canônico (aplica defaults e descarta extras).
       const course = generatedCourseSchema.parse(object);
       console.log(`[course-generator] Sucesso com ${attempt.name}`);
-      return { data: course, provider: attempt.name };
+      return succeed(course, attempt.name, false, {
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[course-generator] Falha em ${attempt.name}:`, msg);
       errors.push(`${attempt.name}: ${msg}`);
+      attempts.push({
+        provider: attempt.name,
+        ok: false,
+        durationMs: Date.now() - attemptStartedAt,
+        error: msg.slice(0, 200),
+      });
 
       // IA-1.5 — recuperação para provedores que ignoram `json_schema`
       // (Ollama Cloud, alguns modelos :free). Só vale a pena quando o problema
@@ -311,17 +380,34 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
             AbortSignal.timeout(attempt.timeoutMs),
           );
           console.log(`[course-generator] Sucesso em modo JSON com ${attempt.name}`);
-          return { data: course, provider: `${attempt.name} (json-mode)` };
+          return succeed(course, `${attempt.name} (json-mode)`, true);
         } catch (retryErr) {
           const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
           console.error(`[course-generator] Falha também em modo JSON (${attempt.name}):`, retryMsg);
           errors.push(`${attempt.name} [json-mode]: ${retryMsg}`);
+          attempts.push({
+            provider: `${attempt.name} [json-mode]`,
+            ok: false,
+            durationMs: Date.now() - attemptStartedAt,
+            error: retryMsg.slice(0, 200),
+          });
         }
       }
     }
   }
 
   console.warn('[course-generator] Todos os provedores falharam, usando template local:', errors.join(' | '));
-  return { data: generateLocalFallback(prompt, sector, referenceContent), provider: 'local:fallback', errors };
+  return {
+    data: generateLocalFallback(prompt, sector, referenceContent),
+    provider: 'local:fallback',
+    errors,
+    meta: {
+      provider: 'local:fallback',
+      usedFallback: true,
+      usedJsonMode: false,
+      durationMs: Date.now() - startedAt,
+      attempts,
+    },
+  };
 }
 

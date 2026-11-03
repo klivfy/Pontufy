@@ -55,6 +55,13 @@ test.describe('motor de geração de cursos', () => {
     expect(result.data.category).toBe('Compliance');
     expect(result.data.lessons[0].pointsAwarded).toBe(20);
     expect(provider.requests()).toBeGreaterThan(0);
+    // IA-2 — telemetria: provedor, latência e tentativas ficam registrados.
+    expect(result.meta.provider).toBe('compat:fake-model-1');
+    expect(result.meta.usedFallback).toBe(false);
+    expect(result.meta.usedJsonMode).toBe(false);
+    expect(result.meta.durationMs).toBeGreaterThanOrEqual(0);
+    expect(result.meta.attempts).toHaveLength(1);
+    expect(result.meta.attempts[0].ok).toBe(true);
   });
 
   test('429 no primeiro provedor cai para o segundo', async () => {
@@ -66,6 +73,8 @@ test.describe('motor de geração de cursos', () => {
     const result = await generateCourseWithFallback(PROMPT, SECTOR);
 
     expect(result.provider).toBe('compat:fake-model-2');
+    expect(result.meta.attempts[0]).toMatchObject({ provider: 'compat:fake-model-1', ok: false });
+    expect(result.meta.attempts[1]).toMatchObject({ provider: 'compat:fake-model-2', ok: true });
     expect(failing.requests()).toBeGreaterThan(0);
     expect(result.data.lessons.length).toBeGreaterThanOrEqual(3);
   });
@@ -79,6 +88,8 @@ test.describe('motor de geração de cursos', () => {
     const result = await generateCourseWithFallback(PROMPT, SECTOR);
 
     expect(result.provider).toBe('local:fallback');
+    expect(result.meta.usedFallback).toBe(true);
+    expect(result.meta.attempts.length).toBeGreaterThanOrEqual(2);
     // Cada provedor falha duas vezes: structured output e recuperação em JSON.
     expect(result.errors?.length).toBeGreaterThanOrEqual(2);
     expect(result.errors?.join(' ')).toContain('compat:fake-model-1');
@@ -108,6 +119,7 @@ test.describe('motor de geração de cursos', () => {
     const result = await generateCourseWithFallback(PROMPT, SECTOR);
 
     expect(result.provider).toBe('compat:fake-model-1 (json-mode)');
+    expect(result.meta.usedJsonMode).toBe(true);
     expect(result.data.title).toContain('LGPD');
     // Sem structured output: o corpo enviado não pede response_format.
     const body = provider.lastBody() as Record<string, unknown> | null;

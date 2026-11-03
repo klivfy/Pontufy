@@ -150,7 +150,7 @@ Saídas versionadas em `tests/fixtures/ai-golden/` para comparação estrutural 
 | **IA-0.1** ✅ *(feito)* | **bug real corrigido:** schema com `.default()` era rejeitado por provedor estrito | geração real contra Groq em 8,1 s, 5 aulas, 5 questões |
 | **IA-1** ✅ *(feito)* | provedor falso em HTTP local + 9 casos do motor: 200, 429 → próximo, lixo → template, timeout → próximo, cerca markdown, esponse_format por modo, curso inválido rejeitado | suíte roda em CI sem chave e sem cota |
 | **IA-1.5** ✅ *(feito)* | fallback de structured output: repetir em modo JSON (schema no prompt + extração de cerca markdown + Zod) e guarda de truncamento | Ollama Cloud `gpt-oss:120b` passou de inútil a funcional |
-| **IA-2** (1 d) | telemetria: `provider`, latência, tokens e fallback no log estruturado; expor em `/api/admin/ai-status` | uma geração real mostra qual provedor respondeu e quanto custou |
+| **IA-2** ✅ *(feito)* | `meta` na resposta do motor (provider, usedFallback, usedJsonMode, durationMs, attempts[], usage) + log estruturado na action | 11 asserts no spec provam o caminho de cada tentativa |
 | **IA-3** (2 d) | golden set + rubrica + provedor gratuito em dev | 3 gerações comparadas, relatório em `EXECUCAO-IA.md` |
 | **IA-4** (futuro) | versionamento de prompt (`COURSE_PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |
 
