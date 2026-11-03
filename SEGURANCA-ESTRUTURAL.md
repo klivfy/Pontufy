@@ -1,6 +1,7 @@
 # Estudo de vulnerabilidades estruturais — Pontufy
 
 **Data:** 03/11/2026 · **Escopo:** `apps/pontufy` (pós Fase 1 e Fase 2)
+**Plano de correção derivado deste estudo:** [PLANO-CORRECAO-ESTRUTURAL.md](PLANO-CORRECAO-ESTRUTURAL.md) (3 sprints, ~16 dev-days)
 **Método:** mapeamento de superfície (63 rotas, 34 páginas), análise de fronteiras de confiança, verificação de cada achado no código com `arquivo:linha`, e revisão do que já foi corrigido nas Fases 1–2 para não repetir achados.
 **Diferença em relação à [ANALISE-TECNICA.md](ANALISE-TECNICA.md):** aquele documento lista **defeitos** (corrigíveis um a um). Este lista **características da forma do sistema** que produzem defeitos novos em código novo — e que não somem com patch.
 
