@@ -75,14 +75,19 @@ export class SecurityInfraUnavailableError extends Error {
 
 /**
  * Usado no `authorize()` do NextAuth: sem infra de segurança não se autentica.
- * O NextAuth transforma a exceção em redirecionamento de erro — nenhuma sessão
- * é emitida.
+ *
+ * CUIDADO: o NextAuth captura qualquer exceção do `authorize()` e a converte
+ * em `CredentialsSignin` — o motivo real (SECURITY_INFRA_UNAVAILABLE) se perde
+ * e o operador entende "senha errada" quando o problema é infraestrutura.
+ * Por isso o erro é logado aqui, em nível de erro, antes de propagar.
  */
 export function assertSecurityInfraForLogin(): void {
   if (!securityInfraAvailable()) {
     logger.error(
-      'Login recusado: infra de segurança (Redis) indisponível.',
-      { policy: 'fail-closed' },
+      '[AUTH] Login recusado por INDISPONIBILIDADE DE INFRA (Redis), não por credencial: ' +
+        'rate limit, lockout e revogação de sessão estão desligados. ' +
+        'O cliente receberá uma mensagem genérica de credencial — a causa é esta linha.',
+      { policy: 'fail-closed', redis: 'unavailable' },
       'security',
     );
     throw new SecurityInfraUnavailableError();

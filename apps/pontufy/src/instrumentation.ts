@@ -16,11 +16,16 @@
  *    Edge.
  */
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
-
   // PHASE_PRODUCTION_BUILD não é importado de 'next/constants' de propósito:
   // este arquivo também é avaliado fora do bundler do Next.
   if (process.env.NEXT_PHASE === 'phase-production-build') return;
+
+  // Cada varredura `x1..x60` (Next 16 roda vários workers em dev) imprimia o
+  // mesmo relatório de ambiente. Valida uma vez por processo, no primeiro
+  // worker que de fato serve requisições.
+  const globalForEnv = globalThis as unknown as { __pontufyEnvChecked?: boolean };
+  if (globalForEnv.__pontufyEnvChecked) return;
+  globalForEnv.__pontufyEnvChecked = true;
 
   const { assertServerEnv } = await import('@/infra/env');
   assertServerEnv();

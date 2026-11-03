@@ -68,7 +68,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // V4 — sem Redis não existe lockout nem rate limit: recusar o login é
           // melhor que aceitar força bruta ilimitada. O motivo fica em /api/health.
           assertSecurityInfraForLogin();
-
           const email = String(credentials.email).trim().toLowerCase();
 
           // 6.1/6.3 — Lockout de conta (5 falhas / 15min) antes de verificar
