@@ -38,12 +38,89 @@ export interface ProviderAttempt {
   build: () => LanguageModel;
 }
 
+// ─────────────── Provedor compatível com OpenAI (testes) ───────────────
+
+interface CompatProviderConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  label: string;
+}
+
+/**
+ * Provedor genérico compatível com `POST /chat/completions`.
+ *
+ * Existe para testar o motor de geração de cursos com APIs gratuitas sem
+ * adicionar SDK: Groq, OpenRouter, GitHub Models, Cerebras, Mistral e Ollama
+ * expõem o mesmo contrato do OpenAI. Configuração por `AI_BASE_URL`,
+ * `AI_API_KEY`, `AI_MODEL` e (opcional) `AI_LABEL`.
+ */
+function readCompatProvider(): CompatProviderConfig | null {
+  const baseUrl = process.env.AI_BASE_URL?.trim();
+  const apiKey = process.env.AI_API_KEY?.trim();
+  const model = process.env.AI_MODEL?.trim();
+
+  // Configuração parcial é erro de operação, não motivo para seguir calado:
+  // sem o aviso, o sintoma seria "a IA não usa o provedor que eu configurei".
+  if (!baseUrl && !apiKey && !model) return null;
+  if (!baseUrl || !apiKey || !model) {
+    console.warn(
+      '[ai-providers] Provedor compatível ignorado: defina AI_BASE_URL, AI_API_KEY e AI_MODEL juntos.',
+    );
+    return null;
+  }
+
+  let host: string;
+  try {
+    host = new URL(baseUrl).host;
+  } catch {
+    console.warn(`[ai-providers] AI_BASE_URL inválida ("${baseUrl.slice(0, 32)}…") — ignorada.`);
+    return null;
+  }
+
+  // Chave de provedor gratuito em produção = material de RH saindo para um
+  // terceiro cujo plano pode treinar com os dados. Não bloqueia (é escolha
+  // consciente), mas o log precisa ser impossível de ignorar.
+  if (process.env.NODE_ENV === 'production' && process.env.AI_ALLOW_COMPAT_IN_PRODUCTION !== '1') {
+    console.warn(
+      `[ai-providers] ⚠️ Provedor compatível ATIVO EM PRODUÇÃO (${host}). ` +
+        'Confirme a política de dados do provedor: planos gratuitos costumam usar o conteúdo para treino. ' +
+        'Defina AI_ALLOW_COMPAT_IN_PRODUCTION=1 para silenciar este aviso.',
+    );
+  }
+
+  return {
+    baseUrl,
+    apiKey,
+    model,
+    label: process.env.AI_LABEL?.trim() || host,
+  };
+}
+
 /**
  * Constrói a cadeia de fallback na ordem estrita de prioridade:
- * Gemini → OpenAI → Anthropic. Provedores sem chave válida são pulados.
+ * compatível (quando configurado) → Gemini → OpenAI → Anthropic.
+ * Provedores sem chave válida são pulados.
  */
 export function buildProviderChain(): ProviderAttempt[] {
   const chain: ProviderAttempt[] = [];
+
+  const compat = readCompatProvider();
+  if (compat) {
+    const provider = createOpenAI({
+      apiKey: compat.apiKey,
+      baseURL: compat.baseUrl,
+      name: compat.label,
+    });
+    chain.push({
+      name: `compat:${compat.model}`,
+      label: `${compat.label} (${compat.model})`,
+      // `.chat()` resolve para POST /chat/completions — o único endpoint que
+      // Groq, OpenRouter, GitHub Models, Cerebras, Mistral e Ollama expõem.
+      // `openai(model)` apontaria para a Responses API, exclusiva da OpenAI.
+      build: () => provider.chat(compat.model),
+    });
+  }
 
   const googleKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (googleKey && isValidGeminiKey(googleKey)) {
@@ -87,6 +164,14 @@ export interface ProviderDiagnostics {
 export async function checkAIProviders(): Promise<ProviderDiagnostics> {
   const available: string[] = [];
   const diagnostics: Record<string, string> = {};
+
+  const compat = readCompatProvider();
+  if (compat) {
+    available.push(`Compatível (${compat.label})`);
+    diagnostics.compat = `Configurado — ${compat.model} via ${new URL(compat.baseUrl).host}`;
+  } else {
+    diagnostics.compat = 'AI_BASE_URL / AI_API_KEY / AI_MODEL não configurados (opcional, para testes)';
+  }
 
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (geminiKey && isValidGeminiKey(geminiKey)) {
