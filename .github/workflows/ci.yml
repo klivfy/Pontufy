@@ -57,6 +57,9 @@ jobs:
       - name: Lint (baseline)
         run: npm run lint:ci -w apps/pontufy
 
+      - name: Autorização declarada por rota
+        run: npm run check:routes -w apps/pontufy
+
       - name: Dependências vulneráveis (produção)
         run: npm audit --omit=dev --audit-level=high
 

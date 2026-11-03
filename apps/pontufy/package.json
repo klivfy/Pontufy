@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "lint:ci": "node scripts/lint-baseline.mjs",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint:ci",
+    "check": "npm run typecheck && npm run lint:ci && npm run check:routes",
+    "check:routes": "node scripts/check-route-guards.mjs",
     "db:deploy": "node scripts/migrate.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx prisma/seed.ts"

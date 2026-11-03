@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/backend/session';
 import { getTenantDb } from '@/backend/db';
+import { buildCsvRow } from '@/lib/csv-sanitizer';
 
 export async function GET() {
   try {
@@ -64,13 +65,7 @@ export async function GET() {
       const totalPoints = (course as any).lessons.reduce((s: number, l: any) => s + l.pointsAssigned, 0);
 
       csvRows.push(
-        [
-          `"${course.title.replace(/"/g, '""')}"`,
-          totalLessons,
-          totalCompletions,
-          rate,
-          totalPoints,
-        ].join(','),
+        buildCsvRow([course.title, totalLessons, totalCompletions, rate, totalPoints]),
       );
     }
 

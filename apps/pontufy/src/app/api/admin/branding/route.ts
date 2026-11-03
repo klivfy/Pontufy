@@ -15,9 +15,11 @@ const BRANDING_SELECT = {
 
 // GET é acessível a qualquer utilizador autenticado: o DynamicThemeProvider
 // precisa da identidade visual do tenant em todas as rotas.
+// Dados de contrato (aiCredits) NÃO são branding e só saem para admin —
+// antes o campo era devolvido a qualquer colaborador (V9 do SEGURANCA-ESTRUTURAL.md).
 export async function GET() {
   try {
-    const { tenantId } = await getSessionContext();
+    const { tenantId, role } = await getSessionContext();
     const db = getTenantDb(tenantId);
 
     const tenant = await db.tenant.findUnique({
@@ -29,13 +31,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Tenant não encontrado.' }, { status: 404 });
     }
 
+    const isAdmin = role === 'admin_rh' || role === 'super_admin';
+
     return NextResponse.json({
       name: tenant.name,
       logoUrl: tenant.logoUrl ?? null,
       faviconUrl: tenant.faviconUrl ?? null,
       primaryColor: tenant.primaryColor ?? DEFAULT_PRIMARY_COLOR,
       accentColor: tenant.accentColor ?? DEFAULT_ACCENT_COLOR,
-      aiCredits: tenant.aiCredits,
+      ...(isAdmin ? { aiCredits: tenant.aiCredits } : {}),
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Não autenticado.') {
