@@ -39,6 +39,7 @@
   "/api/cron/sync-lomadee": "cron:bearer",
   "/api/files/extract": "session",
   "/api/gamification": "session",
+  "/api/health": "public",
   "/api/integrations/payroll/export": "alias",
   "/api/invitations": "inline:admin_rh",
   "/api/invitations/accept": "public",

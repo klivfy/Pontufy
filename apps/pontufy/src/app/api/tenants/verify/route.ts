@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyTenantEmail } from '@/domain/tenant';
-import { getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
+import { getClientIp } from '@/lib/security/auth-guard';
+import { enforceIpRateLimit, securityUnavailableBody } from '@/infra/security-controls';
 import { parseBody } from '@/lib/validations';
 import { logger } from '@/infra/logger';
 
@@ -15,8 +16,11 @@ const VERIFY_WINDOW_SECONDS = 60 * 60;
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    const rate = await ipRateLimit(ip, 'tenant-verify', VERIFY_MAX_PER_IP, VERIFY_WINDOW_SECONDS);
-    if (!rate.allowed) {
+    const rate = await enforceIpRateLimit(ip, 'tenant-verify', VERIFY_MAX_PER_IP, VERIFY_WINDOW_SECONDS);
+    if (rate === 'unavailable') {
+      return NextResponse.json(securityUnavailableBody(), { status: 503 });
+    }
+    if (rate === 'blocked') {
       return NextResponse.json(
         { error: 'Muitas tentativas. Aguarde alguns minutos.' },
         { status: 429 },

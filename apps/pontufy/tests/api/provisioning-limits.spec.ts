@@ -15,6 +15,11 @@ import { prisma } from '../helpers/db';
 
 const dayKey = () => new Date().toISOString().slice(0, 10);
 
+// O provisionamento é um caminho de autenticação e passou a ser fail-closed
+// sem Redis (V4): sem infra de contagem, /api/tenants/onboarding responde 503.
+const hasRedis = () =>
+  Boolean(process.env.UPSTASH_REDIS_REST_URL) && Boolean(process.env.UPSTASH_REDIS_REST_TOKEN);
+
 /** IP único por requisição: o rate limit por IP é por bucket e a suíte roda várias vezes. */
 const uniqueIp = () => `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
 
@@ -42,6 +47,8 @@ async function cleanupTenantByEmail(email: string): Promise<void> {
 }
 
 test.describe('V3 — provisionamento de tenant', () => {
+  test.skip(!hasRedis(), 'Provisionamento é fail-closed sem Redis (V4) — configure UPSTASH_* para rodar.');
+
   test('empresa nasce pendente, com 0 créditos, e só ativa após confirmar o e-mail', async ({ request }) => {
     const email = `provision-flow-${Date.now()}@example.com`;
     const ip = uniqueIp();

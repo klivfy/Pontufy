@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/crypto';
 import { tenantOnboardingSchema, parseBody } from '@/lib/validations';
-import { getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
+import { getClientIp } from '@/lib/security/auth-guard';
+import { enforceIpRateLimit, securityUnavailableBody } from '@/infra/security-controls';
 import { provisionTenant } from '@/domain/tenant';
 import { logger } from '@/infra/logger';
 
@@ -15,8 +16,11 @@ const ONBOARDING_WINDOW_SECONDS = 60 * 60;
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    const rate = await ipRateLimit(ip, 'tenant-onboarding', ONBOARDING_MAX_PER_IP, ONBOARDING_WINDOW_SECONDS);
-    if (!rate.allowed) {
+    const rate = await enforceIpRateLimit(ip, 'tenant-onboarding', ONBOARDING_MAX_PER_IP, ONBOARDING_WINDOW_SECONDS);
+    if (rate === 'unavailable') {
+      return NextResponse.json(securityUnavailableBody(), { status: 503 });
+    }
+    if (rate === 'blocked') {
       return NextResponse.json(
         { error: 'Muitas solicitações. Tente novamente mais tarde.' },
         { status: 429 },

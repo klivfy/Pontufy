@@ -13,6 +13,7 @@ import { resolveBaseUrl, sendAccountLockedEmail } from '@/lib/email';
 import { getRedis } from '@/lib/redis';
 import { logAudit } from '@/lib/audit';
 import { isTenantBlocked } from '@/domain/tenant/status';
+import { assertSecurityInfraForLogin } from '@/infra/security-controls';
 import { verifyGoogleBridgeTicket } from '@/domain/auth/google-ticket';
 
 declare module 'next-auth' {
@@ -67,6 +68,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         try {
           if (!credentials?.email || !credentials?.password) return null;
+
+          // V4 — sem Redis não existe lockout nem rate limit: recusar o login é
+          // melhor que aceitar força bruta ilimitada. O motivo fica em /api/health.
+          assertSecurityInfraForLogin();
 
           const email = String(credentials.email).trim().toLowerCase();
 
@@ -186,6 +191,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         try {
           const ticket = typeof credentials?.ticket === 'string' ? credentials.ticket : '';
+          if (!ticket) return null;
+
+          assertSecurityInfraForLogin();
+
           const userId = verifyGoogleBridgeTicket(ticket);
           if (!userId) return null;
 

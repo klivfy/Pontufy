@@ -147,6 +147,8 @@ async function createPersonalTenant(email, name) {
 
 **Como fica seguro.** Um único caso de uso `provisionTenant()` no domínio, com: limite por e-mail/domínio, verificação de e-mail antes de liberar créditos, e um teto global por dia (kill switch de custo). Os três caminhos passam a chamar essa função — e só ela cria `Tenant`.
 
+> **Status: fechado.** `src/domain/tenant/provision.ts` é o único ponto que cria `Tenant`. O tenant nasce em `pending_verification` com `aiCredits: 0`; o e-mail (token de 32 bytes, uso único, 24 h) ativa a conta e libera os créditos via `verifyTenantEmail`. Tetos diários em `ProvisioningQuota` (banco, não Redis): 50 tenants/dia e 100 créditos de IA/dia, ambos configuráveis. `createPersonalTenant` foi **removido** — login Google com e-mail desconhecido exige intenção explícita. Testes em `tests/api/provisioning-limits.spec.ts`.
+
 ---
 
 ### V4 · Controles de segurança dependem de infraestrutura opcional e falham abertos — **ALTO**
@@ -166,6 +168,8 @@ async function createPersonalTenant(email, name) {
 **Por que é estrutural.** O estado seguro não é o padrão: `getRedis()` devolve `null` e o `if (!redis) return allow` está espalhado. Cada novo controle tende a repetir o padrão.
 
 **Como fica seguro.** Inverter o padrão: um único módulo `securityControls` que, sem Redis, **falha fechado nos endpoints de autenticação** (503 + alerta) e só mantém fail-open em caminhos não sensíveis. Mais: `/api/health` reportando `redis: down` e alerta quando cair.
+
+> **Status: fechado.** `src/infra/security-controls.ts` centraliza a política: `enforceIpRateLimit()` distingue `allowed | blocked | unavailable` e os caminhos de autenticação (`register`, `forgot-password`, `reset`, `unlock`, `onboarding`, `verify`, login NextAuth) respondem **503** quando não há infra. O restante do app segue funcionando. `/api/health` (público, sem LLM) expõe `db`, `redis` e `auth` para monitoração. Testes em `tests/api/security-infra.spec.ts`.
 
 ---
 
