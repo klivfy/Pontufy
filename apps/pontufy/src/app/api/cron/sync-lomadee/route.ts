@@ -88,17 +88,45 @@ async function handleSync(request: Request): Promise<NextResponse> {
       }
     }
 
-    // Desativa recompensas Lomadee que não estão mais no catálogo ativo
-    const activeExternalIds = [
-      ...catalog.coupons.map(c => `coupon:${c.id}`),
-      ...catalog.offers.map(o => `offer:${o.id}`),
-    ];
+    // ── Desativação defensiva (F2.2) ────────────────────────────────────────
+    // Antes: `updateMany({ externalId: { notIn: activeExternalIds } })`.
+    // Como `fetchCatalog()` devolve apenas a primeira página (results=50,
+    // page=1) e tolera falha parcial, qualquer catálogo vazio/truncado
+    // desativava TODAS as recompensas Lomadee fora daquela página — a loja se
+    // esvaziava sozinha de madrugada.
+    //
+    // Agora:
+    //   • catálogo vazio ou incompleto ⇒ abortar SEM desativar nada;
+    //   • desativação só por ausência de atualização (updatedAt antigo), nunca
+    //     por "não veio nesta resposta".
+    const catalogIsEmpty = catalog.coupons.length === 0 && catalog.offers.length === 0;
+    const catalogIsIncomplete = catalog.diagnostics?.errors?.length
+      ? catalog.diagnostics.errors.length > 0
+      : false;
+
+    if (catalogIsEmpty || catalogIsIncomplete) {
+      const reason = catalogIsEmpty
+        ? 'catálogo vazio'
+        : `falha parcial no catálogo: ${catalog.diagnostics?.errors?.join('; ')}`;
+      console.error(`Lomadee sync abortado (${reason}). Nenhuma recompensa foi desativada.`);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Sincronização abortada: ${reason}. Catálogo preservado.`,
+          ...result,
+        },
+        { status: 502 },
+      );
+    }
+
+    const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias sem aparecer no catálogo
+    const staleCutoff = new Date(Date.now() - STALE_AFTER_MS);
 
     const deactivated = await prisma.reward.updateMany({
       where: {
         partner: 'LOMADEE',
-        externalId: { notIn: activeExternalIds },
         isActive: true,
+        updatedAt: { lt: staleCutoff },
       },
       data: { isActive: false, updatedAt: new Date() },
     });

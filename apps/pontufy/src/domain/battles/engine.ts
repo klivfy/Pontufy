@@ -194,7 +194,7 @@ export async function listMyBattles(tenantId: string, userId: string) {
     take: 30,
   });
 
-  return battles.map((b: any) => ({
+  return battles.map((b) => ({
     id: b.id,
     status: b.status,
     challengerName: b.challenger.name,
@@ -293,12 +293,27 @@ export async function submitTurn(
   const correct = forfeited ? questions.map(() => false) : scoreBattleTurn(questions, input.answers);
   const score = correct.filter(Boolean).length;
 
-  const updated = await db.battle.update({
-    where: { id: battle.id },
+  // Reserva do turno com UPDATE condicional (compare-and-set).
+  //
+  // Antes: o turno era lido, validado e gravado com `update` simples. Sem o
+  // lock distribuído (que agora é no-op sem Redis), dois POSTs concorrentes
+  // passavam pela validação e ambos chegavam a `bothDone` — creditando os
+  // departamentos duas vezes. Aqui o próprio banco decide quem grava o turno.
+  const claim = await db.battle.updateMany({
+    where: isChallenger
+      ? { id: battle.id, challengerElapsed: null }
+      : { id: battle.id, opponentElapsed: null },
     data: isChallenger
       ? { challengerScore: score, challengerElapsed: input.elapsedSeconds }
       : { opponentScore: score, opponentElapsed: input.elapsedSeconds },
   });
+
+  if (claim.count === 0) {
+    throw new DomainError('Seu turno já foi registrado.', 409);
+  }
+
+  const updated = await db.battle.findFirst({ where: { id: battle.id } });
+  if (!updated) throw new DomainError('Batalha não encontrada.', 404);
 
   const bothDone = updated.challengerElapsed !== null && updated.opponentElapsed !== null;
   let winnerId: string | null = null;
@@ -311,10 +326,17 @@ export async function submitTurn(
           ? updated.opponentId
           : null;
 
-    await db.battle.update({
-      where: { id: battle.id },
+    // Só quem transiciona para 'completed' credita os departamentos — a
+    // condição `status: { not: 'completed' }` impede crédito duplicado quando
+    // os dois turnos chegam quase juntos em instâncias diferentes.
+    const completion = await db.battle.updateMany({
+      where: { id: battle.id, status: { not: 'completed' } },
       data: { status: 'completed', winnerId, forfeitedBy: forfeited ? userId : null },
     });
+
+    if (completion.count === 0) {
+      return { score, correct, completed: true, winnerId, forfeited };
+    }
 
     const [challenger, opponent] = await Promise.all([
       db.user.findFirst({ where: { id: updated.challengerId }, select: { department: true, name: true } }),

@@ -123,6 +123,9 @@ export function getTenantDb(tenantId: string) {
       $allModels: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async $allOperations({ model, operation, args, query }: any) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const scope = (nextArgs: any) => Object.assign(args, nextArgs);
+
           // Tenant: global lookup (no scoping)
           if (model === 'Tenant') {
             return query(args);
@@ -132,27 +135,29 @@ export function getTenantDb(tenantId: string) {
           // own rewards read/write. Global rewards are immutable.
           if (model === 'Reward') {
             if (READ_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = {
-                ...currentWhere,
-                OR: [{ tenantId: null }, { tenantId }],
-              };
+              // `AND` em vez de espalhar `OR` no topo: o filtro do chamador era
+              // SOBRESCRITO quando ele já usava `OR`, mudando a semântica da
+              // query em silêncio.
+              scope({ where: { AND: [args.where ?? {}, { OR: [{ tenantId: null }, { tenantId }] }] } });
             } else if (WRITE_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = { ...currentWhere, tenantId };
+              scope({ where: { ...(args.where ?? {}), tenantId } });
+            } else if (operation === 'upsert') {
+              // `upsert` não estava em nenhuma lista: passava direto, sem
+              // tenantId no where nem no create (buraco do "Zero Trust").
+              scope({
+                where: { ...(args.where ?? {}), tenantId },
+                create: { ...(args.create ?? {}), tenantId },
+              });
             } else if (['create', 'createMany'].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentData = (args as any).data;
+              // Escrita de Reward pelo client de tenant é sempre do PRÓPRIO
+              // tenant. Recompensa global só é criada por job de plataforma
+              // (getRawPrisma).
+              const currentData = args.data;
               if (Array.isArray(currentData)) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                currentData.forEach((d: any) => {
-                  if (d.tenantId === undefined) d.tenantId = tenantId;
+                currentData.forEach((d: Record<string, unknown>) => {
+                  d.tenantId = tenantId;
                 });
-              } else if (currentData && currentData.tenantId === undefined) {
+              } else if (currentData) {
                 currentData.tenantId = tenantId;
               }
             }
@@ -163,13 +168,7 @@ export function getTenantDb(tenantId: string) {
           // Relation filters are invalid inside findUnique, so only relation-safe reads get scoped.
           if (model === 'Lesson') {
             if (RELATION_SAFE_READ_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = {
-                ...currentWhere,
-                course: { is: { tenantId } },
-              };
+              scope({ where: { ...(args.where ?? {}), course: { is: { tenantId } } } });
             }
             // For writes (create/update/delete), tenant scoping is enforced at the Course level
             // via the relation. The interceptor does not inject tenantId on Lesson writes
@@ -181,16 +180,16 @@ export function getTenantDb(tenantId: string) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (STRICT_TENANT_MODELS.includes(model as any)) {
             if ([...READ_OPS, ...WRITE_OPS].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = { ...currentWhere, tenantId };
+              scope({ where: { ...(args.where ?? {}), tenantId } });
+            } else if (operation === 'upsert') {
+              scope({
+                where: { ...(args.where ?? {}), tenantId },
+                create: { ...(args.create ?? {}), tenantId },
+              });
             } else if (['create', 'createMany'].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentData = (args as any).data;
+              const currentData = args.data;
               if (Array.isArray(currentData)) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                currentData.forEach((d: any) => (d.tenantId = tenantId));
+                currentData.forEach((d: Record<string, unknown>) => (d.tenantId = tenantId));
               } else {
                 currentData.tenantId = tenantId;
               }

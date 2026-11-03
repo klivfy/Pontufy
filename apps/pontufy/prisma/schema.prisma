@@ -288,12 +288,18 @@ model StripeEvent {
   eventId     String   @unique
   type        String
   tenantId    String?
+  /// 'processing' | 'processed' | 'failed' — permite reprocessar o que falhou
+  /// em vez de tratar toda linha existente como "já processado".
+  status      String   @default("processing")
+  attempts    Int      @default(0)
   processedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   tenant      Tenant?  @relation(fields: [tenantId], references: [id])
 
   @@index([type])
   @@index([tenantId])
+  @@index([status])
 }
 
 model IssuedCertificate {

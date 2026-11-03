@@ -3,11 +3,17 @@
  * Estratégias:
  *  - Assets estáticos hasheados (_next/static, /icons, /manifest.json):
  *    Cache-First com revalidação em background (immutáveis).
- *  - Navegações (documentos): Network-First com fallback para o cache
- *    (Stale-While-Revalidate) e página offline mínima como último recurso.
+ *  - Navegações (documentos): NETWORK-ONLY com página offline mínima como
+ *    fallback. HTML de rota autenticada NUNCA é cacheado.
  *  - /api/* NUNCA é cacheado: contém dados autenticados e tenant-scoped.
+ *
+ * Por que navegação não é cacheada (F2.10):
+ *   A versão anterior gravava toda navegação bem-sucedida em PAGE_CACHE e, no
+ *   offline, servia `/dashboard` em cache como fallback. Em dispositivo
+ *   compartilhado (cenário real de treinamento corporativo), outro usuário
+ *   abria o dashboard/perfil do anterior depois do logout.
  */
-const VERSION = 'pontufy-v1';
+const VERSION = 'pontufy-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const OFFLINE_BODY = `<!DOCTYPE html>
@@ -82,19 +88,11 @@ async function staticCacheFirst(request) {
   }
 }
 
-async function navigationFirst(request) {
+async function navigationOnlineOnly(request) {
   try {
-    const res = await fetch(request);
-    if (res.ok) {
-      const cache = caches.open(PAGE_CACHE);
-      cache.then((c) => c.put(request, res.clone()));
-    }
-    return res;
+    return await fetch(request);
   } catch {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    const fallback = await caches.match('/dashboard');
-    if (fallback) return fallback;
+    // Sem rede: página offline neutra. Nada de HTML autenticado do cache.
     return new Response(OFFLINE_BODY, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -122,6 +120,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(navigationFirst(request));
+    event.respondWith(navigationOnlineOnly(request));
   }
 });

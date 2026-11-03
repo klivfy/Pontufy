@@ -4,10 +4,17 @@ import { prisma } from '@/backend/db';
 import { hashPassword } from '@/lib/crypto';
 import { logAudit } from '@/lib/audit';
 import { sendWelcomeEmail } from '@/lib/email';
+import { tenantOnboardingSchema, parseBody } from '@/lib/validations';
+import { getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
+import { logger } from '@/infra/logger';
 
-const VALID_SECTORS = ['tech', 'health', 'retail', 'industry'] as const;
 const TRIAL_DAYS = 14;
 const TRIAL_AI_CREDITS = 20;
+
+// Endpoint público: limita criação de empresas por IP (5/hora). Sem isso era
+// possível provisionar tenants em loop — custo de banco, e-mails e trial.
+const ONBOARDING_MAX_PER_IP = 5;
+const ONBOARDING_WINDOW_SECONDS = 60 * 60;
 
 function slugify(input: string): string {
   return input
@@ -35,46 +42,26 @@ async function buildUniqueSlug(base: string): Promise<string> {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { companyName, sector, adminName, adminEmail, adminPassword } = body;
-
-    if (
-      typeof companyName !== 'string' ||
-      companyName.trim().length < 2 ||
-      companyName.trim().length > 80
-    ) {
+    const ip = getClientIp(request);
+    const rate = await ipRateLimit(ip, 'tenant-onboarding', ONBOARDING_MAX_PER_IP, ONBOARDING_WINDOW_SECONDS);
+    if (!rate.allowed) {
       return NextResponse.json(
-        { error: 'Informe o nome da empresa (mínimo 2 caracteres).' },
-        { status: 400 },
+        { error: 'Muitas solicitações. Tente novamente mais tarde.' },
+        { status: 429 },
       );
     }
 
-    if (!VALID_SECTORS.includes(sector)) {
-      return NextResponse.json(
-        { error: `Setor inválido. Valores aceitos: ${VALID_SECTORS.join(', ')}` },
-        { status: 400 },
-      );
+    const raw = await request.json().catch(() => null);
+    const { data: body, error: validationError } = parseBody(tenantOnboardingSchema, raw);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    if (typeof adminName !== 'string' || adminName.trim().length < 2) {
-      return NextResponse.json(
-        { error: 'Informe o nome do administrador.' },
-        { status: 400 },
-      );
-    }
-
-    if (typeof adminEmail !== 'string' || !adminEmail.includes('@')) {
-      return NextResponse.json({ error: 'Email do administrador inválido.' }, { status: 400 });
-    }
-
-    if (typeof adminPassword !== 'string' || adminPassword.length < 8) {
-      return NextResponse.json(
-        { error: 'A senha deve ter pelo menos 8 caracteres.' },
-        { status: 400 },
-      );
-    }
-
-    const normalizedEmail = adminEmail.trim().toLowerCase();
+    const companyName = body.companyName;
+    const sector = body.sector;
+    const adminName = body.adminName;
+    const normalizedEmail = body.adminEmail;
+    const adminPassword = body.adminPassword;
 
     // Global lookup by design: emails are unique across all tenants.
     const existingUser = await prisma.user.findUnique({
@@ -142,7 +129,7 @@ export async function POST(request: Request) {
       slug,
     });
   } catch (error) {
-    console.error('POST /api/tenants/onboarding:', error);
+    logger.error('POST /api/tenants/onboarding', { error: String(error) }, 'tenants');
     return NextResponse.json(
       { error: 'Erro interno ao criar a empresa.' },
       { status: 500 },

@@ -191,28 +191,50 @@ export async function submitQuiz(params: {
   let bonusAwarded = false;
   let newBalance: number | undefined;
 
-  await db.$transaction(async (tx) => {
-    const attempt = await tx.quizAttempt.create({
-      data: { userId, tenantId, courseId, score, total, passed },
-    });
-
-    if (passed) {
-      const previousPass = await tx.quizAttempt.findFirst({
-        where: { userId, courseId, passed: true, id: { not: attempt.id } },
-        select: { id: true },
-      });
-      if (!previousPass) {
-        const updated = await creditPoints(asPointsTx(tx), {
-          userId,
-          tenantId,
-          amount: QUIZ_BONUS_POINTS,
-          description: `Aprovação no Quiz: ${course.title}`,
+  // Corrida no bônus: a checagem "primeiro passe" é um read-then-write. Duas
+  // aprovações simultâneas do mesmo curso não viam uma à outra e creditavam
+  // +QUIZ_BONUS_POINTS duas vezes. Não existe constraint natural para isso
+  // (retakes são permitidos), então a serialização é do banco:
+  // SERIALIZABLE faz o Postgres abortar um dos conflitos (P2034); no retry a
+  // segunda transação JÁ VÊ a aprovação da primeira e não credita.
+  const runQuizTransaction = () =>
+    db.$transaction(
+      async (tx) => {
+        const attempt = await tx.quizAttempt.create({
+          data: { userId, tenantId, courseId, score, total, passed },
         });
-        bonusAwarded = true;
-        newBalance = updated.pointsBalance;
-      }
-    }
-  });
+
+        if (passed) {
+          const previousPass = await tx.quizAttempt.findFirst({
+            where: { userId, courseId, passed: true, id: { not: attempt.id } },
+            select: { id: true },
+          });
+          if (!previousPass) {
+            const updated = await creditPoints(asPointsTx(tx), {
+              userId,
+              tenantId,
+              amount: QUIZ_BONUS_POINTS,
+              description: `Aprovação no Quiz: ${course.title}`,
+            });
+            bonusAwarded = true;
+            newBalance = updated.pointsBalance;
+          }
+        }
+      },
+      { isolationLevel: 'Serializable' },
+    );
+
+  try {
+    await runQuizTransaction();
+  } catch (error) {
+    const isSerializationFailure =
+      error instanceof Error && 'code' in error && (error as { code?: string }).code === 'P2034';
+
+    if (!isSerializationFailure) throw error;
+
+    // Uma tentativa extra basta: no retry o conflito não existe mais.
+    await runQuizTransaction();
+  }
 
   if (passed && score / total >= 0.8) {
     const linkedNode = await db.skillNode.findFirst({ where: { courseId } });

@@ -76,14 +76,21 @@ export async function POST(request: Request) {
     const result = await db.$transaction(async (tx) => {
       // Idempotência estrita: skipDuplicates respeita a constraint
       // UNIQUE(userId, lessonId) — conclusões repetidas nunca pontuam 2x.
-      const created = await tx.lessonCompletion.createMany({
+      //
+      // `createManyAndReturn` devolve EXATAMENTE as linhas inseridas
+      // (Postgres RETURNING). A versão anterior usava
+      // `validItems.slice(0, created.count)` assumindo que os duplicados eram
+      // pulados no fim do array — `ON CONFLICT DO NOTHING` não garante ordem.
+      // Com [duplicada, nova], `created.count = 1` e o slice pegava a
+      // DUPLICADA: creditava os pontos da aula errada e nunca os da nova.
+      const created = await tx.lessonCompletion.createManyAndReturn({
         data: validItems.map((i) => ({ userId, tenantId, lessonId: i.lessonId })),
         skipDuplicates: true,
+        select: { lessonId: true },
       });
 
-      // createMany preserva a ordem de `data`; skipDuplicates pula na ordem,
-      // portanto os primeiros `created.count` itens são os novos.
-      const newItems = validItems.slice(0, created.count);
+      const insertedLessonIds = new Set(created.map((row) => row.lessonId));
+      const newItems = validItems.filter((i) => insertedLessonIds.has(i.lessonId));
       const ledgerItems = newItems.filter((i) => (lessonMap.get(i.lessonId)?.pointsAssigned ?? 0) > 0);
       const totalPoints = ledgerItems.reduce(
         (sum, i) => sum + (lessonMap.get(i.lessonId)?.pointsAssigned ?? 0),
@@ -112,7 +119,7 @@ export async function POST(request: Request) {
         });
       }
 
-      return { count: created.count };
+      return { count: created.length };
     });
 
     return NextResponse.json({

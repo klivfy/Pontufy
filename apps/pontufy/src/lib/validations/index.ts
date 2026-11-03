@@ -64,6 +64,19 @@ export const redeemSchema = z
 
 export const revokeAllSchema = z.object({}).strict();
 
+// Auto-cadastro de empresa (endpoint público). Era validado à mão, sem limite
+// de requisições — vetor de spam de trial, poluição de banco e envio de e-mail
+// em massa.
+export const tenantOnboardingSchema = z.object({
+  companyName: z.string({ message: 'Nome da empresa é obrigatório.' }).trim().min(2).max(80),
+  sector: z.enum(['tech', 'health', 'retail', 'industry'], {
+    message: 'Setor inválido.',
+  }),
+  adminName: z.string({ message: 'Nome do administrador é obrigatório.' }).trim().min(2).max(120),
+  adminEmail: emailSchema,
+  adminPassword: passwordSchema,
+});
+
 // ── Helpers de parse com erro amigável ──────────────────────────────────────
 
 export function parseBody<T extends z.ZodTypeAny>(
