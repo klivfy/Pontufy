@@ -118,6 +118,22 @@ const STRICT_TENANT_MODELS = [
 export function getTenantDb(tenantId: string) {
   if (!tenantId) throw new Error('Operação negada: tenantId não fornecido.');
 
+  /**
+   * Filtro de tenant para o `where` do chamador.
+   *
+   * `findUnique`/`findUniqueOrThrow` aceitam campos não-únicos (Prisma ≥ 4.5,
+   * "extendedWhereUnique"), mas NÃO aceitam `AND` — a query estoura e a rota
+   * devolve erro genérico. Por isso esses dois operadores recebem espalhamento
+   * e todo o resto recebe `AND`, que preserva um filtro explícito do chamador
+   * em vez de sobrescrevê-lo.
+   */
+  const UNIQUE_OPS = ['findUnique', 'findUniqueOrThrow'];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withTenant = (where: any, operation: string) =>
+    UNIQUE_OPS.includes(operation)
+      ? { ...(where ?? {}), tenantId }
+      : { AND: [where ?? {}, { tenantId }] };
+
   return prisma.$extends({
     query: {
       $allModels: {
@@ -140,12 +156,12 @@ export function getTenantDb(tenantId: string) {
               // query em silêncio.
               scope({ where: { AND: [args.where ?? {}, { OR: [{ tenantId: null }, { tenantId }] }] } });
             } else if (WRITE_OPS.includes(operation)) {
-              scope({ where: { AND: [args.where ?? {}, { tenantId }] } });
+              scope({ where: withTenant(args.where, operation) });
             } else if (operation === 'upsert') {
               // `upsert` não estava em nenhuma lista: passava direto, sem
               // tenantId no where nem no create (buraco do "Zero Trust").
               scope({
-                where: { AND: [args.where ?? {}, { tenantId }] },
+                where: withTenant(args.where, operation),
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {
@@ -180,10 +196,10 @@ export function getTenantDb(tenantId: string) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (STRICT_TENANT_MODELS.includes(model as any)) {
             if ([...READ_OPS, ...WRITE_OPS].includes(operation)) {
-              scope({ where: { AND: [args.where ?? {}, { tenantId }] } });
+              scope({ where: withTenant(args.where, operation) });
             } else if (operation === 'upsert') {
               scope({
-                where: { AND: [args.where ?? {}, { tenantId }] },
+                where: withTenant(args.where, operation),
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {

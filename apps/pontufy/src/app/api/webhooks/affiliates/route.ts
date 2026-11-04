@@ -103,15 +103,6 @@ export async function POST(request: NextRequest) {
   const payload = parsed.data;
   const commissionValue = payload.commissionValue ?? 0;
 
-  if (commissionValue > maxCommissionValue()) {
-    logger.warn('Postback de afiliado acima do teto configurado.', {
-      orderId: payload.orderId,
-      commissionValue,
-      cap: maxCommissionValue(),
-    }, 'affiliates');
-    return NextResponse.json({ error: 'COMMISSION_ABOVE_CAP' }, { status: 422 });
-  }
-
   try {
     // A redenção é a fonte de verdade do par (tenant, usuário).
     // Sem isso, o corpo da requisição poderia escolher quem recebe os pontos.
@@ -127,6 +118,18 @@ export async function POST(request: NextRequest) {
         orderId: payload.orderId,
       }, 'affiliates');
       return NextResponse.json({ error: 'UNKNOWN_TRACKING_ID' }, { status: 404 });
+    }
+
+    // O teto de comissão vem DEPOIS da resolução da redenção: um trackingId
+    // inexistente deve responder 404 (nada foi creditado, nada será), não 422.
+    // A checagem de valor só faz sentido sobre uma redenção real.
+    if (commissionValue > maxCommissionValue()) {
+      logger.warn('Postback de afiliado acima do teto configurado.', {
+        orderId: payload.orderId,
+        commissionValue,
+        cap: maxCommissionValue(),
+      }, 'affiliates');
+      return NextResponse.json({ error: 'COMMISSION_ABOVE_CAP' }, { status: 422 });
     }
 
     const { commissionId, alreadyProcessed } = await persistCommission({
