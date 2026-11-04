@@ -1,0 +1,4 @@
+{
+  "/api/cron/outbox-worker": "Despacho acontece dentro da requisição (infra/email.ts). O worker HTTP é a rede de segurança para eventos que falharam: disparo manual ou cron, quando o plano do Vercel permitir a frequência.",
+  "/api/cron/reconcile-points": "Job de auditoria somente leitura: rodar diariamente é suficiente e o disparo manual cobre a investigação. Não entra na agenda para não estourar o limite de crons do plano."
+}

@@ -81,33 +81,45 @@ transporte é explícito (`src/infra/email.ts`):
 |---|---|---|
 | `RESEND_API_KEY` presente | `resend` | envia de verdade |
 | `EMAIL_TRANSPORT=log` | `log` | imprime no console (dev/teste) |
-| produção, sem chave | `none` | **falha visível**; o worker não consome os eventos |
+| produção, sem chave | `none` | **falha visível**; o evento fica pendente |
 
-Com `none`, `/api/health` responde `"email": "not_configured"` e o worker do
-outbox devolve `provider_not_configured` — os eventos ficam `pending` e fluem
-sozinhos no primeiro tick depois que a chave entra. Nada é perdido.
+Com `none`, `/api/health` responde `"email": "not_configured"` e o envio falha
+na hora — o evento permanece `pending` no outbox. Nada é perdido: quando a
+chave entra, o worker HTTP despacha o acumulado.
 
 **Consequência do `none`:** empresa nova nasce em `pending_verification` e não
 consegue entrar; recuperação de senha não funciona. Trate como incidente.
 
-### Fila de e-mail (outbox) — o cron que precisa existir
+### Fila de e-mail (outbox)
 
-Todo e-mail transacional é gravado em `OutboxEvent` e despachado por
-`/api/cron/outbox-worker`, agendado a cada 5 min em `apps/pontufy/vercel.json`.
+Todo e-mail transacional é gravado em `OutboxEvent` **antes** do envio, e o
+envio é tentado **na própria requisição** (`src/infra/email.ts`). O worker HTTP
+`/api/cron/outbox-worker` é a rede de segurança: retoma com backoff o que
+falhou.
 
-Esse cron **já ficou fora da agenda** e o resultado foi: nenhum e-mail saía,
-empresa nova não ativava, e ninguém percebia. Hoje o gate
-`npm run check:crons` falha se uma rota de cron não exportar `GET` ou não
-estiver na agenda.
+Por que não depender de cron: o deploy de 04/11 falhou porque o plano do Vercel
+não aceitou a frequência necessária (`*/5`), e mesmo se aceitasse o link de
+verificação chegaria minutos depois do cadastro. O cron deixou de ser o gatilho
+e virou o retry.
+
+Se o plano permitir, agende a rede de segurança — a rota já está pronta e
+aceita `GET`:
+
+```json
+{ "path": "/api/cron/outbox-worker", "schedule": "0 * * * *" }
+```
+
+Ao agendar, **remova** a entrada correspondente de `apps/pontufy/cron-manual.json`
+(o gate `npm run check:crons` reprova rota que está nos dois lugares).
 
 ```bash
-# o worker está vivo? (Bearer obrigatório)
+# disparar manualmente (Bearer obrigatório)
 curl -s -H "Authorization: Bearer $CRON_SECRET" \
-  -o /dev/null -w "%{http_code}\n" https://app.pontufy.com/api/cron/outbox-worker
+  https://app.pontufy.com/api/cron/outbox-worker | jq '{claimed, processed, stats}'
 # 200 = rodou · 401 = segredo errado · 503 = CRON_SECRET ausente
 ```
 
-Para ver o tamanho da fila, olhe o campo `stats` da resposta do worker.
+Para ver o tamanho da fila, olhe o campo `stats` da resposta.
 
 ### Empresa presa em `pending_verification` — ativação manual
 

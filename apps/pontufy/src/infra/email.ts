@@ -20,41 +20,66 @@ export { escapeHtml };
 
 
 /**
- * B3 — enfileira o e-mail em vez de enviar e esquecer.
+ * B3 — grava o e-mail antes de tentar enviar.
  *
  * Antes: `fetch` para o Resend dentro da requisição. Se o provedor falhasse —
  * ou a função morresse — o e-mail simplesmente não existia, sem retry e sem
- * registro. Agora o evento é gravado e o worker (`/api/cron/outbox-worker`)
- * processa com backoff.
+ * registro. Agora o evento é gravado primeiro e o worker
+ * (`/api/cron/outbox-worker`) processa o que ficou pendente com backoff.
  *
- * Retorno: `true` significa ACEITO na fila, não entregue. Quem precisa de
- * confirmação de entrega deve consultar o outbox.
+ * Despacho imediato: depois de gravar, tentamos enviar na hora. O cron não é
+ * confiável como único gatilho — depende do plano do Vercel e, no melhor caso,
+ * faria o link de verificação chegar minutos depois do cadastro. Como o evento
+ * já está no banco, a tentativa imediata não pode "perder" o e-mail: se ela
+ * falhar, o evento continua `pending` para o worker.
  *
- * Degradação: se o enfileiramento falhar (banco indisponível), cai no envio
- * direto e registra — entregar agora é melhor que não entregar.
+ * Retorno: `true` significa ACEITO (enviado agora ou enfileirado), não
+ * garantia de entrega. Quem precisa de confirmação deve consultar o outbox.
  */
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   if (process.env.OUTBOX_DISABLED === '1') {
     return sendEmailDirect(payload);
   }
 
+  let eventId: string;
+
   try {
-    await enqueueEmail(payload);
+    eventId = await enqueueEmail(payload);
+  } catch (error) {
+    logger.warn(
+      'Falha ao enfileirar e-mail — enviando direto',
+      { to: payload.to, error: String(error) },
+      'email',
+    );
+    return sendEmailDirect(payload);
+  }
+
+  try {
+    const sent = await sendEmailDirect(payload);
+
+    if (sent) {
+      // Import dinâmico: `domain/outbox` chega a este módulo pelos handlers, e
+      // um import estático fecharia o ciclo.
+      const { markDone } = await import('@/domain/outbox');
+      await markDone(eventId);
+    }
+
     return true;
   } catch (error) {
-    logger.warn('Falha ao enfileirar e-mail — enviando direto', {
-      to: payload.to,
-      error: String(error),
-    }, 'email');
-    return sendEmailDirect(payload);
+    logger.warn(
+      'Envio imediato falhou — evento permanece na fila',
+      { to: payload.to, error: String(error) },
+      'email',
+    );
+    return true;
   }
 }
 
-async function enqueueEmail(payload: EmailPayload): Promise<void> {
+async function enqueueEmail(payload: EmailPayload): Promise<string> {
   const { enqueueEvent } = await import('@/domain/outbox');
   const { getRawPrisma } = await import('@/infra/platform-db');
 
-  await enqueueEvent(getRawPrisma(), {
+  return enqueueEvent(getRawPrisma(), {
     type: 'email.send',
     payload: payload as unknown as Record<string, unknown>,
   });
