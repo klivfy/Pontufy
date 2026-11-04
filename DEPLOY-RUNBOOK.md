@@ -66,6 +66,7 @@ DATABASE_URL="<pooled>" npx prisma migrate status --schema apps/pontufy/prisma/s
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | confirmar que existem — **sem isso, login = 503** |
 | `RESEND_API_KEY` | chave do provedor de e-mail — **sem ela nenhum e-mail sai** |
 | `EMAIL_FROM` | remetente verificado no Resend (ex.: `Pontufy <noreply@pontufy.com>`) |
+| `SENTRY_DSN` | opcional — sem ele nenhuma exceção é reportada |
 
 Detalhe de cada um e efeito da rotação: [`SEGREDOS.md`](SEGREDOS.md).
 
@@ -89,6 +90,25 @@ chave entra, o worker HTTP despacha o acumulado.
 
 **Consequência do `none`:** empresa nova nasce em `pending_verification` e não
 consegue entrar; recuperação de senha não funciona. Trate como incidente.
+
+### Erros (Sentry) — opcional, mas visível
+
+Sem `SENTRY_DSN`, exceção não é reportada a lugar nenhum: o stack trace morre no
+log da plataforma. `/api/health` responde `"errors": "not_configured"` e inclui
+o aviso em `warnings`.
+
+Com o DSN, o hook `onRequestError` do `instrumentation.ts` captura erro de route
+handler, server action e render de RSC. O que sai é filtrado por
+`src/infra/sentry.ts` antes do envio:
+
+- `authorization`, `cookie`, `x-api-key`, `password`, `token` e `secret` viram
+  `[redacted]`, em qualquer profundidade de `request`/`extra`/`contexts`;
+- `?token=` e `?code=` em query string também são reescritos — o link de reset
+  de senha carrega o segredo na URL;
+- `sendDefaultPii: false`: sem IP e sem corpo por padrão.
+
+> Tracing fica desligado por padrão (`SENTRY_TRACES_SAMPLE_RATE=0`). Erro é
+> sempre 100%; performance é decisão separada e consome cota.
 
 ### Fila de e-mail (outbox)
 
