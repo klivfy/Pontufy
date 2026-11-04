@@ -6,6 +6,7 @@ import { Download, BarChart3, TrendingUp } from 'lucide-react';
 import type { AnalyticsData } from '@/components/admin/analytics/types';
 import MetricsCards from '@/components/admin/analytics/MetricsCards';
 import TopCoursesTable from '@/components/admin/analytics/TopCoursesTable';
+import AdoptionFunnel from '@/components/admin/analytics/AdoptionFunnel';
 
 // Recharts é carregado apenas no cliente para evitar hydration mismatch.
 const EngagementChart = dynamic(
@@ -102,6 +103,8 @@ export default function AnalyticsClient() {
         </div>
 
         <MetricsCards summary={data.summary} />
+
+        {data.adoption && <AdoptionFunnel adoption={data.adoption} />}
 
         <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
           <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-1 flex items-center gap-2">
