@@ -199,6 +199,38 @@ Referência de GPU: [Thunder Compute](https://www.thundercompute.com/blog/best-o
 
 ---
 
+## 8. Decisão — 04/11/2026
+
+Ficou decidido **não** ligar geração de vídeo como padrão do motor de cursos. O
+motivo não é técnico: o transporte está pronto (`video-providers.ts` +
+`video-engine.ts`, quatro presets, três formatos de transporte). É econômico e de
+experiência.
+
+**Padrão do produto: cena + narração.** O kit de cada aula já produz `scenes` e
+o `LessonVideo` as reproduz com voz escolhida por `lib/voice.ts`, em trechos com
+pausa entre frases. Custo zero, latência de segundos, funciona sem chave de
+nenhum provedor. É o que o colaborador vê hoje.
+
+**Vídeo gerado: recurso premium, sob demanda.** Continua no código, desligado por
+configuração (`VIDEO_n_*`). Liga quando houver chave e quando o cliente aceitar o
+custo por minuto.
+
+Critérios para revisar esta decisão:
+
+1. um provedor com custo previsível por minuto (a tabela do §7 mostra
+   ~US$ 0,02–0,03 por clipe de 5 s em GPU própria);
+2. demanda real de vídeo com imagem — hoje a narração resolve o mesmo objetivo
+   pedagógico com fricção menor;
+3. se o cliente exigir vídeo, ele paga pela geração: o custo não cabe no trial
+   de 20 créditos de IA.
+
+O que **não** se faz: deixar o caminho de vídeo em estado "meio ligado", gerando
+expectativa de que o produto produz vídeo quando nenhuma chave está configurada.
+Sem chave, `renderVideo` devolve `not-configured` e o player cai nas cenas — o
+comportamento é declarado, não acidental.
+
+---
+
 ## Fontes
 
 - [Best Open-Source AI Video Generation Models (2026) — Thunder Compute](https://www.thundercompute.com/blog/best-open-source-ai-video-generation-models)
