@@ -61,6 +61,8 @@ test.describe('motor de geração de cursos', () => {
     expect(result.meta.usedJsonMode).toBe(false);
     expect(result.meta.durationMs).toBeGreaterThanOrEqual(0);
     expect(result.meta.attempts).toHaveLength(1);
+    // IA-6 — resultado atribuível a uma versão de prompt.
+    expect(result.meta.promptVersion).toMatch(/^v/);
     expect(result.meta.attempts[0].ok).toBe(true);
   });
 

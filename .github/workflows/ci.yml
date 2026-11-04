@@ -74,39 +74,60 @@ jobs:
       - name: Build
         run: npm run build -w apps/pontufy
 
-  # ── E2E (habilitar quando houver Postgres/Redis efêmeros no CI) ────────────
-  # Os specs em apps/pontufy/tests exigem DATABASE_URL real, aplicam migrations
-  # e APAGAM dados de usuários de teste no global-setup. Nunca aponte para o
-  # banco de produção/staging compartilhado.
-  #
-  # e2e:
-  #   name: Playwright (API + E2E)
-  #   runs-on: ubuntu-latest
-  #   needs: quality
-  #   services:
-  #     postgres:
-  #       image: postgres:16-alpine
-  #       env:
-  #         POSTGRES_USER: pontufy
-  #         POSTGRES_PASSWORD: pontufy
-  #         POSTGRES_DB: pontufy
-  #       ports: ['5432:5432']
-  #       options: >-
-  #         --health-cmd "pg_isready -U pontufy" --health-interval 5s
-  #         --health-timeout 5s --health-retries 10
-  #   env:
-  #     DATABASE_URL: postgresql://pontufy:pontufy@localhost:5432/pontufy
-  #     DIRECT_URL: postgresql://pontufy:pontufy@localhost:5432/pontufy
-  #     AUTH_SECRET: ci-e2e-only-not-a-real-secret-00000000000
-  #     CRON_SECRET: ci-e2e-cron-secret-000000000000
-  #     AFFILIATE_WEBHOOK_SECRET: ci-e2e-affiliate-secret-00000000
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with: { node-version: 22, cache: npm }
-  #     - run: npm ci
-  #     - run: npx prisma generate --schema apps/pontufy/prisma/schema.prisma
-  #     - run: npx playwright install --with-deps chromium
-  #       working-directory: apps/pontufy
-  #     - run: npx playwright test --project=api
-  #       working-directory: apps/pontufy
+  # ── E2E — banco e cache efêmeros (C2 da ESTRATEGIA-ESTRUTURAL) ──────────────
+  # O app usa o cliente REST do Upstash, não o protocolo Redis. Por isso há um
+  # proxy HTTP (serverless-redis-http) entre o runner e o Redis: sem ele,
+  # UPSTASH_REDIS_REST_URL apontaria para um servidor que não fala REST e todo
+  # login cairia em fail-closed (503).
+  e2e:
+    name: Playwright (integração de API)
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pontufy
+          POSTGRES_PASSWORD: pontufy
+          POSTGRES_DB: pontufy
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pontufy" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      upstash-proxy:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: ci-upstash-token
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports: ['8079:80']
+    env:
+      DATABASE_URL: postgresql://pontufy:pontufy@localhost:5432/pontufy
+      DIRECT_URL: postgresql://pontufy:pontufy@localhost:5432/pontufy
+      UPSTASH_REDIS_REST_URL: http://localhost:8079
+      UPSTASH_REDIS_REST_TOKEN: ci-upstash-token
+      AUTH_SECRET: ci-e2e-only-not-a-real-secret-00000000000
+      AUTH_URL: http://127.0.0.1:3100
+      NEXTAUTH_URL: http://127.0.0.1:3100
+      CRON_SECRET: ci-e2e-cron-secret-000000000000
+      AFFILIATE_WEBHOOK_SECRET: ci-e2e-affiliate-secret-00000000
+      LOMADEE_POSTBACK_SECRET: ci-e2e-lomadee-secret-0000000
+      CERTIFICATE_VERIFICATION_SECRET: ci-e2e-certificate-secret-000000
+      PW_BASE_URL: http://127.0.0.1:3100
+      ALLOW_DESTRUCTIVE_TESTS: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx prisma generate --schema apps/pontufy/prisma/schema.prisma
+      # O webServer da suíte roda 'npm run build && next start'.
+      - run: npx playwright test --project=api --workers=1
+        working-directory: apps/pontufy

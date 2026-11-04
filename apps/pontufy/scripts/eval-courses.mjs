@@ -23,7 +23,7 @@ for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
   if (!process.env[match[1]]) process.env[match[1]] = value;
 }
 
-const { generateCourseWithFallback } = await import('../src/domain/ai/course-engine');
+const { generateCourseWithFallback, COURSE_PROMPT_VERSION } = await import('../src/domain/ai/course-engine');
 const { readCompatProviders } = await import('../src/lib/ai-providers');
 
 // ── Conjunto de referência (golden set) ────────────────────────────────────
@@ -156,6 +156,7 @@ function evaluate(result, scenario) {
   return {
     scenario: scenario.id,
     provider: result.meta.provider,
+    promptVersion: result.meta.promptVersion,
     usedJsonMode: result.meta.usedJsonMode,
     durationMs: result.meta.durationMs,
     attempts: result.meta.attempts.length,
@@ -233,7 +234,7 @@ const outDir = path.resolve(process.cwd(), 'test-results');
 mkdirSync(outDir, { recursive: true });
 writeFileSync(
   path.join(outDir, 'ai-eval-report.json'),
-  JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2),
+  JSON.stringify({ generatedAt: new Date().toISOString(), promptVersion: COURSE_PROMPT_VERSION, results }, null, 2),
   'utf8',
 );
 

@@ -16,6 +16,17 @@ import type { GeneratedCourse } from '@/schemas/course-schema';
 
 const MAX_OUTPUT_TOKENS = Number(process.env.COURSE_MAX_OUTPUT_TOKENS || 8192);
 
+/**
+ * IA-6 — versão do prompt.
+ *
+ * Sem este rótulo, comparar "o curso piorou" é opinião: a golden set do IA-3
+ * seria aplicada a uma caixa-preta. Toda geração registra a versão em `meta`,
+ * então o relatório de avaliação consegue atribuir resultado a prompt.
+ *
+ * Sobe a versão SEMPRE que `COURSE_SYSTEM_PROMPT` mudar de forma relevante.
+ */
+export const COURSE_PROMPT_VERSION = process.env.COURSE_PROMPT_VERSION?.trim() || 'v1';
+
 export const COURSE_SYSTEM_PROMPT = `Você é o motor de IA da Pontufy, uma plataforma B2B de educação corporativa gamificada.
 Gere um curso de treinamento COMPLETO, prático e adaptado ao setor/vertical informado.
 
@@ -180,6 +191,8 @@ function generateLocalFallback(prompt: string, sector: string, referenceContent?
  * problema só aparece quando um cliente reclama da qualidade do curso.
  */
 export interface CourseGenerationMeta {
+  /** Versão do prompt que gerou este conteúdo (IA-6). */
+  promptVersion: string;
   /** Provedor que entregou o conteúdo (`local:*` indica template). */
   provider: string;
   /** `true` quando o resultado veio do template, não de um modelo. */
@@ -277,6 +290,7 @@ export async function generateCourseWithFallback(
       data: generateLocalFallback(prompt, sector, referenceContent),
       provider: 'local:template',
       meta: {
+        promptVersion: COURSE_PROMPT_VERSION,
         provider: 'local:template',
         usedFallback: true,
         usedJsonMode: false,
@@ -311,6 +325,7 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
         data,
         provider,
         meta: {
+          promptVersion: COURSE_PROMPT_VERSION,
           provider,
           usedFallback: provider.startsWith('local'),
           usedJsonMode: jsonMode,
@@ -402,6 +417,7 @@ Objetivo do treinamento solicitado pelo RH: ${prompt}`;
     provider: 'local:fallback',
     errors,
     meta: {
+      promptVersion: COURSE_PROMPT_VERSION,
       provider: 'local:fallback',
       usedFallback: true,
       usedJsonMode: false,
