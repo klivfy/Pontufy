@@ -4,6 +4,7 @@ export { getTenantDb } from '@/infra/db';
 export {
   provisionTenant,
   verifyTenantEmail,
+  activateTenantManually,
   provisioningDayKey,
   maxTenantsPerDay,
   maxAiCreditsPerDay,
@@ -11,6 +12,7 @@ export {
   TRIAL_AI_CREDITS,
   TRIAL_DAYS,
   EMAIL_VERIFICATION_TTL_HOURS,
+  type ActivateTenantResult,
   type ProvisionOrigin,
   type ProvisionTenantInput,
   type ProvisionTenantResult,

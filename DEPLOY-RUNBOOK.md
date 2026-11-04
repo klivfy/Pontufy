@@ -1,7 +1,10 @@
-# Runbook de deploy — branch `sec/fase-1-2`
+# Runbook de deploy
 
-**17 commits** à frente de `origin/main` (fast-forward, sem merge commit).
-**Não faça o deploy antes de concluir os 3 blocos abaixo.** Nesta ordem.
+> Atualizado em 04/11/2026. O número de migrações abaixo (6) refere-se ao
+> **primeiro** deploy; hoje `prisma/migrations/` tem 25 e o comando continua o
+> mesmo — `npm run db:deploy` aplica todas as pendentes.
+
+**Não faça o deploy antes de concluir os blocos abaixo.** Nesta ordem.
 
 ---
 
@@ -61,10 +64,66 @@ DATABASE_URL="<pooled>" npx prisma migrate status --schema apps/pontufy/prisma/s
 | `LOMADEE_POSTBACK_SECRET` | `openssl rand -hex 32` |
 | `CERTIFICATE_VERIFICATION_SECRET` | `openssl rand -hex 32` (mín. 32 chars) |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | confirmar que existem — **sem isso, login = 503** |
+| `RESEND_API_KEY` | chave do provedor de e-mail — **sem ela nenhum e-mail sai** |
+| `EMAIL_FROM` | remetente verificado no Resend (ex.: `Pontufy <noreply@pontufy.com>`) |
 
 Detalhe de cada um e efeito da rotação: [`SEGREDOS.md`](SEGREDOS.md).
 
 > Se `AFFILIATE_WEBHOOK_SECRET` não for configurado, o webhook de afiliados responde **503** (não aceita anônimo) — correto, mas a integração para de funcionar silenciosamente do lado do parceiro.
+
+### E-mail: o que acontece sem `RESEND_API_KEY`
+
+Nada é entregue. Até 04/11 o envio sem chave imprimia no console e devolvia
+sucesso — o outbox marcava como entregue e o problema ficava invisível. Hoje o
+transporte é explícito (`src/infra/email.ts`):
+
+| Situação | Transporte | Efeito |
+|---|---|---|
+| `RESEND_API_KEY` presente | `resend` | envia de verdade |
+| `EMAIL_TRANSPORT=log` | `log` | imprime no console (dev/teste) |
+| produção, sem chave | `none` | **falha visível**; o worker não consome os eventos |
+
+Com `none`, `/api/health` responde `"email": "not_configured"` e o worker do
+outbox devolve `provider_not_configured` — os eventos ficam `pending` e fluem
+sozinhos no primeiro tick depois que a chave entra. Nada é perdido.
+
+**Consequência do `none`:** empresa nova nasce em `pending_verification` e não
+consegue entrar; recuperação de senha não funciona. Trate como incidente.
+
+### Fila de e-mail (outbox) — o cron que precisa existir
+
+Todo e-mail transacional é gravado em `OutboxEvent` e despachado por
+`/api/cron/outbox-worker`, agendado a cada 5 min em `apps/pontufy/vercel.json`.
+
+Esse cron **já ficou fora da agenda** e o resultado foi: nenhum e-mail saía,
+empresa nova não ativava, e ninguém percebia. Hoje o gate
+`npm run check:crons` falha se uma rota de cron não exportar `GET` ou não
+estiver na agenda.
+
+```bash
+# o worker está vivo? (Bearer obrigatório)
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  -o /dev/null -w "%{http_code}\n" https://app.pontufy.com/api/cron/outbox-worker
+# 200 = rodou · 401 = segredo errado · 503 = CRON_SECRET ausente
+```
+
+Para ver o tamanho da fila, olhe o campo `stats` da resposta do worker.
+
+### Empresa presa em `pending_verification` — ativação manual
+
+Se o e-mail não chegar, o suporte libera a empresa sem esperar o link:
+
+```bash
+curl -X POST https://app.pontufy.com/api/superadmin/tenants/<id>/activate \
+  -H "Cookie: <sessão de superadmin>" -H "Content-Type: application/json" \
+  -d '{"reason":"E-mail de verificação não chegou — cliente reportou em 04/11"}'
+```
+
+- Só `super_admin` `@pontufy.com`, com motivo de ≥ 10 caracteres.
+- Só ativa quem está em `pending_verification`; `suspended`/`cancelled` são
+  recusados (são estados comerciais, não e-mail perdido).
+- Concede os créditos do trial (respeitando o teto diário), consome os convites
+  pendentes e grava `TENANT_ACTIVATED_MANUALLY` na auditoria como ação crítica.
 
 ---
 
@@ -78,12 +137,12 @@ git push origin sec/fase-1-2:main
 
 ---
 
-## Bloco 4 · Verificação pós-deploy (5 checks)
+## Bloco 4 · Verificação pós-deploy (6 checks)
 
 ```bash
-# 1. saúde — deve ser 200 com db=up
+# 1. saúde — deve ser 200 com db=up e email=resend
 curl -s https://app.pontufy.com/api/health | jq
-#   → { "status": "ok", "db": "up", "redis": "up", "auth": "available" }
+#   → { "status": "ok", "db": "up", "redis": "up", "auth": "available", "email": "resend" }
 
 # 2. cron sem credencial — deve ser 401
 curl -o /dev/null -w "%{http_code}\n" https://app.pontufy.com/api/cron/expire-points
@@ -94,10 +153,18 @@ curl -o /dev/null -w "%{http_code}\n" -H "x-vercel-cron: 1" https://app.pontufy.
 # 4. webhook sem assinatura — deve ser 400/401/503, nunca 200
 curl -o /dev/null -w "%{http_code}\n" -X POST https://app.pontufy.com/api/webhooks/affiliates -d '{}'
 
-# 5. login real no navegador + concluir uma aula + resgatar uma recompensa
+# 5. worker do outbox com o segredo — deve ser 200 e trazer `stats`
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  https://app.pontufy.com/api/cron/outbox-worker | jq '{claimed, processed, stats}'
+
+# 6. fluxo real: criar empresa → e-mail chega → link ativa → login
 ```
 
 Se o check 1 trouxer `redis: "not_configured"` ou `"down"`, **o login está desligado** — configure o Upstash antes de anunciar o deploy.
+
+Se trouxer `"email": "not_configured"`, **nenhuma empresa nova consegue entrar** e a recuperação de senha não funciona. Configure `RESEND_API_KEY` e faça um deploy novo.
+
+Se o check 5 retornar `provider_not_configured`, é a mesma causa vista pelo worker: os eventos estão parados na fila, não perdidos.
 
 ---
 

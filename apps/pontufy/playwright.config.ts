@@ -111,6 +111,11 @@ export default defineConfig({
       LOMADEE_POSTBACK_SECRET: process.env.LOMADEE_POSTBACK_SECRET ?? 'test-only-lomadee-secret-0000',
       CERTIFICATE_VERIFICATION_SECRET:
         process.env.CERTIFICATE_VERIFICATION_SECRET ?? 'test-only-certificate-secret-000000',
+      // `next start` roda com NODE_ENV=production: sem esta linha o transporte
+      // de e-mail seria `none` e o worker do outbox recusaria reivindicar
+      // eventos — correto em produção sem provedor, inútil para testar o
+      // encanamento. `log` imprime no console e reporta sucesso, sem rede.
+      EMAIL_TRANSPORT: process.env.EMAIL_TRANSPORT ?? 'log',
       NEXT_TELEMETRY_DISABLED: '1',
     },
   },

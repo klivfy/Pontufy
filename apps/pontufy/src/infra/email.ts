@@ -60,19 +60,54 @@ async function enqueueEmail(payload: EmailPayload): Promise<void> {
   });
 }
 
-export async function sendEmailDirect(payload: EmailPayload): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
+/**
+ * Transporte de e-mail — explícito, nunca implícito.
+ *
+ * O outbox resolveu "perder e-mail em silêncio", mas criou um segundo
+ * silêncio: sem `RESEND_API_KEY` o envio "dava certo" (console.log + `true`) e
+ * o evento era marcado como entregue. Em produção isso não é modo dev — é
+ * e-mail que nunca sai, com o painel dizendo que saiu.
+ *
+ * `none` significa: produção sem provedor. Quem chama precisa FALHAR.
+ * `log` é o console — só em dev/teste, ou quando pedido explicitamente.
+ */
+export type EmailTransport = 'resend' | 'log' | 'none';
 
-  if (!apiKey) {
-    console.log(`[DEV] Email to ${payload.to}: ${payload.subject}`);
-    console.log(`[DEV] Body: ${payload.html.substring(0, 200)}...`);
+export function emailTransport(): EmailTransport {
+  const explicit = (process.env.EMAIL_TRANSPORT ?? '').trim().toLowerCase();
+  if (explicit === 'log') return 'log';
+  if (process.env.RESEND_API_KEY) return 'resend';
+  if (process.env.NODE_ENV !== 'production') return 'log';
+  return 'none';
+}
+
+/** Falso ⇒ nenhum e-mail sai. O worker usa isto para não consumir eventos. */
+export function isEmailDeliveryConfigured(): boolean {
+  return emailTransport() !== 'none';
+}
+
+export async function sendEmailDirect(payload: EmailPayload): Promise<boolean> {
+  const transport = emailTransport();
+
+  if (transport === 'none') {
+    logger.error(
+      'E-mail descartado: RESEND_API_KEY ausente em produção',
+      { to: payload.to, subject: payload.subject },
+      'email',
+    );
+    return false;
+  }
+
+  if (transport === 'log') {
+    console.log(`[email:log] to=${payload.to} subject=${payload.subject}`);
+    console.log(`[email:log] body=${payload.html.substring(0, 200)}...`);
     return true;
   }
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -84,7 +119,12 @@ export async function sendEmailDirect(payload: EmailPayload): Promise<boolean> {
   });
 
   if (!res.ok) {
-    console.error('Email send failed:', await res.text());
+    const detail = await res.text();
+    logger.error(
+      'Provedor de e-mail recusou o envio',
+      { status: res.status, detail: detail.slice(0, 300) },
+      'email',
+    );
     return false;
   }
 

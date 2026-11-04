@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/infra/db';
 import { getRedis } from '@/infra/redis';
+import { emailTransport } from '@/infra/email';
 
 // Health check real (V4): banco + Redis, sem autenticação e sem chamar LLM.
 // Substitui o uso de /api/ai/health como probe — aquele exigia papel de admin
@@ -34,6 +35,12 @@ export async function GET() {
   // Banco é obrigatório; Redis degrada (a aplicação sobe, autenticação não).
   const healthy = db === 'up' && redis !== 'down';
 
+  // E-mail não derruba a aplicação: as páginas continuam servindo. Mas um
+  // deploy sem provedor não cadastra empresa nenhuma (o login do admin nasce
+  // bloqueado até o link chegar), então isto precisa estar visível no probe —
+  // foi exatamente o que faltou para o problema do outbox passar despercebido.
+  const transport = emailTransport();
+
   return NextResponse.json(
     {
       status: healthy ? 'ok' : 'degraded',
@@ -41,6 +48,15 @@ export async function GET() {
       redis,
       // Sem Redis a autenticação é fail-closed — o probe precisa mostrar isso.
       auth: redis === 'up' ? 'available' : 'unavailable',
+      email: transport === 'none' ? 'not_configured' : transport,
+      warnings: [
+        ...(transport === 'none'
+          ? ['email: RESEND_API_KEY ausente — nenhum e-mail é entregue em produção']
+          : []),
+        ...(transport === 'log'
+          ? ['email: transporte de console (dev/teste) — nada é entregue de fato']
+          : []),
+      ],
       uptimeSeconds: Math.round(process.uptime()),
       latencyMs: Date.now() - startedAt,
       timestamp: new Date().toISOString(),

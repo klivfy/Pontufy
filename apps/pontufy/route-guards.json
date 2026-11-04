@@ -61,6 +61,7 @@
   "/api/skills/tree": "session",
   "/api/superadmin/metrics": "auth:super_admin_domain",
   "/api/superadmin/security/ips": "auth:super_admin_domain",
+  "/api/superadmin/tenants/[id]/activate": "auth:super_admin_domain",
   "/api/superadmin/tenants/[id]/credits": "auth:super_admin_domain",
   "/api/tenants/onboarding": "public",
   "/api/tenants/verify": "public",
