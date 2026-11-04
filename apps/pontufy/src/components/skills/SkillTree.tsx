@@ -36,10 +36,10 @@ const NODE_RADIUS = 34;
 const VIEW_PAD = 60;
 
 const STATUS_COLORS: Record<SkillNodeView['status'], { fill: string; stroke: string; text: string }> = {
-  locked: { fill: '#1e1e1e', stroke: '#444444', text: '#9ca3af' },
-  available: { fill: '#4d5c47', stroke: '#4d5c47', text: '#ffffff' },
-  in_progress: { fill: '#5c4152', stroke: '#5c4152', text: '#ffffff' },
-  completed: { fill: '#5c4152', stroke: '#f7d0a9', text: '#f7d0a9' },
+  locked: { fill: '#e5e1d9', stroke: '#cac4bd', text: '#848484' },
+  available: { fill: '#cad9ca', stroke: '#495453', text: '#1f2a29' },
+  in_progress: { fill: '#495453', stroke: '#495453', text: '#ffffff' },
+  completed: { fill: '#a7e3c1', stroke: '#356a4c', text: '#0a2a1a' },
 };
 
 export default function SkillTree({ skills }: { skills: SkillView[] }) {
@@ -48,7 +48,7 @@ export default function SkillTree({ skills }: { skills: SkillView[] }) {
   if (skills.length === 0) {
     return (
       <div className="bg-md-surface border border-md-outline rounded-xl p-10 text-center">
-        <p className="text-gray-500 text-sm">
+        <p className="text-md-on-surface-variant text-sm">
           Nenhuma trilha de competência publicada ainda. Peça ao seu gestor para criar a árvore de habilidades.
         </p>
       </div>
@@ -101,18 +101,18 @@ function SkillBranch({
   }, [skill.nodes]);
 
   const levelColor =
-    skill.proficiencyLevel >= 4 ? 'text-md-tertiary' : skill.proficiencyLevel >= 3 ? 'text-md-secondary' : 'text-gray-400';
+    skill.proficiencyLevel >= 4 ? 'text-md-tertiary' : skill.proficiencyLevel >= 3 ? 'text-md-secondary' : 'text-md-on-surface-variant';
 
   return (
     <section className="bg-md-surface border border-md-outline rounded-xl p-5">
       <header className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-lg font-black text-white">{skill.name}</h2>
-          <p className="text-xs text-gray-500 uppercase tracking-wider mt-0.5">{skill.category}</p>
+          <h2 className="text-lg font-black text-md-on-surface">{skill.name}</h2>
+          <p className="text-xs text-md-on-surface-variant uppercase tracking-wider mt-0.5">{skill.category}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="w-36">
-            <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+            <div className="flex justify-between text-[10px] font-bold text-md-on-surface-variant mb-1">
               <span>Proficiência</span>
               <span className={levelColor}>Nv. {skill.proficiencyLevel}/{skill.targetLevel}</span>
             </div>
@@ -138,7 +138,7 @@ function SkillBranch({
                 y1={from.y + VIEW_PAD}
                 x2={to.x + VIEW_PAD}
                 y2={to.y + VIEW_PAD}
-                stroke={completed ? '#f7d0a9' : '#3a3a3a'}
+                stroke={completed ? '#356a4c' : '#cac4bd'}
                 strokeWidth={2}
                 strokeDasharray={completed ? undefined : '5 4'}
               />
@@ -160,11 +160,11 @@ function SkillBranch({
               >
                 <circle cx={cx} cy={cy} r={NODE_RADIUS} fill={c.fill} stroke={c.stroke} strokeWidth={node.pdiTarget ? 3 : 1.5} />
                 {node.status === 'completed' ? (
-                  <CheckCircle2 x={cx - 12} y={cy - 12} size={24} className="text-[#f7d0a9]" />
+                  <CheckCircle2 x={cx - 12} y={cy - 12} size={24} className="text-md-on-highlight" />
                 ) : node.status === 'locked' ? (
-                  <Lock x={cx - 10} y={cy - 10} size={20} color="#9ca3af" />
+                  <Lock x={cx - 10} y={cy - 10} size={20} color="#848484" />
                 ) : (
-                  <PlayCircle x={cx - 11} y={cy - 11} size={22} className="text-white" />
+                  <PlayCircle x={cx - 11} y={cy - 11} size={22} className="text-md-on-surface" />
                 )}
                 {node.pdiTarget && (
                   <Target x={cx + NODE_RADIUS - 14} y={cy - NODE_RADIUS + 2} size={14} className="text-md-highlight" />
@@ -173,7 +173,7 @@ function SkillBranch({
                   x={cx}
                   y={cy + NODE_RADIUS + 14}
                   textAnchor="middle"
-                  className="fill-gray-300 text-[10px] font-semibold uppercase tracking-wide"
+                  className="fill-md-outline text-[10px] font-semibold uppercase tracking-wide"
                 >
                   {node.title.length > 16 ? `${node.title.slice(0, 15)}…` : node.title}
                 </text>
@@ -202,20 +202,20 @@ function NodeDetail({ node, onClose }: { node: SkillNodeView; onClose: () => voi
         role="dialog"
         aria-modal="true"
       >
-        <h3 className="font-black text-white text-lg">{node.title}</h3>
-        <p className="text-sm text-gray-500 mt-1">{node.description ?? 'Sem descrição.'}</p>
+        <h3 className="font-black text-md-on-surface text-lg">{node.title}</h3>
+        <p className="text-sm text-md-on-surface-variant mt-1">{node.description ?? 'Sem descrição.'}</p>
 
         <div className="mt-4 space-y-2 text-sm">
-          <div className="flex justify-between text-gray-400">
+          <div className="flex justify-between text-md-on-surface-variant">
             <span>Status</span>
-            <span className="font-bold text-white">{statusLabel[node.status]}</span>
+            <span className="font-bold text-md-on-surface">{statusLabel[node.status]}</span>
           </div>
-          <div className="flex justify-between text-gray-400">
+          <div className="flex justify-between text-md-on-surface-variant">
             <span>Nota exigida</span>
-            <span className="font-bold text-white">≥ {node.requiredScore}%</span>
+            <span className="font-bold text-md-on-surface">≥ {node.requiredScore}%</span>
           </div>
           {node.score > 0 && (
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-md-on-surface-variant">
               <span>Sua nota</span>
               <span className="font-bold text-md-tertiary">{node.score}%</span>
             </div>
@@ -236,14 +236,14 @@ function NodeDetail({ node, onClose }: { node: SkillNodeView; onClose: () => voi
               Ir para o curso
             </Link>
           ) : (
-            <div className="flex-1 px-4 py-2.5 rounded-xl font-bold bg-md-surface-container border border-md-outline text-gray-500 text-sm text-center">
+            <div className="flex-1 px-4 py-2.5 rounded-xl font-bold bg-md-surface-container border border-md-outline text-md-on-surface-variant text-sm text-center">
               {node.status === 'locked' ? 'Conclua o pré-requisito para liberar' : 'Curso não vinculado'}
             </div>
           )}
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-md-outline text-gray-400 hover:text-white transition-colors text-sm"
+            className="px-4 py-2.5 rounded-xl border border-md-outline text-md-on-surface-variant hover:text-md-on-surface transition-colors text-sm"
           >
             Fechar
           </button>

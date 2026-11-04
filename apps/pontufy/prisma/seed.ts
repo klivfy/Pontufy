@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import type { Role } from '@prisma/client';
 import { hashPassword } from '../src/lib/crypto';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -26,8 +27,8 @@ const PLATFORM_TENANT = {
   contractStatus: 'active',
   plan: 'enterprise',
   aiCredits: 0,
-  primaryColor: '#10B981',
-  accentColor: '#8B5CF6',
+  primaryColor: '#495453',
+  accentColor: '#A7E3C1',
 } as const;
 
 // ── Tenant principal de homologação ───────────────────────────────────────────
@@ -39,8 +40,8 @@ const ALPHA_TENANT = {
   contractStatus: 'active',
   plan: 'starter',
   aiCredits: 50,
-  primaryColor: '#10B981',
-  accentColor: '#8B5CF6',
+  primaryColor: '#495453',
+  accentColor: '#A7E3C1',
 } as const;
 
 async function main() {
@@ -79,7 +80,7 @@ async function main() {
 
   // 2. Utilizadores de teste (upsert por email; senha padrão 123456)
   const passwordHash = hashPassword(DEFAULT_PASSWORD);
-  const users = [
+  const users: Array<{ id: string; tenantId: string; email: string; name: string; role: Role; pointsBalance: number }> = [
     {
       id: 'user-admin-001',
       tenantId: alpha.id,
@@ -130,7 +131,14 @@ async function main() {
   }
 
   // 3. Curso inicial + 3 lições completas em Markdown + quiz de 3 perguntas
-  const LGPD_QUIZ = JSON.stringify([
+  //
+  // O quiz vai como ARRAY, não como string. `Course.quizJson` é `Json` no
+  // Prisma: `JSON.stringify(...)` gravava um jsonb do tipo `string`, e o leitor
+  // (`parseQuizModules`) devolvia [] — o curso de demonstração simplesmente não
+  // tinha quiz. Pior: `submitQuiz` respondia 500 ao validar a string como array
+  // de módulos. Descoberto pelo teste do quiz dinâmico no CI, que não encontrava
+  // nenhum curso publicado com questões.
+  const LGPD_QUIZ = [
     {
       module: 'Segurança da Informação e LGPD',
       questions: [
@@ -172,7 +180,7 @@ async function main() {
         },
       ],
     },
-  ]);
+  ];
 
   const lgpdCourse = await prisma.course.upsert({
     where: { id: 'course-lgpd-001' },

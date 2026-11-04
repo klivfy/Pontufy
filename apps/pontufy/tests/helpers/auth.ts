@@ -24,9 +24,26 @@ export async function loginAs(
 
   const res = await request.post('/api/auth/callback/credentials', {
     form: { csrfToken, email, password, callbackUrl: '/dashboard' },
+    maxRedirects: 0,
   });
+
+  // O NextAuth responde 302 no sucesso; o destino padrão de erro é configurado
+  // em auth.config.ts (`pages.signIn: '/login'`) e, sem AUTH_URL, ele monta a
+  // Location com `http://localhost:3000` — host que não é o servidor de teste
+  // (escolhido via PW_BASE_URL). O Playwright seguia esse redirect e falhava
+  // com ECONNREFUSED, mascarando 27 testes como "erro de conexão" quando o
+  // motivo real era a falha de autenticação.
   expect(
     [200, 302].includes(res.status()),
     `Login via API falhou para ${email} (status ${res.status()})`,
   ).toBe(true);
+
+  if (res.status() === 302) {
+    const location = res.headers()['location'] ?? '';
+    expect(
+      location.includes('error='),
+      `Login recusado para ${email}. Destino: ${location}. ` +
+        'Confira as credenciais do seed e se AUTH_URL aponta para o servidor de teste.',
+    ).toBe(false);
+  }
 }

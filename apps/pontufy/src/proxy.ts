@@ -31,9 +31,11 @@ const ROUTE_RULES: Array<{ prefix: string; rule: RouteRule }> = [
   { prefix: '/privacidade', rule: { public: true } },
   { prefix: '/login', rule: { public: true } },
   { prefix: '/register', rule: { public: true } },
+  { prefix: '/auth', rule: { public: true } },
   { prefix: '/forgot-password', rule: { public: true } },
   { prefix: '/reset-password', rule: { public: true } },
   { prefix: '/unlock-account', rule: { public: true } },
+  { prefix: '/verify-tenant', rule: { public: true } },
   { prefix: '/verify', rule: { public: true } },
   { prefix: '/superadmin/login', rule: { public: true } },
 
@@ -61,27 +63,43 @@ export const proxy = auth((req) => {
   // requisição com o tenant autenticado. Handlers continuam validando via
   // getSessionContext() — este header é camada extra contra spoofing.
   const requestHeaders = new Headers(req.headers);
+
+  // B1 — requestId: reusa o da borda (Vercel/proxy reverso) ou gera um.
+  // Vai no request (para o logger do servidor) e na resposta (para o usuário
+  // reportar). Sem isso, um erro em produção não é rastreável até as linhas
+  // de log daquela requisição.
+  const incomingRequestId = req.headers.get('x-request-id');
+  const requestId =
+    incomingRequestId && /^[A-Za-z0-9_-]{8,64}$/.test(incomingRequestId)
+      ? incomingRequestId
+      : crypto.randomUUID();
+  requestHeaders.set('x-request-id', requestId);
+
   if (isLoggedIn && tenantId) {
     requestHeaders.set('x-tenant-id', tenantId);
     requestHeaders.set('x-user-role', role);
   }
-  const passThrough = () => NextResponse.next({ request: { headers: requestHeaders } });
+  const withRequestId = (response: NextResponse) => {
+    response.headers.set('x-request-id', requestId);
+    return response;
+  };
+  const passThrough = () => withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
 
   // ── Rotas públicas ───────────────────────────────────────────────────────
   if (rule?.public) {
     // Páginas de auth: usuário logado não volta para a tela de login.
     if (isLoggedIn && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
-      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
+      return withRequestId(NextResponse.redirect(new URL('/dashboard', req.nextUrl)));
     }
     if (isLoggedIn && pathname.startsWith('/superadmin/login') && role === 'super_admin' && email.endsWith('@pontufy.com')) {
-      return NextResponse.redirect(new URL('/superadmin', req.nextUrl));
+      return withRequestId(NextResponse.redirect(new URL('/superadmin', req.nextUrl)));
     }
     return passThrough();
   }
 
   // ── Não autenticado → login corporativo ──────────────────────────────────
   if (!isLoggedIn) {
-    return NextResponse.redirect(new URL('/login', req.nextUrl));
+    return withRequestId(NextResponse.redirect(new URL('/login', req.nextUrl)));
   }
 
   // ── Zona protegida: avalia a role declarada ──────────────────────────────
@@ -93,9 +111,9 @@ export const proxy = auth((req) => {
 
     if (!allowed) {
       if (rule.opaque403) {
-        return new NextResponse(null, { status: 403 });
+        return withRequestId(new NextResponse(null, { status: 403 }));
       }
-      return NextResponse.redirect(new URL(rule.redirectTo ?? '/dashboard', req.nextUrl));
+      return withRequestId(NextResponse.redirect(new URL(rule.redirectTo ?? '/dashboard', req.nextUrl)));
     }
     return passThrough();
   }

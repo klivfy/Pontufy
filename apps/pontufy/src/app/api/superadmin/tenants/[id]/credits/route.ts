@@ -1,22 +1,19 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { prisma } from '@/backend/db';
+import { getRawPrisma } from '@/infra/platform-db';
+import { jsonError, requireSuperAdmin } from '@/domain/auth';
 import { logAudit, extractRequestMeta } from '@/lib/audit';
 
 // Consola global de governança — exclusiva para super_admin @pontufy.com.
-// Visão consolidada entre empresas via cliente Prisma direto (única exceção
-// ao Zero Trust, por design); a escrita é auditada no tenant alvo.
+// Visão consolidada entre empresas via client de plataforma (exceção ao Zero
+// Trust, por design); a escrita é auditada no tenant alvo.
+//
+// Guarda via requireSuperAdmin(): papel e domínio relidos do BANCO (V5), não
+// do token. Um super_admin rebaixado perde acesso na requisição seguinte.
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth();
-    if (
-      !session?.user ||
-      session.user.role !== 'super_admin' ||
-      !session.user.email?.endsWith('@pontufy.com')
-    ) {
-      return NextResponse.json({ error: 'Acesso restrito.' }, { status: 403 });
-    }
+    const { userId } = await requireSuperAdmin();
 
+    const prisma = getRawPrisma();
     const { id } = await context.params;
     const body = await request.json();
     const aiCredits = body?.aiCredits;
@@ -45,7 +42,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const meta = extractRequestMeta(request);
     await logAudit({
       tenantId: tenant.id,
-      userId: session.user.id,
+      userId,
       action: 'AI_CREDITS_ADJUSTED',
       entity: 'Tenant',
       entityId: tenant.id,
@@ -53,14 +50,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       userAgent: meta.userAgent,
       oldValue: { aiCredits: tenant.aiCredits },
       newValue: { aiCredits: updated.aiCredits },
+      // B5 — mexe em crédito pago pelo cliente: auditoria obrigatória.
+      critical: true,
     });
 
     return NextResponse.json({ success: true, tenant: updated });
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autenticado.') {
-      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
-    }
-    console.error('PATCH /api/superadmin/tenants/[id]/credits:', error);
-    return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
+    const mapped = jsonError(error);
+    return NextResponse.json(mapped.body, { status: mapped.status });
   }
 }

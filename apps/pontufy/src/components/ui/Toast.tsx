@@ -73,7 +73,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               exit={{ opacity: 0, y: 12, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               role="status"
-              className={`w-full flex items-start gap-3 px-4 py-3 rounded-2xl bg-md-surface-container-high text-white shadow-2xl border border-md-outline ${
+              className={`w-full flex items-start gap-3 px-4 py-3 rounded-2xl bg-md-surface-container-high text-md-on-surface shadow-2xl border border-md-outline ${
                 t.priority === 'high' ? 'border-md-highlight/40' : ''
               }`}
             >
@@ -81,14 +81,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 {t.priority === 'high' ? (
                   <AlertTriangle size={18} className="text-md-highlight" />
                 ) : t.priority === 'low' ? (
-                  <Info size={18} className="text-gray-400" />
+                  <Info size={18} className="text-md-on-surface-variant" />
                 ) : (
                   <CheckCircle2 size={18} className="text-md-tertiary" />
                 )}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">{t.title}</p>
-                {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
+                <p className="text-sm font-semibold text-md-on-surface">{t.title}</p>
+                {t.description && <p className="text-xs text-md-on-surface-variant mt-0.5">{t.description}</p>}
                 <div className="flex items-center gap-4 mt-2">
                   {t.undo && (
                     <button
@@ -120,7 +120,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={() => dismiss(t.id)}
                 aria-label="Fechar notificação"
-                className="p-1 text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                className="p-1 text-md-on-surface-variant hover:text-md-on-surface transition-colors flex-shrink-0"
               >
                 <X size={16} />
               </button>

@@ -12,11 +12,11 @@ Papéis: `admin_rh` (RH da empresa), `employee` (colaborador), `super_admin` (in
 
 | Camada | Tecnologia | Nota |
 |---|---|---|
-| Framework | Next.js **16.2.9** | `middleware.ts` é DEPRECATED — usar `src/proxy.ts` |
+| Framework | Next.js **16.4.4** | `middleware.ts` é DEPRECATED — usar `src/proxy.ts` |
 | Auth | NextAuth v5 beta | Cliente: `next-auth/react`. Servidor: `@/auth` |
 | ORM | Prisma + PostgreSQL | Nunca SQLite em produção |
 | AI | Vercel AI SDK **v6** | `maxOutputTokens`, `toTextStreamResponse` |
-| Cache | Upstash Redis | Lazy init. Sem Redis: lockout/SSE/rate-limit viram no-op |
+| Cache | Upstash Redis | Lazy init. OBRIGATÓRIO em produção (rate limit/lockout/revogação). Sem Redis o core funciona; os controles de segurança viram no-op |
 | Pagamentos | Stripe | `src/domain/billing` |
 | Afiliados | Lomadee | Um postback: `POST /api/postback/lomadee` |
 
@@ -55,17 +55,64 @@ Isolamento multi-tenant: **nunca** `prisma` direto para dado de tenant. Sempre `
 - Não reabrir `/api/webhooks/lomadee` unsigned — o postback canônico é `/api/postback/lomadee`
 - Não adicionar segunda vitrine: a loja é `/loja`
 - Não reconstruir certificados, analytics, onboarding ou notificações — já existem
+- **Não semear o banco no build/deploy.** Nenhum script de seed roda no `npm run build`; qualquer seed que reescreva `passwordHash` é backdoor (ver `scripts/check-and-seed.ts`)
+- **Não aceitar `x-vercel-cron` como autorização de cron.** Só `Authorization: Bearer $CRON_SECRET` (`src/lib/security/cron-auth.ts`)
+- **Não aceitar preço de resgate vindo do cliente.** Só `rewardId`; o valor é `Reward.pricePoints` no servidor
+- **Não voltar o débito de pontos para read-then-update.** Usar `debitPoints` (UPDATE condicional) + a constraint `User_pointsBalance_nonneg`
+- **Tenant só nasce em `provisionTenant()`** (`src/domain/tenant/provision.ts`). Nenhuma rota ou fluxo cria `Tenant` direto: é lá que ficam os tetos diários, o estado `pending_verification` e a concessão de créditos de IA
+- **`pending_verification` bloqueia login** — a regra vive em `isTenantBlocked()` (`src/domain/tenant/status.ts`). Não duplicar checagem de `contractStatus` em outro arquivo
 
 ## Rotas públicas no proxy
 
-`/login`, `/register`, `/forgot-password`, `/reset-password`, `/unlock-account`, `/verify`, `/termos`, `/privacidade`, `/superadmin/login`.
+`/login`, `/register`, `/forgot-password`, `/reset-password`, `/unlock-account`, `/verify`, `/verify-tenant`, `/termos`, `/privacidade`, `/superadmin/login`.
 
 `/admin/*` exige `admin_rh`. `/superadmin/*` exige `super_admin` + email `@pontufy.com` (403 opaco).
 
+## Motor de cursos (IA)
+
+Pipeline em duas fases — referência completa em [`MOTOR-CURSOS.md`](../../MOTOR-CURSOS.md).
+
+- **Fase 1** (`domain/ai/course-engine.ts`): curso em markdown + banco de 6–12
+  questões com `difficulty`. Uma chamada; fallback = template local.
+- **Fase 2** (`domain/ai/lesson-kit-engine.ts`): uma chamada **por aula** para
+  gerar o kit (roteiro de vídeo, slides, leitura fácil, checkpoint). Falha de uma
+  aula não derruba o curso; sem provedor, `deriveKitFromMarkdown` gera o kit do
+  próprio texto.
+- Persistência: `Lesson.blocks` (kit) e `Course.quizJson` (banco com `id`).
+  `blocks` nulo em curso antigo → o player deriva. **Não** faça backfill em massa.
+- Legibilidade é medida, não prometida: `domain/learning/readability.ts`
+  (Flesch pt-BR) roda sobre todo resumo.
+- Quiz final é sorteado por semente e **corrigido no servidor**
+  (`domain/learning/quiz-selection.ts`). Nunca envie `correctIndex` antes da
+  correção; nunca aceite a seleção de questões vinda do cliente.
+- Bancada: `npx tsx scripts/test-lesson-kit.mjs` (`--off` testa só a derivação).
+
+
+
 ## Tema visual
 
-MD3 no produto: `bg-md-surface`, `text-md-on-surface`, accent `md-primary` / emerald. Superadmin usa violeta.
+Material Design 3 **claro**, fonte **Google Sans Flex**, paleta quente de 10 cores
+(verde-chumbo, sálvia, areia, menta, blush, 5 neutros). Todos os tokens vivem no
+`@theme` de `src/app/globals.css` — a referência completa está em
+[`DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md).
+
+Regras curtas:
+
+- Cor sempre por token `md-*` (`bg-md-surface`, `text-md-on-surface`). Paleta crua
+  do Tailwind (`gray-*`, `emerald-*`, `bg-[#141414]`) não existe mais no produto.
+- Texto sobre container tonal usa `text-md-on-*-container`, nunca a cor base do
+  papel (4,3:1 reprova AA).
+- Sem alfa em token de **texto** (`text-md-*/60` some no fundo claro). Hierarquia
+  vem de `on-surface` → `on-surface-variant` → `on-surface-muted`.
+- Superadmin usa a mesma paleta (não tem mais violeta próprio).
+
 
 ## Seeds
 
-Senha local: `123456`. `admin@empresaalpha.com` (`admin_rh`), `joao@empresaalpha.com` (`employee`). `npx prisma db seed`.
+**Nunca em produção, nunca no build.** Dois caminhos, ambos manuais e locais:
+
+- `SEED_ADMIN_PASSWORD='<senha-forte>' npx tsx scripts/check-and-seed.ts` — cria tenant/contas de desenvolvimento. Recusa rodar com `NODE_ENV=production` ou `VERCEL_ENV` presente e **nunca** sobrescreve senha existente.
+- `npx prisma db seed` (`prisma/seed.ts`) — dados de demonstração (cursos, recompensas). Senha local documentada: `123456`.
+- `/api/setup/seed` responde **404** fora de desenvolvimento e exige `SETUP_SECRET` + `SETUP_ADMIN_PASSWORD`.
+
+Contas de dev: `admin@empresaalpha.com` (`admin_rh`), `joao@empresaalpha.com` (`employee`), `superadmin@pontufy.com` (`super_admin`, senha definida por `SEED_ADMIN_PASSWORD`).

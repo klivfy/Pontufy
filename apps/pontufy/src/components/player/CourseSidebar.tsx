@@ -54,13 +54,13 @@ export default function CourseSidebar({
           className="w-full flex items-center justify-between"
           aria-expanded={!collapsed}
         >
-          <h2 className="font-bold text-white text-sm">Conteúdo do Curso</h2>
+          <h2 className="font-bold text-md-on-surface text-sm">Conteúdo do Curso</h2>
           <ChevronDown
             size={16}
-            className={`text-gray-500 transition-transform ${collapsed ? '-rotate-90' : ''}`}
+            className={`text-md-on-surface-variant transition-transform ${collapsed ? '-rotate-90' : ''}`}
           />
         </button>
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-2 mt-3">
+        <div className="flex items-center justify-between text-xs text-md-on-surface-variant mb-2 mt-3">
           <span>{completedCount}/{lessons.length} aulas</span>
           <span className="text-md-tertiary font-bold">{progress}%</span>
         </div>
@@ -95,20 +95,20 @@ export default function CourseSidebar({
                     {lesson.completed ? (
                       <CheckCircle2 size={17} className="text-md-tertiary" />
                     ) : locked ? (
-                      <Lock size={17} className="text-gray-600" />
+                      <Lock size={17} className="text-md-on-surface-muted" />
                     ) : isActive ? (
                       <PlayCircle size={17} className="text-md-secondary" />
                     ) : (
-                      <Circle size={17} className="text-gray-600" />
+                      <Circle size={17} className="text-md-on-surface-muted" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-xs leading-snug ${
-                        isActive ? 'text-white font-bold' : 'text-gray-400 font-medium'
+                        isActive ? 'text-md-on-surface font-bold' : 'text-md-on-surface-variant font-medium'
                       } ${lesson.completed ? 'line-through opacity-50' : ''}`}
                     >
-                      <span className="text-gray-600 mr-1">{index + 1}.</span>
+                      <span className="text-md-on-surface-muted mr-1">{index + 1}.</span>
                       {lesson.title}
                     </p>
                     {!lesson.completed && !locked && (
@@ -132,7 +132,7 @@ export default function CourseSidebar({
                   ? 'bg-md-tertiary/10 text-md-tertiary border border-md-tertiary/40'
                   : allCompleted
                     ? 'bg-md-primary text-md-on-primary hover:bg-md-primary-container'
-                    : 'bg-md-surface-container text-gray-600 cursor-not-allowed border border-md-outline'
+                    : 'bg-md-surface-container text-md-on-surface-muted cursor-not-allowed border border-md-outline'
               }`}
             >
               {quizPassed ? (

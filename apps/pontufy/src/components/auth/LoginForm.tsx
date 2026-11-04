@@ -5,9 +5,13 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { AuthDivider, GoogleButton, googleAuthErrorMessage } from '@/components/auth/GoogleButton';
+import Wordmark from '@/components/brand/Wordmark';
 
 function errorMessage(error: string | null): string | null {
   if (!error) return null;
+  const googleMessage = googleAuthErrorMessage(error);
+  if (googleMessage) return googleMessage;
   switch (error) {
     case 'CredentialsSignin':
     case 'credentials':
@@ -69,8 +73,8 @@ export function LoginForm() {
   return (
     <div className="md-card-outlined md-elevation-3 p-8 w-full max-w-md mx-auto">
       <div className="text-center mb-8">
-        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-white mb-6">
-          <span className="text-md-primary">Pontu</span>fy
+        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-md-on-surface mb-6">
+          <Wordmark />
         </Link>
         <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Entrar</h1>
         <p className="text-body-md text-md-on-surface-variant">Acesse sua conta corporativa</p>
@@ -91,7 +95,7 @@ export function LoginForm() {
             E-mail corporativo
           </label>
           <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/60 size-5 pointer-events-none" aria-hidden="true" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant size-5 pointer-events-none" aria-hidden="true" />
             <input
               id="email"
               name="email"
@@ -101,7 +105,7 @@ export function LoginForm() {
               disabled={isLoading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="voce@empresa.com"
             />
           </div>
@@ -112,7 +116,7 @@ export function LoginForm() {
             Senha
           </label>
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/60 size-5 pointer-events-none" aria-hidden="true" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant size-5 pointer-events-none" aria-hidden="true" />
             <input
               id="password"
               name="password"
@@ -122,14 +126,14 @@ export function LoginForm() {
               disabled={isLoading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-12 pr-14 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full pl-12 pr-14 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="••••••••"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-md-on-surface-variant/60 hover:text-md-on-surface transition-colors"
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-md-on-surface-variant hover:text-md-on-surface transition-colors"
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
@@ -160,6 +164,16 @@ export function LoginForm() {
           )}
         </button>
       </form>
+
+      <AuthDivider />
+      <GoogleButton
+        intent="login"
+        next={
+          callbackUrlParam && callbackUrlParam.startsWith('/') && !callbackUrlParam.startsWith('//')
+            ? callbackUrlParam
+            : '/dashboard'
+        }
+      />
 
       <p className="mt-6 text-center text-body-sm text-md-on-surface-variant">
         Recebeu um convite?{' '}

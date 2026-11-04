@@ -1,18 +1,16 @@
-import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ShieldCheck, Building2, ShieldAlert, CreditCard, Server } from 'lucide-react';
-import { getRawPrisma } from '@/infra/db';
+import { requireSuperAdmin } from '@/domain/auth';
+import { getRawPrisma } from '@/infra/platform-db';
 import { getRedis } from '@/infra/redis';
 
 export default async function SuperAdminPage() {
-  const session = await auth();
-
-  if (
-    !session?.user ||
-    session.user.role !== 'super_admin' ||
-    !session.user.email?.endsWith('@pontufy.com')
-  ) {
+  // V5 — papel e versão de sessão relidos do banco (não do token).
+  let ctx: Awaited<ReturnType<typeof requireSuperAdmin>>;
+  try {
+    ctx = await requireSuperAdmin();
+  } catch {
     redirect('/superadmin/login');
   }
 
@@ -65,7 +63,7 @@ export default async function SuperAdminPage() {
           <ShieldCheck className="text-md-primary mx-auto mb-4" size={48} />
           <h1 className="text-headline-md font-extrabold text-md-on-surface mb-2">Pontufy Platform Console</h1>
           <p className="text-body-lg text-md-on-surface-variant">
-            Bem-vindo, <strong className="text-md-on-surface">{session.user.email}</strong>
+            Bem-vindo, <strong className="text-md-on-surface">{ctx.email}</strong>
           </p>
         </header>
 
@@ -74,7 +72,7 @@ export default async function SuperAdminPage() {
             <Link
               key={card.title}
               href={card.href}
-              className="group md-card-outlined md-elevation-1 p-6 hover:md-elevation-3 hover:border-md-primary/40 transition-all duration-300"
+              className="group md-card-outlined md-elevation-1 p-6 hover:shadow-xl hover:border-md-primary/40 transition-all duration-300"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">

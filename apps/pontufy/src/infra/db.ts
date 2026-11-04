@@ -97,6 +97,14 @@ const STRICT_TENANT_MODELS = [
   'UserSkillProgress',
   'Battle',
   'Redemption',
+  // Modelos criados depois do interceptor: sem entrada aqui, getTenantDb
+  // NÃO escopa a query. Descoberto ao ler flag do tenant beta e receber a do
+  // alpha (C4). Regra: todo modelo com coluna tenantId entra nesta lista.
+  'FeatureFlag',
+  'PointsLot',
+  'UploadQuota',
+  'EmailVerification',
+  'OutboxEvent',
 ] as const;
 
 /**
@@ -118,11 +126,44 @@ const STRICT_TENANT_MODELS = [
 export function getTenantDb(tenantId: string) {
   if (!tenantId) throw new Error('Operação negada: tenantId não fornecido.');
 
+  /**
+   * Filtro de tenant para o `where` do chamador.
+   *
+   * `findUnique`/`findUniqueOrThrow` aceitam campos não-únicos (Prisma ≥ 4.5,
+   * "extendedWhereUnique"), mas NÃO aceitam `AND` — a query estoura e a rota
+   * devolve erro genérico. Por isso esses dois operadores recebem espalhamento
+   * e todo o resto recebe `AND`, que preserva um filtro explícito do chamador
+   * em vez de sobrescrevê-lo.
+   */
+  const UNIQUE_OPS = ['findUnique', 'findUniqueOrThrow'];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withTenant = (where: any, operation: string) =>
+    UNIQUE_OPS.includes(operation)
+      ? { ...(where ?? {}), tenantId }
+      : { AND: [where ?? {}, { tenantId }] };
+
+  /**
+   * upsert exige um "where" de chave unica. Injetar AND quebra a query
+   * (PrismaClientValidationError); espalhar funciona, EXCETO quando a chave ja
+   * e composta e contem tenantId — ai qualquer campo extra vira argumento
+   * desconhecido.
+   *
+   * Regra: se o "where" ja referencia tenantId, deixamos como esta (a chave
+   * esta escopada); senao espalhamos tenantId, para impedir sequestrar
+   * registro de outro tenant por chave unica global (ex.: upsert por e-mail).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withUpsertWhere = (where: any) =>
+    JSON.stringify(where ?? {}).includes('tenantId') ? where : { ...(where ?? {}), tenantId };
+
   return prisma.$extends({
     query: {
       $allModels: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async $allOperations({ model, operation, args, query }: any) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const scope = (nextArgs: any) => Object.assign(args, nextArgs);
+
           // Tenant: global lookup (no scoping)
           if (model === 'Tenant') {
             return query(args);
@@ -132,27 +173,29 @@ export function getTenantDb(tenantId: string) {
           // own rewards read/write. Global rewards are immutable.
           if (model === 'Reward') {
             if (READ_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = {
-                ...currentWhere,
-                OR: [{ tenantId: null }, { tenantId }],
-              };
+              // `AND` em vez de espalhar `OR` no topo: o filtro do chamador era
+              // SOBRESCRITO quando ele já usava `OR`, mudando a semântica da
+              // query em silêncio.
+              scope({ where: { AND: [args.where ?? {}, { OR: [{ tenantId: null }, { tenantId }] }] } });
             } else if (WRITE_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = { ...currentWhere, tenantId };
+              scope({ where: withTenant(args.where, operation) });
+            } else if (operation === 'upsert') {
+              // `upsert` não estava em nenhuma lista: passava direto, sem
+              // tenantId no where nem no create (buraco do "Zero Trust").
+              scope({
+                where: withUpsertWhere(args.where),
+                create: { ...(args.create ?? {}), tenantId },
+              });
             } else if (['create', 'createMany'].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentData = (args as any).data;
+              // Escrita de Reward pelo client de tenant é sempre do PRÓPRIO
+              // tenant. Recompensa global só é criada por job de plataforma
+              // (getRawPrisma).
+              const currentData = args.data;
               if (Array.isArray(currentData)) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                currentData.forEach((d: any) => {
-                  if (d.tenantId === undefined) d.tenantId = tenantId;
+                currentData.forEach((d: Record<string, unknown>) => {
+                  d.tenantId = tenantId;
                 });
-              } else if (currentData && currentData.tenantId === undefined) {
+              } else if (currentData) {
                 currentData.tenantId = tenantId;
               }
             }
@@ -163,13 +206,7 @@ export function getTenantDb(tenantId: string) {
           // Relation filters are invalid inside findUnique, so only relation-safe reads get scoped.
           if (model === 'Lesson') {
             if (RELATION_SAFE_READ_OPS.includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = {
-                ...currentWhere,
-                course: { is: { tenantId } },
-              };
+              scope({ where: { ...(args.where ?? {}), course: { is: { tenantId } } } });
             }
             // For writes (create/update/delete), tenant scoping is enforced at the Course level
             // via the relation. The interceptor does not inject tenantId on Lesson writes
@@ -181,16 +218,16 @@ export function getTenantDb(tenantId: string) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (STRICT_TENANT_MODELS.includes(model as any)) {
             if ([...READ_OPS, ...WRITE_OPS].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentWhere = (args as any).where || {};
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (args as any).where = { ...currentWhere, tenantId };
+              scope({ where: withTenant(args.where, operation) });
+            } else if (operation === 'upsert') {
+              scope({
+                where: withUpsertWhere(args.where),
+                create: { ...(args.create ?? {}), tenantId },
+              });
             } else if (['create', 'createMany'].includes(operation)) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const currentData = (args as any).data;
+              const currentData = args.data;
               if (Array.isArray(currentData)) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                currentData.forEach((d: any) => (d.tenantId = tenantId));
+                currentData.forEach((d: Record<string, unknown>) => (d.tenantId = tenantId));
               } else {
                 currentData.tenantId = tenantId;
               }
@@ -204,16 +241,7 @@ export function getTenantDb(tenantId: string) {
   });
 }
 
-/**
- * Returns the raw Prisma client for administrative operations that require
- * cross-tenant access (e.g., super_admin dashboards, migrations, seeding).
- * 
- * ⚠️ USE WITH EXTREME CAUTION — bypasses all Zero Trust isolation.
- * Only permitted in:
- *   - Super admin routes (with explicit role + domain validation)
- *   - Database migrations / seeding scripts
- *   - Background jobs with explicit tenant context
- */
-export function getRawPrisma(): PrismaClient {
-  return prisma;
-}
+// O client sem escopo de tenant NÃO mora mais aqui: ver `src/infra/platform-db.ts`.
+// Manter `getRawPrisma` no mesmo módulo de `getTenantDb` tornava o atalho
+// invisível — importar do nome hostil é uma decisão deliberada.
+

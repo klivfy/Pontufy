@@ -1,8 +1,11 @@
 import { jsPDF } from 'jspdf';
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Gerador do certificado corporativo Pontufy (A4 paisagem, 297 x 210 mm).
-// Estética MD3: md-primary #10B981, md-tertiary, md-highlight #f7d0a9.
+// Estética MD3 sobre a paleta quente da marca: papel claro, tinta verde-chumbo
+// (#495453) e acentos sálvia/menta/areia. O certificado acompanha o tema claro
+// do produto — antes era uma folha preta, o que além de destoar gastava tinta
+// em qualquer impressão.
 // Assinatura criptográfica (HMAC-SHA256) para verificação imutável. Server-only.
 
 export interface CertificateData {
@@ -19,25 +22,35 @@ export interface CertificateData {
 const PAGE_W = 297;
 const PAGE_H = 210;
 
-// MD3 tokens (conforme design system collaborator app)
-const MD_PRIMARY: [number, number, number] = [16, 185, 129];      // #10B981
-const MD_TERTIARY: [number, number, number] = [139, 92, 246];     // #8B5CF6
-const MD_HIGHLIGHT: [number, number, number] = [247, 208, 169];   // #F7D0A9
-const WHITE: [number, number, number] = [255, 255, 255];
-const GRAY_100: [number, number, number] = [241, 241, 241];
-const GRAY_400: [number, number, number] = [161, 161, 161];
-const GRAY_600: [number, number, number] = [115, 115, 115];
-const GRAY_800: [number, number, number] = [38, 38, 38];
-const BG_DARK: [number, number, number] = [18, 18, 18];
+// Paleta do certificado (mesmos valores dos tokens --color-md-* do globals.css).
+const MD_PRIMARY: [number, number, number] = [73, 84, 83];        // #495453 verde-chumbo
+const MD_TERTIARY: [number, number, number] = [53, 106, 76];      // #356a4c menta escura
+const MD_SAND: [number, number, number] = [224, 210, 197];        // #e0d2c5 areia
+const MD_PEACH: [number, number, number] = [245, 200, 191];       // #f5c8bf blush
+const INK: [number, number, number] = [43, 47, 46];               // #2b2f2e on-surface
+const GRAY_400: [number, number, number] = [92, 92, 92];          // #5c5c5c on-surface-variant
+const GRAY_600: [number, number, number] = [132, 132, 132];       // #848484 discreto
+const PAPER: [number, number, number] = [253, 252, 250];          // #fdfcfa surface
 
-const VERIFICATION_SECRET = process.env.CERTIFICATE_VERIFICATION_SECRET || 'pontufy-cert-secret-dev';
+// Tintas de raridade: precisam de contraste sobre papel claro (o peach puro
+// não é legível como texto de 7pt), por isso cada uma vira um tom escuro.
+const RARITY_INK = {
+  legendary: [122, 74, 28] as [number, number, number],   // âmbar queimado
+  epic: [53, 106, 76] as [number, number, number],        // menta escura
+  rare: [73, 84, 83] as [number, number, number],         // verde-chumbo
+  common: [132, 132, 132] as [number, number, number],    // cinza 500
+};
 
 export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffer> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-  // Fundo dark MD3
-  doc.setFillColor(BG_DARK[0], BG_DARK[1], BG_DARK[2]);
+  // Papel MD3 claro
+  doc.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+
+  // Faixa de areia no topo: dá peso à composição sem escurecer a folha.
+  doc.setFillColor(MD_SAND[0], MD_SAND[1], MD_SAND[2]);
+  doc.rect(0, 0, PAGE_W, 6, 'F');
 
   // Moldura principal md-primary
   doc.setDrawColor(MD_PRIMARY[0], MD_PRIMARY[1], MD_PRIMARY[2]);
@@ -55,8 +68,8 @@ export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffe
   doc.setTextColor(GRAY_400[0], GRAY_400[1], GRAY_400[2]);
   doc.text(data.tenantName.toUpperCase(), PAGE_W / 2, 32, { align: 'center' });
 
-  // Linha decorativa md-highlight
-  doc.setDrawColor(MD_HIGHLIGHT[0], MD_HIGHLIGHT[1], MD_HIGHLIGHT[2]);
+  // Linha decorativa areia
+  doc.setDrawColor(MD_SAND[0], MD_SAND[1], MD_SAND[2]);
   doc.setLineWidth(1.5);
   doc.line(90, 36, 207, 36);
 
@@ -80,10 +93,10 @@ export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffe
   doc.setTextColor(GRAY_400[0], GRAY_400[1], GRAY_400[2]);
   doc.text('Certificamos que', PAGE_W / 2, 94, { align: 'center' });
 
-  // Nome do colaborador (destaque branco)
+  // Nome do colaborador (destaque em tinta cheia)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(26);
-  doc.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
+  doc.setTextColor(INK[0], INK[1], INK[2]);
   doc.text(doc.splitTextToSize(data.employeeName, 230), PAGE_W / 2, 110, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
@@ -109,9 +122,9 @@ export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffe
   );
   doc.text(`Concluído em ${data.completionDate}`, PAGE_W / 2, 160, { align: 'center' });
 
-  // Assinaturas com linhas md-highlight
-  doc.setDrawColor(MD_HIGHLIGHT[0], MD_HIGHLIGHT[1], MD_HIGHLIGHT[2]);
-  doc.setLineWidth(0.5);
+  // Assinaturas com linhas areia
+  doc.setDrawColor(MD_SAND[0], MD_SAND[1], MD_SAND[2]);
+  doc.setLineWidth(0.6);
   doc.line(55, 180, 135, 180);
   doc.line(162, 180, 242, 180);
 
@@ -123,11 +136,13 @@ export function generateCertificatePdf(data: CertificateData): Buffer<ArrayBuffe
   // Badge de raridade baseado no hash (determinístico)
   const rarity = getRarityFromHash(data.verificationHash);
   const rarityLabel = rarity === 'legendary' ? 'LENDÁRIO' : rarity === 'epic' ? 'ÉPICO' : rarity === 'rare' ? 'RARO' : 'COMUM';
-  const rarityColor = rarity === 'legendary' ? MD_HIGHLIGHT : rarity === 'epic' ? MD_TERTIARY : rarity === 'rare' ? MD_PRIMARY : GRAY_400;
+  const rarityColor = RARITY_INK[rarity];
 
+  // Fundo do badge: o peach só aparece como preenchimento (nunca como tinta).
+  doc.setFillColor(MD_PEACH[0], MD_PEACH[1], MD_PEACH[2]);
   doc.setDrawColor(rarityColor[0], rarityColor[1], rarityColor[2]);
   doc.setLineWidth(0.8);
-  doc.roundedRect(PAGE_W / 2 - 25, 170, 50, 10, 2, 2, 'D');
+  doc.roundedRect(PAGE_W / 2 - 25, 170, 50, 10, 2, 2, 'FD');
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(rarityColor[0], rarityColor[1], rarityColor[2]);
@@ -152,22 +167,69 @@ function getRarityFromHash(hash: string): 'common' | 'rare' | 'epic' | 'legendar
   return 'common';                    // 77%
 }
 
-// Assinatura HMAC-SHA256 determinística sobre os campos imutáveis do certificado.
-export function computeCertificateSignature(data: Omit<CertificateData, 'signature'>): string {
-  const payload = [
-    data.verificationHash,
-    data.employeeName,
-    data.courseName,
-    data.tenantName,
-    data.completionDate,
-    data.workloadHours,
-    data.lessonCount,
-  ].join('|');
-  return createHmac('sha256', VERIFICATION_SECRET).update(payload).digest('hex');
+// ── Assinatura do certificado ────────────────────────────────────────────────
+// Payload canônico: JSON com CHAVES ORDENADAS. O `join('|')` anterior colidia
+// quando um campo continha o separador (employeeName "A|B" + courseName "C" vs
+// employeeName "A" + courseName "B|C" produziam o mesmo HMAC) e não sobrevivia
+// a renomeações de campo.
+export const CERTIFICATE_PAYLOAD_VERSION = 2;
+
+export function buildCertificatePayload(data: Omit<CertificateData, 'signature'>): string {
+  return JSON.stringify({
+    v: CERTIFICATE_PAYLOAD_VERSION,
+    courseName: data.courseName,
+    completionDate: data.completionDate,
+    employeeName: data.employeeName,
+    lessonCount: data.lessonCount,
+    tenantName: data.tenantName,
+    verificationHash: data.verificationHash,
+    workloadHours: data.workloadHours,
+  });
 }
 
-// Verifica se uma assinatura é válida para os dados do certificado.
+function resolveVerificationSecret(): string {
+  const secret = process.env.CERTIFICATE_VERIFICATION_SECRET;
+
+  if (secret && secret.length >= 32) return secret;
+
+  // Fail-closed: sem segredo forte, produção não assina certificado nenhum.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[SECURITY] CERTIFICATE_VERIFICATION_SECRET ausente ou com menos de 32 caracteres. ' +
+        'Certificados não podem ser assinados com segredo default/previsível.',
+    );
+  }
+
+  // Desenvolvimento local: derivado do AUTH_SECRET para não existir segredo
+  // constante no código. Nunca é usado em produção (o throw acima impede).
+  return `dev-only-${process.env.AUTH_SECRET ?? 'local'}-certificate-secret`;
+}
+
+// Assinatura HMAC-SHA256 determinística sobre o payload canônico.
+export function signPayload(payload: string): string {
+  return createHmac('sha256', resolveVerificationSecret()).update(payload).digest('hex');
+}
+
+export function computeCertificateSignature(data: Omit<CertificateData, 'signature'>): string {
+  return signPayload(buildCertificatePayload(data));
+}
+
+// Verifica a assinatura de um payload já persistido (verificação pública).
+// O payload gravado é a string exata que foi assinada — nunca reconstruída
+// com defaults, que era a causa de todo certificado legítimo parecer inválido.
+export function verifyPayload(payload: string, signature: string): boolean {
+  if (!payload || !signature) return false;
+
+  const expected = signPayload(payload);
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const providedBuffer = Buffer.from(signature, 'utf8');
+
+  if (expectedBuffer.length !== providedBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+// Verifica a assinatura a partir dos dados (usado em testes/emissão).
 export function verifyCertificateSignature(data: CertificateData): boolean {
-  const expected = computeCertificateSignature(data);
-  return expected === data.signature;
+  if (!data.signature) return false;
+  return verifyPayload(buildCertificatePayload(data), data.signature);
 }

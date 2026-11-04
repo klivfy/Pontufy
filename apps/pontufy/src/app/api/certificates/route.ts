@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/backend/session';
 import { getTenantDb } from '@/backend/db';
 import { issueCertificate, CertificateError } from '@/domain/certificates';
+import { enforceIpRateLimit } from '@/infra/security-controls';
 import { logAudit } from '@/lib/audit';
 import { notifyCertificateReady } from '@/lib/notifications';
+
+// V9 — emissão limitada por usuário (o "IP" aqui é o id do usuário).
+const CERTIFICATE_ISSUE_MAX = 10;
+const CERTIFICATE_ISSUE_WINDOW = 10 * 60;
 
 export async function GET() {
   try {
@@ -35,6 +40,24 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { tenantId, userId } = await getSessionContext();
+
+    // V9 — emissão limitada por usuário: gerar PDF é caro (jspdf + HMAC) e a
+    // operação é idempotente, então não há motivo para aceitar chamadas em
+    // série. Política fail-open (D2): sem Redis o certificado é emitido — o
+    // endpoint exige sessão e deduplica por @@unique([userId, courseId]).
+    const rate = await enforceIpRateLimit(
+      `user:${userId}`,
+      'certificate-issue',
+      CERTIFICATE_ISSUE_MAX,
+      CERTIFICATE_ISSUE_WINDOW,
+    );
+    if (rate === 'blocked') {
+      return NextResponse.json(
+        { error: 'Muitas emissões seguidas. Aguarde um instante.' },
+        { status: 429 },
+      );
+    }
+
     const { courseId } = await request.json();
 
     if (!courseId || typeof courseId !== 'string') {

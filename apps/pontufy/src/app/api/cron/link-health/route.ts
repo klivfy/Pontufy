@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRawPrisma } from '@/infra/db';
+import { getRawPrisma } from '@/infra/platform-db';
 import { logger } from '@/infra/logger';
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock } from '@/infra/job-lock';
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const vercelCronHeader = request.headers.get('x-vercel-cron');
-  const isVercelCron = vercelCronHeader === '1';
-  const cronSecret = process.env.CRON_SECRET;
-  const isAuthorized = isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`);
+  const auth = authorizeCronRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
 
-  if (!isAuthorized) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  // V7 — execução única. Sem o lock, dois disparos desativam as mesmas
+  // recompensas e o job paga duas vezes o custo das requisições HEAD.
+  const lock = await acquireJobLock('cron:link-health');
+  if (!lock.acquired) {
+    return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
   }
 
   const prisma = getRawPrisma();
@@ -36,6 +40,8 @@ export async function GET(request: NextRequest) {
       errors.push(`${reward.id}: ${String(error)}`);
     }
   }
+
+  await lock.release();
 
   return NextResponse.json({
     success: true,

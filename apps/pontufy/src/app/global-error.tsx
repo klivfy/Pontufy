@@ -9,9 +9,9 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex items-center justify-center bg-brand-slate text-white p-6">
-        <div className="max-w-md w-full bg-white/10 backdrop-blur-md p-8 rounded-2xl border border-white/20 text-center shadow-2xl">
-          <div className="w-16 h-16 mx-auto mb-6 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center border border-red-500/30">
+      <body className="min-h-screen flex items-center justify-center bg-md-surface-container-low text-md-on-surface p-6">
+        <div className="max-w-md w-full bg-md-surface-container-lowest p-8 rounded-2xl border border-md-outline-variant text-center shadow-2xl">
+          <div className="w-16 h-16 mx-auto mb-6 bg-md-error-container text-md-on-error-container rounded-full flex items-center justify-center border border-md-error/30">
             <svg
               className="w-8 h-8"
               fill="none"
@@ -27,18 +27,18 @@ export default function GlobalError({
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-3">Falha Crítica no Sistema</h2>
-          <p className="text-gray-300 mb-8 text-sm">
+          <p className="text-md-on-surface mb-8 text-sm">
             Ocorreu um erro inesperado na renderização do aplicativo. A equipe
             técnica foi notificada.
           </p>
           <button
             onClick={() => reset()}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-full transition-all shadow-md hover:shadow-lg"
+            className="w-full bg-md-tertiary hover:bg-md-tertiary text-white font-bold py-3 px-6 rounded-full transition-all shadow-md hover:shadow-lg"
           >
             Tentar Recarregar
           </button>
           {error.digest && (
-            <p className="mt-6 text-xs text-gray-500 font-mono">
+            <p className="mt-6 text-xs text-md-on-surface-variant font-mono">
               Digest: {error.digest}
             </p>
           )}

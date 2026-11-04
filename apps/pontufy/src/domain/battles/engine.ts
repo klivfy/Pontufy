@@ -5,6 +5,7 @@ import { DomainError } from '@/domain/auth';
 import { creditDepartmentPoints } from '@/domain/engagement/ranking';
 import { notifyBattleChallenge, notifyBattleResult } from '@/lib/notifications';
 import { buildProviderChain } from '@/lib/ai-providers';
+import { battleQuestionsSchema, parseBattleQuestions } from '@/schemas/quiz';
 
 export const BATTLE_POINTS_PER_CORRECT = 5;
 
@@ -126,13 +127,15 @@ export function scoreBattleTurn(questions: BattleQuestion[], answers: number[]):
   });
 }
 
-export function battlesTopicsFrom(questionsJson: string): string[] {
-  try {
-    const parsed: { questions: Array<{ question: string }> } = JSON.parse(questionsJson);
-    return parsed.questions.map((q) => q.question.slice(0, 60));
-  } catch {
-    return [];
-  }
+/**
+ * A3 — tópicos de um duelo a partir das questões persistidas.
+ *
+ * Antes recebia string e fazia `JSON.parse`. Agora o campo é `jsonb`: a
+ * validação de contrato vem do `parseBattleQuestions`, que devolve [] para
+ * dado antigo/inválido em vez de estourar no meio de uma partida.
+ */
+export function battlesTopicsFrom(questionsJson: unknown): string[] {
+  return parseBattleQuestions(questionsJson).map((question) => question.question.slice(0, 60));
 }
 
 // Converte títulos de cursos em tópicos seguros para o prompt.
@@ -159,12 +162,34 @@ export function isoWeekKey(date: Date): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function parseQuestions(questionsJson: string): BattleQuestion[] {
-  try {
-    return (JSON.parse(questionsJson) as { questions: BattleQuestion[] }).questions;
-  } catch {
+/**
+ * A3 — questões de um duelo, validadas e convertidas para a forma em memória.
+ *
+ * O banco guarda a forma canônica (`options: [{ text }]`, a mesma do quiz de
+ * curso). O motor trabalha com `string[]` porque é o que o prompt e o sorteio
+ * usam; a conversão acontece aqui, no único ponto de leitura.
+ */
+
+/** Forma canônica gravada em `Battle.questionsJson` (`options: [{ text }]`). */
+function toStoredQuestions(questions: BattleQuestion[]) {
+  return {
+    questions: questions.map((question) => ({
+      question: question.question,
+      options: question.options.map((text) => ({ text })),
+      correctIndex: question.correctIndex,
+    })),
+  };
+}
+function parseQuestions(questionsJson: unknown): BattleQuestion[] {
+  const parsed = battleQuestionsSchema.safeParse(questionsJson);
+  if (!parsed.success) {
     throw new DomainError('Batalha corrompida.', 500);
   }
+  return parsed.data.questions.map((q) => ({
+    question: q.question,
+    options: q.options.map((option) => option.text),
+    correctIndex: q.correctIndex,
+  }));
 }
 
 export async function listOpponents(tenantId: string, userId: string) {
@@ -194,7 +219,7 @@ export async function listMyBattles(tenantId: string, userId: string) {
     take: 30,
   });
 
-  return battles.map((b: any) => ({
+  return battles.map((b) => ({
     id: b.id,
     status: b.status,
     challengerName: b.challenger.name,
@@ -232,7 +257,7 @@ export async function createChallenge(tenantId: string, userId: string, opponent
       tenantId,
       challengerId: userId,
       opponentId: opponent.id,
-      questionsJson: JSON.stringify({ questions }),
+      questionsJson: toStoredQuestions(questions),
       expiresAt: new Date(Date.now() + BATTLE_TTL_HOURS * 60 * 60 * 1000),
     },
   });
@@ -293,12 +318,27 @@ export async function submitTurn(
   const correct = forfeited ? questions.map(() => false) : scoreBattleTurn(questions, input.answers);
   const score = correct.filter(Boolean).length;
 
-  const updated = await db.battle.update({
-    where: { id: battle.id },
+  // Reserva do turno com UPDATE condicional (compare-and-set).
+  //
+  // Antes: o turno era lido, validado e gravado com `update` simples. Sem o
+  // lock distribuído (que agora é no-op sem Redis), dois POSTs concorrentes
+  // passavam pela validação e ambos chegavam a `bothDone` — creditando os
+  // departamentos duas vezes. Aqui o próprio banco decide quem grava o turno.
+  const claim = await db.battle.updateMany({
+    where: isChallenger
+      ? { id: battle.id, challengerElapsed: null }
+      : { id: battle.id, opponentElapsed: null },
     data: isChallenger
       ? { challengerScore: score, challengerElapsed: input.elapsedSeconds }
       : { opponentScore: score, opponentElapsed: input.elapsedSeconds },
   });
+
+  if (claim.count === 0) {
+    throw new DomainError('Seu turno já foi registrado.', 409);
+  }
+
+  const updated = await db.battle.findFirst({ where: { id: battle.id } });
+  if (!updated) throw new DomainError('Batalha não encontrada.', 404);
 
   const bothDone = updated.challengerElapsed !== null && updated.opponentElapsed !== null;
   let winnerId: string | null = null;
@@ -311,10 +351,17 @@ export async function submitTurn(
           ? updated.opponentId
           : null;
 
-    await db.battle.update({
-      where: { id: battle.id },
+    // Só quem transiciona para 'completed' credita os departamentos — a
+    // condição `status: { not: 'completed' }` impede crédito duplicado quando
+    // os dois turnos chegam quase juntos em instâncias diferentes.
+    const completion = await db.battle.updateMany({
+      where: { id: battle.id, status: { not: 'completed' } },
       data: { status: 'completed', winnerId, forfeitedBy: forfeited ? userId : null },
     });
+
+    if (completion.count === 0) {
+      return { score, correct, completed: true, winnerId, forfeited };
+    }
 
     const [challenger, opponent] = await Promise.all([
       db.user.findFirst({ where: { id: updated.challengerId }, select: { department: true, name: true } }),

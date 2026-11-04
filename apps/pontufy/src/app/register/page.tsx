@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Eye, EyeOff, CheckCircle2, Building2, Mail, Lock, User } from 'lucide-react';
+import { AuthDivider, GoogleButton, googleAuthErrorMessage } from '@/components/auth/GoogleButton';
+import Wordmark from '@/components/brand/Wordmark';
 
 interface InvitationInfo {
   email: string;
@@ -21,6 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
 function RegisterForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const googleError = googleAuthErrorMessage(searchParams.get('error'));
   const router = useRouter();
 
   const [invitation, setInvitation] = useState<InvitationInfo | null>(null);
@@ -63,14 +66,24 @@ function RegisterForm() {
   if (!token) {
     return (
       <div className="md-card-outlined md-elevation-3 p-8 text-center">
-        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-white mb-6">
-          <span className="text-md-primary">Pontu</span>fy
+        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-md-on-surface mb-6">
+          <Wordmark />
         </Link>
         <div className="text-md-error mb-4" style={{fontSize: '48px'}}>📨</div>
         <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Convite necessário</h1>
         <p className="text-body-md text-md-on-surface-variant mb-6">
           Para criar uma conta, você precisa de um convite do gestor da sua empresa.
         </p>
+        {googleError && (
+          <div
+            role="alert"
+            className="bg-md-error/10 border border-md-error/30 text-md-error text-body-sm p-3 rounded-xl text-center font-medium mb-4"
+          >
+            {googleError}
+          </div>
+        )}
+        <GoogleButton intent="login" label="Cadastrar com o Google" />
+        <AuthDivider />
         <Link href="/register/tenant" className="md-btn md-btn-filled w-full mb-3">
           <Building2 size={18} className="mr-2" />
           Cadastrar minha empresa
@@ -85,8 +98,8 @@ function RegisterForm() {
   if (inviteError) {
     return (
       <div className="md-card-outlined md-elevation-3 p-8 text-center">
-        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-white mb-6">
-          <span className="text-md-primary">Pontu</span>fy
+        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-md-on-surface mb-6">
+          <Wordmark />
         </Link>
         <div className="text-md-error mb-4" style={{fontSize: '48px'}}>⚠️</div>
         <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Convite indisponível</h1>
@@ -101,8 +114,8 @@ function RegisterForm() {
   if (success) {
     return (
       <div className="md-card-outlined md-elevation-3 p-8 text-center">
-        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-white mb-6">
-          <span className="text-md-primary">Pontu</span>fy
+        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-md-on-surface mb-6">
+          <Wordmark />
         </Link>
         <CheckCircle2 size={48} className="text-md-tertiary mx-auto mb-4" />
         <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Conta criada com sucesso!</h1>
@@ -157,8 +170,8 @@ function RegisterForm() {
   return (
     <div className="md-card-outlined md-elevation-3 p-8">
       <form className="space-y-5" onSubmit={handleSubmit}>
-        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-white mb-4 block text-center">
-          <span className="text-md-primary">Pontu</span>fy
+        <Link href="/" className="inline-flex items-center gap-2 text-3xl font-black tracking-tight text-md-on-surface mb-4 block text-center">
+          <Wordmark />
         </Link>
 
         <div className="text-center mb-6">
@@ -184,12 +197,12 @@ function RegisterForm() {
           </div>
         )}
 
-        {error && (
+        {(error || googleError) && (
           <div
             role="alert"
             className="bg-md-error/10 border border-md-error/30 text-md-error text-body-sm p-3 rounded-xl text-center font-medium"
           >
-            {error}
+            {error || googleError}
           </div>
         )}
 
@@ -198,7 +211,7 @@ function RegisterForm() {
             Nome completo
           </label>
           <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/60 size-5 pointer-events-none" aria-hidden="true" />
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant size-5 pointer-events-none" aria-hidden="true" />
             <input
               id="name"
               type="text"
@@ -206,7 +219,7 @@ function RegisterForm() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Maria Silva"
-              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
             />
           </div>
         </div>
@@ -216,7 +229,7 @@ function RegisterForm() {
             Criar senha
           </label>
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/60 size-5 pointer-events-none" aria-hidden="true" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant size-5 pointer-events-none" aria-hidden="true" />
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
@@ -224,12 +237,12 @@ function RegisterForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="w-full pl-12 pr-14 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+              className="w-full pl-12 pr-14 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-md-on-surface-variant/60 hover:text-md-on-surface transition-colors"
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-md-on-surface-variant hover:text-md-on-surface transition-colors"
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
@@ -241,14 +254,14 @@ function RegisterForm() {
             Confirmar senha
           </label>
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant/60 size-5 pointer-events-none" aria-hidden="true" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-md-on-surface-variant size-5 pointer-events-none" aria-hidden="true" />
             <input
               id="confirmPassword"
               type={showPassword ? 'text' : 'password'}
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+              className="w-full pl-12 pr-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
               placeholder="Confirme a senha"
             />
           </div>
@@ -268,6 +281,9 @@ function RegisterForm() {
           )}
         </button>
 
+        <AuthDivider />
+        <GoogleButton intent="invite" token={token} label="Criar conta com o Google" />
+
         <p className="text-center text-body-sm text-md-on-surface-variant pt-2">
           Já tem conta?{' '}
           <Link href="/login" className="font-semibold text-md-primary hover:text-md-primary-container transition-colors">
@@ -286,7 +302,7 @@ export default function RegisterPage() {
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(92,65,82,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 60% 40% at 50% 0%, color-mix(in srgb, var(--color-md-primary) 10%, transparent) 0%, transparent 70%)',
         }}
       />
 

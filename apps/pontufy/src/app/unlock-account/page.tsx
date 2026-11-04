@@ -47,7 +47,7 @@ function UnlockContent() {
         {status === 'loading' && (
           <>
             <Loader2 size={40} className="animate-spin text-md-primary mx-auto mb-4" />
-            <h1 className="text-lg font-bold text-white">Desbloqueando sua conta...</h1>
+            <h1 className="text-lg font-bold text-md-on-surface">Desbloqueando sua conta...</h1>
           </>
         )}
 
@@ -56,8 +56,8 @@ function UnlockContent() {
             <div className="w-16 h-16 rounded-full bg-md-tertiary/15 flex items-center justify-center mx-auto mb-4">
               <ShieldCheck size={30} className="text-md-tertiary" />
             </div>
-            <h1 className="text-lg font-bold text-white">Conta desbloqueada!</h1>
-            <p className="text-sm text-gray-500 mt-2">
+            <h1 className="text-lg font-bold text-md-on-surface">Conta desbloqueada!</h1>
+            <p className="text-sm text-md-on-surface-variant mt-2">
               Sua conta foi desbloqueada com sucesso. Já pode entrar novamente.
             </p>
             <Link href="/login" className="block mt-6">
@@ -71,8 +71,8 @@ function UnlockContent() {
             <div className="w-16 h-16 rounded-full bg-md-error/15 flex items-center justify-center mx-auto mb-4">
               <XCircle size={30} className="text-md-error" />
             </div>
-            <h1 className="text-lg font-bold text-white">Não foi possível desbloquear</h1>
-            <p className="text-sm text-gray-500 mt-2">{error}</p>
+            <h1 className="text-lg font-bold text-md-on-surface">Não foi possível desbloquear</h1>
+            <p className="text-sm text-md-on-surface-variant mt-2">{error}</p>
             <Link href="/login" className="block mt-6">
               <Button variant="tonal" className="w-full">
                 Voltar ao login

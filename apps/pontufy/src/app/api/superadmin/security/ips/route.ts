@@ -1,38 +1,34 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { jsonError, requireSuperAdmin } from '@/domain/auth';
 import { listBlockedIps, unblockIp } from '@/lib/security/auth-guard';
 
-// 6.5 — Painel de monitoramento de IPs bloqueados (somente super_admin @pontufy.com).
+// 6.5 — Painel de monitoramento de IPs bloqueados.
+// Guarda: requireSuperAdmin() relê papel e domínio do BANCO (V5). Antes o papel
+// vinha do JWT e um super_admin rebaixado continuava entrando até expirar.
 export async function GET() {
-  const session = await auth();
-  if (
-    !session?.user ||
-    session.user.role !== 'super_admin' ||
-    !session.user.email?.endsWith('@pontufy.com')
-  ) {
-    // 403 opaco: sem pistas sobre a existência da rota.
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  try {
+    await requireSuperAdmin();
+    const ips = await listBlockedIps();
+    return NextResponse.json({ ips });
+  } catch (error) {
+    const mapped = jsonError(error);
+    return NextResponse.json(mapped.body, { status: mapped.status });
   }
-
-  const ips = await listBlockedIps();
-  return NextResponse.json({ ips });
 }
 
 export async function DELETE(request: Request) {
-  const session = await auth();
-  if (
-    !session?.user ||
-    session.user.role !== 'super_admin' ||
-    !session.user.email?.endsWith('@pontufy.com')
-  ) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  try {
+    await requireSuperAdmin();
 
-  const { ip } = await request.json();
-  if (!ip || typeof ip !== 'string') {
-    return NextResponse.json({ error: 'IP inválido.' }, { status: 400 });
-  }
+    const { ip } = await request.json();
+    if (!ip || typeof ip !== 'string') {
+      return NextResponse.json({ error: 'IP inválido.' }, { status: 400 });
+    }
 
-  await unblockIp(ip);
-  return NextResponse.json({ success: true });
+    await unblockIp(ip);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const mapped = jsonError(error);
+    return NextResponse.json(mapped.body, { status: mapped.status });
+  }
 }

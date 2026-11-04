@@ -8,7 +8,12 @@ export interface CachedCourse {
   status: string;
   createdAt: string;
   cachedAt: number;
-  quizJson?: string | null;
+  /**
+   * A3 — quiz do curso, já em objeto (JSON nativo no banco). O cache guarda o
+   * mesmo formato do servidor para que o player não precise decidir entre
+   * "string para parsear" e "objeto pronto".
+   */
+  quizJson?: unknown;
   lessons: Array<{
     id: string;
     title: string;

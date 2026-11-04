@@ -3,21 +3,21 @@ import { loginAs } from '../helpers/auth';
 import { prisma, SEED, USERS, userIdByEmail } from '../helpers/db';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Concorrência & Bloqueio Distribuído (Anti-Double-Spend)
-// 5 requisições idênticas e concorrentes a /api/lessons/complete devem
-// produzir EXATAMENTE 1 crédito: lock Redis (mutex) + UNIQUE(userId, lessonId).
-// Sem Redis o lock é fail-closed (429) — a suíte pula esses testes.
+// Concorrência & anti-double-spend em /api/lessons/complete
+//
+// A garantia NÃO pode depender do lock distribuído: sem Redis o mutex vira
+// no-op e a correção precisa vir do banco (UNIQUE(userId, lessonId) + o
+// UPDATE condicional de saldo em `debit/creditPoints`).
+//
+// Por isso o teste valida o INVARIANTE (1 conclusão, 1 lançamento, saldo certo)
+// em vez do status HTTP de cada perdedor — que varia entre 429 (lock) e
+// 200/alreadyCompleted (idempotência pelo banco).
 // ═══════════════════════════════════════════════════════════════════════════
 
 const LESSON = SEED.lessonLgpd1;
 const POINTS = 40;
 
-const hasRedis = () =>
-  Boolean(process.env.UPSTASH_REDIS_REST_URL) && Boolean(process.env.UPSTASH_REDIS_REST_TOKEN);
-
 test.describe('Concorrência /api/lessons/complete', () => {
-  test.skip(!hasRedis(), 'Redis não configurado — lock distribuído indisponível (fail-closed 429).');
-
   test('5 POSTs concorrentes → exatamente 1 crédito no ledger e 1 conclusão', async ({ request }) => {
     const userId = await userIdByEmail(USERS.race);
     await loginAs(request, USERS.race);
@@ -34,26 +34,20 @@ test.describe('Concorrência /api/lessons/complete', () => {
     );
 
     const statuses = responses.map((r) => r.status());
-    const succeeded = responses.filter((r) => r.status() === 200);
 
-    // Anti-double-spend: exatamente UMA requisição vence a corrida.
-    expect(succeeded.length, `Esperado 1 sucesso, obtido ${succeeded.length} (status: ${statuses})`).toBe(1);
-    for (const r of responses) {
-      if (r.status() !== 200) {
-        expect(r.status(), 'Perdedores da corrida devem receber 429 (lock)').toBe(429);
-      }
+    // Nenhuma resposta pode ser erro de servidor: perdedor da corrida é
+    // 429 (lock) ou 200 (já concluída), nunca 500.
+    for (const status of statuses) {
+      expect([200, 429], `Status inesperado na corrida: ${statuses.join(',')}`).toContain(status);
     }
 
-    const winner = await succeeded[0].json();
-    expect(winner.success).toBe(true);
-    expect(winner.newBalance).toBe(POINTS);
-    expect(winner.alreadyCompleted).toBeFalsy();
-
-    // Verificação no banco (fonte da verdade):
-    expect(await prisma.pointsLedger.count({ where: { userId } })).toBe(1);
+    // Invariante no banco (fonte da verdade):
     expect(
-      await prisma.lessonCompletion.count({ where: { userId, lessonId: LESSON } }),
+      await prisma.pointsLedger.count({ where: { userId } }),
+      `Double-spend: ${statuses.join(',')}`,
     ).toBe(1);
+    expect(await prisma.lessonCompletion.count({ where: { userId, lessonId: LESSON } })).toBe(1);
+
     const user = await prisma.user.findUnique({ where: { id: userId } });
     expect(user?.pointsBalance).toBe(POINTS);
   });

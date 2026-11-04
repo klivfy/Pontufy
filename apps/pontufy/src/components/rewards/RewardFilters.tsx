@@ -45,7 +45,7 @@ export function RewardFilters({
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             selectedCategory
               ? 'bg-md-primary text-md-on-primary border border-md-primary'
-              : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'
+              : 'bg-md-surface-container-low text-md-on-surface border border-md-outline-variant hover:bg-md-surface-container'
           }`}
         >
           <Filter size={16} />
@@ -59,7 +59,7 @@ export function RewardFilters({
               type="button"
               onClick={() => handleCategorySelect(null)}
               className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                !selectedCategory ? 'bg-md-primary/15 text-md-primary-container' : 'text-gray-300 hover:bg-white/5'
+                !selectedCategory ? 'bg-md-primary/15 text-md-primary-container' : 'text-md-on-surface hover:bg-md-surface-container-low'
               }`}
             >
               Todas
@@ -70,7 +70,7 @@ export function RewardFilters({
                 type="button"
                 onClick={() => handleCategorySelect(cat)}
                 className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                  selectedCategory === cat ? 'bg-md-primary/15 text-md-primary-container' : 'text-gray-300 hover:bg-white/5'
+                  selectedCategory === cat ? 'bg-md-primary/15 text-md-primary-container' : 'text-md-on-surface hover:bg-md-surface-container-low'
                 }`}
               >
                 {cat}
@@ -84,7 +84,7 @@ export function RewardFilters({
         <button
           type="button"
           onClick={() => setIsSortOpen(!isSortOpen)}
-          className="flex items-center gap-2 w-full px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10 transition-all"
+          className="flex items-center gap-2 w-full px-4 py-2 rounded-lg text-sm font-medium bg-md-surface-container-low text-md-on-surface border border-md-outline-variant hover:bg-md-surface-container transition-all"
         >
           <ArrowUpDown size={16} />
           <span>{sortOptions.find((s) => s.value === sortBy)?.label || 'Ordenar'}</span>
@@ -92,14 +92,14 @@ export function RewardFilters({
         </button>
 
         {isSortOpen && (
-          <div className="absolute right-0 z-10 mt-2 bg-[#141414] border border-[#2a2a2a] rounded-lg shadow-xl py-1 min-w-[180px]">
+          <div className="absolute right-0 z-10 mt-2 bg-md-surface-container border border-md-outline rounded-lg shadow-xl py-1 min-w-[180px]">
             {sortOptions.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => handleSortSelect(opt.value)}
                 className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                  sortBy === opt.value ? 'bg-md-primary/15 text-md-primary-container' : 'text-gray-300 hover:bg-white/5'
+                  sortBy === opt.value ? 'bg-md-primary/15 text-md-primary-container' : 'text-md-on-surface hover:bg-md-surface-container-low'
                 }`}
               >
                 {opt.label}
@@ -113,7 +113,7 @@ export function RewardFilters({
         <button
           type="button"
           onClick={() => onCategoryChange(null)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-md-on-surface-variant hover:text-md-error hover:bg-md-error/25 transition-colors"
         >
           <X size={14} />
           Limpar filtros

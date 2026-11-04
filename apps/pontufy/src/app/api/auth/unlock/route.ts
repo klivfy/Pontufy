@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
-import { consumeUnlockToken, getClientIp, ipRateLimit } from '@/lib/security/auth-guard';
+import { consumeUnlockToken, getClientIp } from '@/lib/security/auth-guard';
+import { enforceIpRateLimit, securityUnavailableBody } from '@/infra/security-controls';
 import { parseBody, unlockSchema } from '@/lib/validations';
 
 // 6.4 — Desbloqueio de conta via link mágico (token de uso único, 30 min).
+// O token vive no Redis: sem Redis, o desbloqueio não pode ser consumido —
+// por isso é fail-closed, e não um "sucesso" silencioso.
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    const rate = await ipRateLimit(ip, 'unlock', 10, 15 * 60);
-    if (!rate.allowed) {
+    const rate = await enforceIpRateLimit(ip, 'unlock', 10, 15 * 60);
+    if (rate === 'unavailable') {
+      return NextResponse.json(securityUnavailableBody(), { status: 503 });
+    }
+    if (rate === 'blocked') {
       return NextResponse.json({ error: 'Muitas tentativas. Aguarde.' }, { status: 429 });
     }
 

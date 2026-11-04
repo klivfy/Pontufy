@@ -1,0 +1,53 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/infra/db';
+import { getRedis } from '@/infra/redis';
+
+// Health check real (V4): banco + Redis, sem autenticação e sem chamar LLM.
+// Substitui o uso de /api/ai/health como probe — aquele exigia papel de admin
+// e disparava 3 chamadas reais a provedores de IA a cada verificação.
+export const dynamic = 'force-dynamic';
+
+type ComponentStatus = 'up' | 'down' | 'not_configured';
+
+export async function GET() {
+  const startedAt = Date.now();
+
+  let db: ComponentStatus = 'down';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    db = 'up';
+  } catch {
+    db = 'down';
+  }
+
+  const redisClient = getRedis();
+  let redis: ComponentStatus = 'not_configured';
+  if (redisClient) {
+    try {
+      await redisClient.ping();
+      redis = 'up';
+    } catch {
+      redis = 'down';
+    }
+  }
+
+  // Banco é obrigatório; Redis degrada (a aplicação sobe, autenticação não).
+  const healthy = db === 'up' && redis !== 'down';
+
+  return NextResponse.json(
+    {
+      status: healthy ? 'ok' : 'degraded',
+      db,
+      redis,
+      // Sem Redis a autenticação é fail-closed — o probe precisa mostrar isso.
+      auth: redis === 'up' ? 'available' : 'unavailable',
+      uptimeSeconds: Math.round(process.uptime()),
+      latencyMs: Date.now() - startedAt,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      status: healthy ? 200 : 503,
+      headers: { 'Cache-Control': 'no-store' },
+    },
+  );
+}

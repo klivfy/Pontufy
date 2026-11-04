@@ -1,10 +1,66 @@
-type EmailPayload = {
+import { logger } from '@/infra/logger';
+
+export type EmailPayload = {
   to: string;
   subject: string;
   html: string;
 };
 
-async function sendEmail(payload: EmailPayload): Promise<boolean> {
+/**
+ * Escape para conteúdo interpolado em templates de e-mail.
+ * Nomes, títulos de curso e nomes de empresa são editáveis por usuário: sem
+ * escape, HTML/e-mail injection com remetente legítimo da Pontufy.
+ *
+ * Implementação em `lib/html.ts` (módulo puro): este arquivo é infraestrutura
+ * de e-mail e não deveria ser arrastado por quem só precisa escapar texto.
+ */
+import { escapeHtml } from '@/lib/html';
+
+export { escapeHtml };
+
+
+/**
+ * B3 — enfileira o e-mail em vez de enviar e esquecer.
+ *
+ * Antes: `fetch` para o Resend dentro da requisição. Se o provedor falhasse —
+ * ou a função morresse — o e-mail simplesmente não existia, sem retry e sem
+ * registro. Agora o evento é gravado e o worker (`/api/cron/outbox-worker`)
+ * processa com backoff.
+ *
+ * Retorno: `true` significa ACEITO na fila, não entregue. Quem precisa de
+ * confirmação de entrega deve consultar o outbox.
+ *
+ * Degradação: se o enfileiramento falhar (banco indisponível), cai no envio
+ * direto e registra — entregar agora é melhor que não entregar.
+ */
+export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+  if (process.env.OUTBOX_DISABLED === '1') {
+    return sendEmailDirect(payload);
+  }
+
+  try {
+    await enqueueEmail(payload);
+    return true;
+  } catch (error) {
+    logger.warn('Falha ao enfileirar e-mail — enviando direto', {
+      to: payload.to,
+      error: String(error),
+    }, 'email');
+    return sendEmailDirect(payload);
+  }
+}
+
+async function enqueueEmail(payload: EmailPayload): Promise<void> {
+  const { enqueueEvent } = await import('@/domain/outbox');
+  const { getRawPrisma } = await import('@/infra/platform-db');
+
+  await enqueueEvent(getRawPrisma(), {
+    type: 'email.send',
+    payload: payload as unknown as Record<string, unknown>,
+  });
+}
+
+export async function sendEmailDirect(payload: EmailPayload): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
@@ -51,13 +107,13 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
     subject: 'Pontufy - Recuperação de Senha',
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #10b981;">Pontufy</h2>
+        <h2 style="color: #495453;">Pontufy</h2>
         <p>Você solicitou a recuperação de senha.</p>
         <p>Clique no botão abaixo para criar uma nova senha:</p>
-        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
           Redefinir Senha
         </a>
-        <p style="color: #666; font-size: 12px; margin-top: 24px;">
+        <p style="color: #848484; font-size: 12px; margin-top: 24px;">
           Este link expira em 1 hora. Se você não solicitou esta recuperação, ignore este email.
         </p>
       </div>
@@ -65,16 +121,46 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   });
 }
 
-export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+/**
+ * Confirmação de e-mail do administrador na criação da empresa (V3).
+ * O link aponta para uma PÁGINA (não para a API): scanners de e-mail fazem
+ * prefetch de links e consumiriam um token de uso único.
+ */
+export async function sendEmailVerificationEmail(
+  to: string,
+  name: string,
+  token: string,
+): Promise<boolean> {
+  const verifyUrl = `${resolveBaseUrl()}/verify-tenant?token=${encodeURIComponent(token)}`;
+
   return sendEmail({
+    to,
+    subject: 'Pontufy — confirme seu e-mail para ativar a empresa',
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #495453;">Pontufy</h2>
+        <p>Olá <strong>${escapeHtml(name)}</strong>, sua empresa foi criada.</p>
+        <p>Para ativar a conta e liberar os créditos de IA do período de teste, confirme seu e-mail:</p>
+        <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Confirmar e-mail
+        </a>
+        <p style="color: #848484; font-size: 12px; margin-top: 24px;">
+          Este link é de uso único e expira em 24 horas. Se você não criou esta conta, ignore este email.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendWelcomeEmail(to: string, name: string): Promise<boolean> {  return sendEmail({
     to,
     subject: 'Bem-vindo ao Pontufy!',
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #10b981;">Pontufy</h2>
+        <h2 style="color: #495453;">Pontufy</h2>
         <p>Olá <strong>${name}</strong>, seja bem-vindo(a) ao Pontufy!</p>
         <p>Sua conta foi criada com sucesso. Acesse a plataforma para explorar cursos e acumular pontos.</p>
-        <p style="color: #666; font-size: 12px;">Equipe Pontufy</p>
+        <p style="color: #848484; font-size: 12px;">Equipe Pontufy</p>
       </div>
     `,
   });
@@ -93,16 +179,16 @@ export async function sendInvitationEmail(
     subject: `${companyName} te convidou para o Pontufy!`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #10b981;">Pontufy</h2>
+        <h2 style="color: #495453;">Pontufy</h2>
         <p>Você foi convidado(a) para acessar a plataforma de benefícios da <strong>${companyName}</strong>.</p>
         <p>Clique no botão abaixo para criar sua conta:</p>
-        <a href="${signupUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        <a href="${signupUrl}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
           Criar minha conta
         </a>
-        <p style="color: #666; font-size: 12px; margin-top: 24px;">
+        <p style="color: #848484; font-size: 12px; margin-top: 24px;">
           Este convite expira em <strong>${expiresLabel}</strong>.
         </p>
-        <p style="color: #666; font-size: 12px;">Equipe Pontufy</p>
+        <p style="color: #848484; font-size: 12px;">Equipe Pontufy</p>
       </div>
     `,
   });
@@ -118,13 +204,13 @@ export async function sendRedemptionEmail(
     subject: `Pontufy - Resgate: ${rewardTitle}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #10b981;">Pontufy</h2>
+        <h2 style="color: #495453;">Pontufy</h2>
         <p>Parabéns! Você resgatou: <strong>${rewardTitle}</strong></p>
         <p>Acesse seu benefício pelo link abaixo:</p>
-        <a href="${affiliateLink}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        <a href="${affiliateLink}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
           Acessar Benefício
         </a>
-        <p style="color: #666; font-size: 12px; margin-top: 24px;">Equipe Pontufy</p>
+        <p style="color: #848484; font-size: 12px; margin-top: 24px;">Equipe Pontufy</p>
       </div>
     `,
   });
@@ -140,15 +226,15 @@ export async function sendAccountLockedEmail(
     subject: 'Pontufy - Alerta de Segurança: Conta Temporariamente Bloqueada',
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #10b981;">Pontufy</h2>
+        <h2 style="color: #495453;">Pontufy</h2>
         <p>Detectamos <strong>5 tentativas de login falhas</strong> na sua conta.</p>
         <p><strong>IP de origem:</strong> ${ip}</p>
         <p>Por segurança, sua conta foi temporariamente bloqueada por 15 minutos.</p>
         <p>Se você reconhece esta atividade, desbloqueie sua conta agora:</p>
-        <a href="${unlockUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        <a href="${unlockUrl}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
           Desbloquear minha conta
         </a>
-        <p style="color: #666; font-size: 12px; margin-top: 24px;">
+        <p style="color: #848484; font-size: 12px; margin-top: 24px;">
           Este link é de uso único e expira em 30 minutos. Se não foi você, ignore este email e considere trocar sua senha.
         </p>
       </div>

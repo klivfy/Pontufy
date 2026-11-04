@@ -12,7 +12,10 @@ import {
 import { resolveBaseUrl, sendAccountLockedEmail } from '@/lib/email';
 import { getRedis } from '@/lib/redis';
 import { logAudit } from '@/lib/audit';
-import { getTenantDb } from '@/backend/db';
+import { isTenantBlocked } from '@/domain/tenant/status';
+import { assertSecurityInfraForLogin } from '@/infra/security-controls';
+import { bumpUserSessionVersion } from '@/infra/session-version';
+import { verifyGoogleBridgeTicket } from '@/domain/auth/google-ticket';
 
 declare module 'next-auth' {
   interface Session {
@@ -20,12 +23,14 @@ declare module 'next-auth' {
       id: string;
       tenantId: string;
       role: string;
+      sessionVersion: number;
     } & DefaultSession['user'];
   }
 
   interface User {
     tenantId: string;
     role: string;
+    sessionVersion: number;
   }
 }
 
@@ -34,20 +39,13 @@ declare module 'next-auth' {
 // Prisma e crypto). auth.config.ts permanece Edge-safe (proxy/middleware).
 // ═══════════════════════════════════════════════════════════════════════════
 
-// 7.2/7.3 — Versão de sessão (revogação instantânea). Cada login carrega a
-// versão atual do usuário; /api/auth/revoke-all incrementa a versão e derruba
-// todas as sessões imediatamente (JWT stateless não permite revogação direta).
-async function getSessionVersion(userId: string): Promise<number> {
-  const redis = getRedis();
-  if (!redis) return 1; // sem Redis: comportamento padrão (sem revogação ativa)
-  const v = await redis.get<number>(`session-version:${userId}`);
-  if (v === null) {
-    await redis.set(`session-version:${userId}`, 1);
-    return 1;
-  }
-  return v;
-}
-
+// 7.2/7.3 — Versão de sessão (revogação instantânea).
+//
+// A versão vive no BANCO (`User.sessionVersion`), não no Redis: sem Redis a
+// revogação era no-op e um acesso demitido seguia válido até o JWT expirar.
+// O `getSessionContext` compara a versão do token com a do banco na query que
+// ele já faz; `revoke-all` incrementa a coluna. O Redis só espelha, para o modo
+// single-device.
 async function isSingleSessionEnabled(tenantId: string): Promise<boolean> {
   const redis = getRedis();
   if (!redis) return false;
@@ -67,6 +65,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           if (!credentials?.email || !credentials?.password) return null;
 
+          // V4 — sem Redis não existe lockout nem rate limit: recusar o login é
+          // melhor que aceitar força bruta ilimitada. O motivo fica em /api/health.
+          assertSecurityInfraForLogin();
           const email = String(credentials.email).trim().toLowerCase();
 
           // 6.1/6.3 — Lockout de conta (5 falhas / 15min) antes de verificar
@@ -100,11 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // evitando migration sem acesso ao banco; a coluna pode ser adicionada
           // depois via migration normal).
           const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
-          const tenantBlocked =
-            !tenant ||
-            tenant.contractStatus === 'suspended' ||
-            tenant.contractStatus === 'cancelled' ||
-            tenant.subscriptionStatus === 'canceled';
+          const tenantBlocked = isTenantBlocked(tenant);
           if (tenantBlocked) {
             console.warn(`[auth] Login recusado: tenant inativo (${user.tenantId}).`);
             return null;
@@ -173,9 +170,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: user.name,
             tenantId: user.tenantId,
             role: user.role,
+            sessionVersion: user.sessionVersion,
           };
         } catch (err) {
           console.error('[auth] authorize error:', err);
+          return null;
+        }
+      },
+    }),
+    CredentialsProvider({
+      id: 'google-bridge',
+      name: 'Google',
+      credentials: {
+        ticket: { label: 'ticket', type: 'text' },
+      },
+      async authorize(credentials) {
+        try {
+          const ticket = typeof credentials?.ticket === 'string' ? credentials.ticket : '';
+          if (!ticket) return null;
+
+          assertSecurityInfraForLogin();
+
+          const userId = verifyGoogleBridgeTicket(ticket);
+          if (!userId) return null;
+
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          if (!user) return null;
+
+          const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } });
+          const tenantBlocked = isTenantBlocked(tenant);
+          if (tenantBlocked) return null;
+
+          if (user.role === 'super_admin' && !user.email.endsWith('@pontufy.com')) {
+            return null;
+          }
+
+          await logAudit({
+            tenantId: user.tenantId,
+            userId: user.id,
+            action: 'LOGIN_SUCCESS',
+            entity: 'User',
+            entityId: user.id,
+            newValue: { role: user.role, via: 'google' },
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            tenantId: user.tenantId,
+            role: user.role,
+            sessionVersion: user.sessionVersion,
+          };
+        } catch (err) {
+          console.error('[auth] google-bridge authorize error:', err);
           return null;
         }
       },
@@ -194,20 +242,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // nova versão e invalida sessões anteriores.
         const uid = user.id as string;
         const single = await isSingleSessionEnabled(user.tenantId as string);
+        // Single-device: cada login invalida as sessões anteriores do usuário.
         const version = single
-          ? (await getSessionVersion(uid)) + 1
-          : await getSessionVersion(uid);
-        if (single) {
-          const redis = getRedis();
-          if (redis) await redis.set(`session-version:${uid}`, version);
-        }
-        token.sessionVersion = version;
-      } else if (token.sessionVersion !== undefined) {
-        const current = await getSessionVersion(token.id as string);
-        if (current !== token.sessionVersion) {
-          // Sessão revogada (revoke-all ou novo login single-device).
-          return null;
-        }
+          ? await bumpUserSessionVersion(uid)
+          : ((user as { sessionVersion?: number }).sessionVersion ?? 1);
+        token.sv = version;
       }
       return token;
     },
@@ -216,6 +255,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
         session.user.role = token.role as string;
+        session.user.sessionVersion = (token.sv as number | undefined) ?? 1;
       }
       return session;
     },

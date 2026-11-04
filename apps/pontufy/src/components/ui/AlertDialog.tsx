@@ -86,22 +86,21 @@ export function AlertDialog({
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             className="relative w-full max-w-sm bg-md-surface rounded-3xl border border-md-outline shadow-2xl p-6"
           >
-            <h2 id="md3-alert-title" className="text-lg font-bold text-white">
+            <h2 id="md3-alert-title" className="text-lg font-bold text-md-on-surface">
               {title}
             </h2>
-            {description && <p className="text-sm text-gray-400 mt-2">{description}</p>}
+            {description && <p className="text-sm text-md-on-surface-variant mt-2">{description}</p>}
             <div className="flex justify-end gap-3 mt-6">
               <Button ref={cancelRef} variant="text" onClick={onClose}>
                 {cancelLabel}
               </Button>
               <Button
                 ref={confirmRef}
-                variant={destructive ? 'filled' : 'filled'}
+                variant={destructive ? 'destructive' : 'filled'}
                 onClick={() => {
                   onConfirm();
                   onClose();
                 }}
-                className={destructive ? '!bg-md-error !text-md-on-error hover:!bg-md-error/80' : ''}
               >
                 {confirmLabel}
               </Button>

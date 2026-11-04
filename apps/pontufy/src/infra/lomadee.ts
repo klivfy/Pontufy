@@ -112,7 +112,9 @@ async function requestJson<T>(url: string): Promise<{ status: number; body: T }>
 
   if (!response.ok) {
     const sample = text.slice(0, 600);
-    console.error(`Lomadee request failed [${response.status} ${response.statusText}] URL=${url}`);
+    // O appToken da Lomadee vai no PATH da URL — nunca logar a URL crua.
+    const safeUrl = url.replace(/(appToken=|token=)([^&/]+)/gi, '$1***').replace(/\/[0-9a-f]{32,}\//gi, '/***/');
+    console.error(`Lomadee request failed [${response.status} ${response.statusText}] URL=${safeUrl}`);
     console.error(`Lomadee response body: ${sample || '(vazio)'}`);
     throw new Error(`Lomadee request failed (${response.status} ${response.statusText}): ${sample}`);
   }

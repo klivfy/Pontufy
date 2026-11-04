@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
+import type { Plan } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/backend/db';
 import { hashPassword } from '@/lib/crypto';
@@ -13,15 +14,78 @@ const DEFAULT_CREDITS: Record<string, number> = {
   enterprise: 1000,
 };
 
+// Um claim em `processing` expira depois disso; aí o próximo retry pode
+// retomar o evento (instance que morreu no meio do processamento).
+const PROCESSING_CLAIM_TTL_MS = 60_000;
+
+type ClaimResult = 'claimed' | 'duplicate' | 'in_flight';
+
+/**
+ * Reivindica o evento para processamento (idempotência com estados).
+ *
+ * Antes, o `create` acontecia antes do trabalho e nunca era revertido: uma
+ * falha deixava o evento marcado para sempre, e o retry do Stripe virava
+ * `duplicate: true` — o pagamento nunca era aplicado.
+ */
+async function claimEvent(eventId: string, type: string): Promise<ClaimResult> {
+  const existing = await prisma.stripeEvent.findUnique({
+    where: { eventId },
+    select: { id: true, status: true, updatedAt: true },
+  });
+
+  if (!existing) {
+    try {
+      await prisma.stripeEvent.create({ data: { eventId, type, status: 'processing', attempts: 1 } });
+      return 'claimed';
+    } catch (error) {
+      // P2002: outra entrega concorrente criou primeiro.
+      if (isUniqueViolation(error)) return 'duplicate';
+      throw error;
+    }
+  }
+
+  if (existing.status === 'processed') return 'duplicate';
+
+  const claimExpired = Date.now() - existing.updatedAt.getTime() > PROCESSING_CLAIM_TTL_MS;
+  if (existing.status === 'processing' && !claimExpired) return 'in_flight';
+
+  await prisma.stripeEvent.update({
+    where: { eventId },
+    data: { status: 'processing', attempts: { increment: 1 } },
+  });
+  return 'claimed';
+}
+
 async function markProcessed(eventId: string, tenantId: string | null): Promise<void> {
   try {
-    await prisma.stripeEvent.update({ where: { eventId }, data: { tenantId } });
+    await prisma.stripeEvent.update({
+      where: { eventId },
+      data: { tenantId, status: 'processed' },
+    });
   } catch (error) {
     console.error('StripeEvent update failed:', error);
   }
 }
 
+/** Libera o evento para um novo retry (não perde o trabalho do Stripe). */
+async function markFailed(eventId: string): Promise<void> {
+  try {
+    await prisma.stripeEvent.update({
+      where: { eventId },
+      data: { status: 'failed' },
+    });
+  } catch (error) {
+    console.error('StripeEvent markFailed error:', error);
+  }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && (error as { code?: string }).code === 'P2002';
+}
+
 export async function POST(request: NextRequest) {
+  let claimedEventId: string | null = null;
+
   try {
     const rawBody = await request.text();
     const signature = request.headers.get('stripe-signature') || '';
@@ -41,24 +105,16 @@ export async function POST(request: NextRequest) {
     const event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
 
     // ── Idempotência: Stripe redelivers até receber 2xx. ─────────────────
-    const existing = await prisma.stripeEvent.findUnique({
-      where: { eventId: event.id },
-    });
-    if (existing) {
+    // O claim só marca o evento como 'processed' no fim; uma falha no meio do
+    // caminho o libera ('failed') para o retry.
+    const claim = await claimEvent(event.id, event.type);
+    if (claim === 'duplicate') {
       return NextResponse.json({ received: true, duplicate: true });
     }
-
-    try {
-      await prisma.stripeEvent.create({
-        data: { eventId: event.id, type: event.type },
-      });
-    } catch (error) {
-      // P2002 — entrega concorrente venceu a corrida; não processar de novo.
-      if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'P2002') {
-        return NextResponse.json({ received: true, duplicate: true });
-      }
-      throw error;
+    if (claim === 'in_flight') {
+      return NextResponse.json({ received: true, processing: true });
     }
+    claimedEventId = event.id;
 
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -113,7 +169,9 @@ export async function POST(request: NextRequest) {
         const companyName = metadata.company_name;
         const email = session.customer_email || metadata.admin_email;
         const sector = metadata.sector || 'tech';
-        const plan = metadata.plan || 'starter';
+      // A2 — metadata.plan é string arbitrária vinda do Stripe: só entra no
+      // domínio depois de normalizada, senão o enum rejeita a escrita.
+      const plan: Plan = metadata.plan === 'enterprise' ? 'enterprise' : metadata.plan === 'trial' ? 'trial' : 'starter';
 
         if (!companyName || !email) {
           return NextResponse.json({ error: 'MISSING_METADATA' }, { status: 400 });
@@ -251,6 +309,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('POST /api/webhooks/stripe:', error);
+    // Libera o evento para o próximo retry do Stripe — nunca deixar um
+    // pagamento definitivamente não processado por causa de uma exceção.
+    if (claimedEventId) await markFailed(claimedEventId);
     return NextResponse.json({ error: 'INTERNAL_ERROR' }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSessionContext } from '@/infra/session';
-import { acquireLock, releaseLock } from '@/infra/mutex';
+import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
 import { getOpenTurn, submitTurn } from '@/domain/battles';
 import { parseBody } from '@/lib/validations';
@@ -35,7 +35,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  let lockKey = '';
+  let lock: LockHandle | null = null;
   try {
     const { tenantId, userId } = await getSessionContext();
     const { id } = await params;
@@ -43,9 +43,8 @@ export async function POST(
     const { data, error } = parseBody(answerSchema, raw);
     if (error) return NextResponse.json({ error }, { status: 400 });
 
-    lockKey = `lock:battle:${tenantId}:${id}`;
-    const lockAcquired = await acquireLock(lockKey, 10);
-    if (!lockAcquired) {
+    lock = await acquireLock(`lock:battle:${tenantId}:${id}`, 10);
+    if (!lock) {
       return NextResponse.json({ error: 'Transação já em andamento. Aguarde.' }, { status: 429 });
     }
 
@@ -60,6 +59,6 @@ export async function POST(
     if (mapped.status >= 500) logger.error('POST /api/battles/[id]', { error: String(error) }, 'battles');
     return NextResponse.json(mapped.body, { status: mapped.status });
   } finally {
-    if (lockKey) await releaseLock(lockKey);
+    await releaseLock(lock);
   }
 }

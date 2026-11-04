@@ -44,8 +44,8 @@ test.describe('Analytics e white-label (admin_rh)', () => {
       where: { slug: 'empresa-alpha' },
       select: { primaryColor: true, accentColor: true, logoUrl: true },
     });
-    expect(tenant?.primaryColor).toBe('#10B981');
-    expect(tenant?.accentColor).toBe('#8B5CF6');
+    expect(tenant?.primaryColor).toBe('#495453');
+    expect(tenant?.accentColor).toBe('#A7E3C1');
   });
 
   test('PATCH de branding: admin_rh pode; employee recebe 403', async ({ page }) => {

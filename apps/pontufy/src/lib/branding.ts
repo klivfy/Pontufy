@@ -7,8 +7,8 @@
 
 const HEX_COLOR_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
-export const DEFAULT_PRIMARY_COLOR = '#10B981';
-export const DEFAULT_ACCENT_COLOR = '#8B5CF6';
+export const DEFAULT_PRIMARY_COLOR = '#495453';
+export const DEFAULT_ACCENT_COLOR = '#A7E3C1';
 
 /** Retorna a cor normalizada (#RRGGBB) ou null se inválida. */
 export function sanitizeHexColor(value: unknown): string | null {

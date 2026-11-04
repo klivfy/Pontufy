@@ -4,12 +4,13 @@
 // Segurança: Bearer token no header Authorization
 
 import { NextResponse } from 'next/server';
-import { getRawPrisma } from '@/backend/db';
+import type { PrismaClient } from '@prisma/client';
+import { getRawPrisma } from '@/infra/platform-db';
 import { lomadeeService, LomadeeCoupon, LomadeeOffer } from '@/lib/lomadee';
 import { logAudit } from '@/lib/audit';
 import { cacheDeletePattern } from '@/lib/redis';
-
-const CRON_SECRET = process.env.CRON_SECRET;
+import { authorizeCronRequest } from '@/lib/security/cron-auth';
+import { acquireJobLock, type JobLock } from '@/infra/job-lock';
 
 interface SyncResult {
   couponsProcessed: number;
@@ -30,15 +31,19 @@ export async function POST(request: Request) {
 
 async function handleSync(request: Request): Promise<NextResponse> {
   const startedAt = Date.now();
+  let lock: JobLock | null = null;
 
   try {
-    const authHeader = request.headers.get('authorization');
-    const vercelCronHeader = request.headers.get('x-vercel-cron');
-    const isVercelCron = vercelCronHeader === '1';
-    const isAuthorized = isVercelCron || (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`);
+    const auth = authorizeCronRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
-    if (!isAuthorized) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    // V7 — execução única: dois syncs simultâneos duplicam recompensas
+    // (não há @@unique em partner+externalId) e disputam o mesmo catálogo.
+    lock = await acquireJobLock('cron:sync-lomadee');
+    if (!lock.acquired) {
+      return NextResponse.json({ skipped: true, reason: 'locked' }, { status: 200 });
     }
 
     // Verifica se Lomadee está configurado
@@ -92,17 +97,45 @@ async function handleSync(request: Request): Promise<NextResponse> {
       }
     }
 
-    // Desativa recompensas Lomadee que não estão mais no catálogo ativo
-    const activeExternalIds = [
-      ...catalog.coupons.map(c => `coupon:${c.id}`),
-      ...catalog.offers.map(o => `offer:${o.id}`),
-    ];
+    // ── Desativação defensiva (F2.2) ────────────────────────────────────────
+    // Antes: `updateMany({ externalId: { notIn: activeExternalIds } })`.
+    // Como `fetchCatalog()` devolve apenas a primeira página (results=50,
+    // page=1) e tolera falha parcial, qualquer catálogo vazio/truncado
+    // desativava TODAS as recompensas Lomadee fora daquela página — a loja se
+    // esvaziava sozinha de madrugada.
+    //
+    // Agora:
+    //   • catálogo vazio ou incompleto ⇒ abortar SEM desativar nada;
+    //   • desativação só por ausência de atualização (updatedAt antigo), nunca
+    //     por "não veio nesta resposta".
+    const catalogIsEmpty = catalog.coupons.length === 0 && catalog.offers.length === 0;
+    const catalogIsIncomplete = catalog.diagnostics?.errors?.length
+      ? catalog.diagnostics.errors.length > 0
+      : false;
+
+    if (catalogIsEmpty || catalogIsIncomplete) {
+      const reason = catalogIsEmpty
+        ? 'catálogo vazio'
+        : `falha parcial no catálogo: ${catalog.diagnostics?.errors?.join('; ')}`;
+      console.error(`Lomadee sync abortado (${reason}). Nenhuma recompensa foi desativada.`);
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Sincronização abortada: ${reason}. Catálogo preservado.`,
+          ...result,
+        },
+        { status: 502 },
+      );
+    }
+
+    const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias sem aparecer no catálogo
+    const staleCutoff = new Date(Date.now() - STALE_AFTER_MS);
 
     const deactivated = await prisma.reward.updateMany({
       where: {
         partner: 'LOMADEE',
-        externalId: { notIn: activeExternalIds },
         isActive: true,
+        updatedAt: { lt: staleCutoff },
       },
       data: { isActive: false, updatedAt: new Date() },
     });
@@ -140,11 +173,12 @@ async function handleSync(request: Request): Promise<NextResponse> {
       { success: false, error: 'Erro interno na sincronização', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    if (lock) await lock.release();
   }
 }
 
-async function processCoupon(
-  prisma: any,
+async function processCoupon(prisma: PrismaClient,
   coupon: LomadeeCoupon,
   result: SyncResult,
 ): Promise<void> {
@@ -185,8 +219,7 @@ async function processCoupon(
   }
 }
 
-async function processOffer(
-  prisma: any,
+async function processOffer(prisma: PrismaClient,
   offer: LomadeeOffer,
   result: SyncResult,
 ): Promise<void> {

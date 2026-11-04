@@ -183,18 +183,18 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
     return (
       <div className="w-full max-w-md mx-auto mb-6">
         <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-          <span className={urgent ? 'text-red-400' : 'text-gray-400'}>
+          <span className={urgent ? 'text-md-error' : 'text-md-on-surface-variant'}>
             <Timer size={14} className="inline mr-1" />
             {secondsLeft}s
           </span>
-          <span className="text-gray-500">
+          <span className="text-md-on-surface-variant">
             Questão {currentIdx + 1} de {questions.length}
           </span>
         </div>
-        <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+        <div className="h-2 bg-md-surface-container-high rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-1000 ease-linear ${
-              urgent ? 'bg-red-500' : 'bg-md-primary'
+              urgent ? 'bg-md-error' : 'bg-md-primary'
             }`}
             style={{ width: `${pct}%` }}
           />
@@ -207,7 +207,7 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-24">
         <Loader2 className="animate-spin text-md-primary" size={36} />
-        <p className="text-gray-400 text-sm">Preparando o duelo…</p>
+        <p className="text-md-on-surface-variant text-sm">Preparando o duelo…</p>
       </div>
     );
   }
@@ -215,11 +215,11 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
   if (phase === 'error') {
     return (
       <div className="py-16 text-center">
-        <Swords className="mx-auto text-gray-500 mb-4" size={40} />
-        <p className="text-gray-300 font-medium">{error}</p>
+        <Swords className="mx-auto text-md-on-surface-variant mb-4" size={40} />
+        <p className="text-md-on-surface font-medium">{error}</p>
         <button
           onClick={onClose}
-          className="mt-6 px-6 py-2.5 rounded-full bg-md-primary text-black font-bold text-sm hover:opacity-90 transition"
+          className="mt-6 px-6 py-2.5 rounded-full bg-md-primary text-md-on-primary font-bold text-sm hover:opacity-90 transition"
         >
           Voltar
         </button>
@@ -232,14 +232,14 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
     return (
       <div className="py-10 text-center">
         {result.forfeited ? (
-          <AlertTriangle className="mx-auto text-amber-400 mb-4" size={48} />
+          <AlertTriangle className="mx-auto text-md-secondary mb-4" size={48} />
         ) : (
-          <Trophy className={`mx-auto mb-4 ${wins >= 3 ? 'text-amber-400' : 'text-gray-500'}`} size={48} />
+          <Trophy className={`mx-auto mb-4 ${wins >= 3 ? 'text-md-secondary' : 'text-md-on-surface-variant'}`} size={48} />
         )}
-        <h3 className="text-2xl font-black text-white mb-1">
+        <h3 className="text-2xl font-black text-md-on-surface mb-1">
           {result.forfeited ? 'Turno anulado' : `Você acertou ${wins} de ${questions.length}`}
         </h3>
-        <p className="text-gray-400 text-sm mt-2 max-w-md mx-auto">
+        <p className="text-md-on-surface-variant text-sm mt-2 max-w-md mx-auto">
           {result.forfeited
             ? 'A perda de foco durante o duelo anula o turno (regra anti-consulta).'
             : result.winnerId
@@ -249,7 +249,7 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
         <div className="mt-8 flex items-center justify-center gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-full bg-md-primary text-black font-bold text-sm hover:opacity-90 transition flex items-center gap-2"
+            className="px-6 py-2.5 rounded-full bg-md-primary text-md-on-primary font-bold text-sm hover:opacity-90 transition flex items-center gap-2"
           >
             <RotateCcw size={16} /> Voltar às batalhas
           </button>
@@ -262,13 +262,13 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
   return (
     <div className="py-6">
       {focusLost && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm text-center font-semibold">
+        <div className="mb-4 p-3 rounded-lg bg-md-secondary/25 border border-md-secondary/30 text-md-secondary text-sm text-center font-semibold">
           Perda de foco detectada! O turno será anulado ao enviar.
         </div>
       )}
       {renderTimer()}
-      <div className="max-w-2xl mx-auto bg-black/20 border border-white/5 rounded-2xl p-6 md:p-8">
-        <h3 className="text-lg md:text-xl font-bold text-white leading-snug mb-6">
+      <div className="max-w-2xl mx-auto bg-md-surface-container border border-md-outline-variant rounded-2xl p-6 md:p-8">
+        <h3 className="text-lg md:text-xl font-bold text-md-on-surface leading-snug mb-6">
           {q?.question}
         </h3>
         <div className="space-y-2.5">
@@ -281,11 +281,11 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
                 disabled={focusLost}
                 className={`w-full text-left px-4 py-3 rounded-xl border text-sm font-medium transition ${
                   isSelected
-                    ? 'border-md-primary bg-md-primary/15 text-white'
-                    : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/25 hover:bg-white/10'
+                    ? 'border-md-primary bg-md-primary/15 text-md-on-surface'
+                    : 'border-md-outline-variant bg-md-surface-container-low text-md-on-surface hover:border-md-outline hover:bg-md-surface-container'
                 } ${focusLost ? 'opacity-60' : ''}`}
               >
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-black/40 text-xs font-bold mr-3">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-md-surface-container-high text-xs font-bold mr-3">
                   {String.fromCharCode(65 + idx)}
                 </span>
                 {opt}
@@ -297,7 +297,7 @@ export default function BattleArena({ battleId, onClose, onFinished }: BattleAre
           <button
             onClick={handleAdvanceNow}
             disabled={selected === null || focusLost}
-            className="px-6 py-2.5 rounded-full bg-md-primary text-black font-bold text-sm hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 rounded-full bg-md-primary text-md-on-primary font-bold text-sm hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {currentIdx >= questions.length - 1 ? 'Enviar duelo' : 'Próxima questão'}
           </button>

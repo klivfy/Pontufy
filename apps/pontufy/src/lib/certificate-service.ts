@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { getTenantDb } from '@/backend/db';
-import { generateCertificatePdf, computeCertificateSignature } from './certificate-generator';
-import { resolveBaseUrl } from '@/lib/email';
+import {
+  buildCertificatePayload,
+  computeCertificateSignature,
+  generateCertificatePdf,
+} from './certificate-generator';
+import { escapeHtml, resolveBaseUrl } from '@/lib/email';
 
 // Serviço compartilhado de emissão de certificados (usado por
 // POST /api/certificates e POST /api/certificates/generate).
@@ -95,12 +99,29 @@ export async function issueCertificate(
     lessonCount: lessonIds.length,
     verificationHash,
   };
+  // Guardamos a string canônica exata: a verificação pública recalcula o HMAC
+  // sobre ela em vez de reconstruir os dados (fonte do bug de "sempre inválido").
+  const signedPayload = buildCertificatePayload(certData);
   const signature = computeCertificateSignature(certData);
 
   const certificate = await db.issuedCertificate.upsert({
     where: { userId_courseId: { userId, courseId } },
-    update: { courseName: course.title, issuedAt: new Date(), verificationHash, signature },
-    create: { userId, tenantId, courseId, courseName: course.title, verificationHash, signature },
+    update: {
+      courseName: course.title,
+      issuedAt: new Date(),
+      verificationHash,
+      signature,
+      signedPayload,
+    },
+    create: {
+      userId,
+      tenantId,
+      courseId,
+      courseName: course.title,
+      verificationHash,
+      signature,
+      signedPayload,
+    },
   });
 
   const buffer = generateCertificatePdf({
@@ -146,18 +167,21 @@ async function sendCertificateEmail(
       from: process.env.EMAIL_FROM || 'Pontufy <noreply@pontufy.com>',
       to: toEmail,
       subject: `🏆 Seu certificado: ${courseName}`,
+      // V9 — todo valor vindo de usuário/tenant passa por escape: sem isso,
+      // um nome de curso com HTML virava e-mail de phishing com remetente
+      // legítimo da Pontufy.
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #10b981;">Pontufy</h2>
-          <p>Parabéns, <strong>${employeeName}</strong>!</p>
-          <p>Você concluiu o curso <strong>${courseName}</strong> na <strong>${tenantName}</strong>.</p>
-          <p>Data de conclusão: ${completionDate}</p>
+          <h2 style="color: #495453;">Pontufy</h2>
+          <p>Parabéns, <strong>${escapeHtml(employeeName)}</strong>!</p>
+          <p>Você concluiu o curso <strong>${escapeHtml(courseName)}</strong> na <strong>${escapeHtml(tenantName)}</strong>.</p>
+          <p>Data de conclusão: ${escapeHtml(completionDate)}</p>
           <p>Seu certificado em PDF está anexado a este email.</p>
           <p>Você também pode verificar a autenticidade online:</p>
-          <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; padding: 12px 24px; background: #495453; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
             Verificar certificado
           </a>
-          <p style="color: #666; font-size: 12px; margin-top: 24px;">Equipe Pontufy</p>
+          <p style="color: #848484; font-size: 12px; margin-top: 24px;">Equipe Pontufy</p>
         </div>
       `,
       attachments: [

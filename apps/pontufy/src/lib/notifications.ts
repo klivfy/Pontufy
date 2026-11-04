@@ -1,5 +1,5 @@
 import { getTenantDb } from '@/backend/db';
-import { broadcastToTenant } from '@/app/api/notifications/stream/route';
+import { publishToUser } from '@/infra/sse';
 import { incrementUnreadCount } from '@/lib/redis';
 
 export type NotificationType =
@@ -49,7 +49,7 @@ export async function dispatchNotification(
       },
     });
 
-    broadcastToTenant(payload.tenantId, 'notification', {
+    publishToUser(payload.tenantId, payload.userId, 'notification', {
       userId: payload.userId,
       title: payload.title,
       message: payload.message,

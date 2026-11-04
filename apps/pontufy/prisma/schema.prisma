@@ -1,3 +1,44 @@
+enum Role {
+  admin_rh
+  employee
+  super_admin
+  guest
+}
+
+enum Plan {
+  trial
+  starter
+  enterprise
+}
+
+// 'cancelled' e 'canceled' coexistem: a base tem as duas grafias e
+// isTenantBlocked() reconhece ambas. Unificar exige migração de dados —
+// fica explícito no enum em vez de virar bug silencioso.
+enum ContractStatus {
+  active
+  suspended
+  cancelled
+  canceled
+  pending_verification
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A2 — Enums de domínio
+//
+// status e 	ype eram strings livres: qualquer valor era aceito pelo banco,
+// e um typo ('publised') fazia o curso sumir da listagem sem erro em lugar
+// nenhum. Enum move a validação para o schema — e para o TypeScript.
+// ═══════════════════════════════════════════════════════════════════════════
+enum CourseStatus {
+  draft
+  published
+}
+
+enum LedgerType {
+  gain
+  loss
+  expiration
+}
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -19,12 +60,12 @@ model Tenant {
   slug            String   @unique
   logoUrl         String?
   faviconUrl      String?
-  primaryColor    String?  @default("#10B981") // Padrão Verde Esmeralda Pontufy
-  accentColor     String?  @default("#8B5CF6") // Padrão Lavanda/Roxo
+  primaryColor    String?  @default("#495453") // Verde-chumbo da paleta Pontufy
+  accentColor     String?  @default("#A7E3C1") // Menta da paleta Pontufy
   customDomain    String?  @unique
   sector          String   // 'tech', 'health', 'retail', 'industry'
-  contractStatus  String   @default("active") // 'active', 'suspended', 'cancelled'
-  plan            String   @default("trial") // 'trial', 'starter', 'enterprise'
+  contractStatus  ContractStatus @default(active)
+  plan            Plan     @default(trial)
   trialEndsAt     DateTime?
   aiCredits       Int      @default(20)
   stripeCustomerId     String?  @unique
@@ -39,6 +80,7 @@ model Tenant {
   users              User[]
   courses            Course[]
   pointsLedger       PointsLedger[]
+  pointsLots         PointsLot[]
   rewards            Reward[]
   invitations        Invitation[]
   lessonCompletions  LessonCompletion[]
@@ -52,6 +94,9 @@ model Tenant {
   userSkillProgress  UserSkillProgress[]
   battles            Battle[]
   redemptions        Redemption[]
+  emailVerifications EmailVerification[]
+  uploadQuotas        UploadQuota[]
+  featureFlags        FeatureFlag[]
 }
 
 model User {
@@ -60,14 +105,18 @@ model User {
   name            String
   email           String   @unique
   passwordHash    String?  // scrypt: "<salt>:<hash>". Null only for legacy/migrated accounts.
-  role            String   @default("employee") // 'admin_rh', 'employee', 'guest'
+  role            Role     @default(employee)
   pointsBalance   Int      @default(0)
   department      String?  // TAREFA 13.2 — departamento p/ ranking interdepartamental
+  /// Revogação de sessão SEM Redis (V5): cada emissão de JWT carrega a versão
+  /// atual; incrementar aqui derruba todas as sessões do usuário.
+  sessionVersion  Int      @default(1)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
   pointsLedger        PointsLedger[]
+  pointsLots          PointsLot[]
   lessonCompletions   LessonCompletion[]
   passwordReset       PasswordReset?
   issuedCertificates  IssuedCertificate[]
@@ -79,6 +128,7 @@ model User {
   auditLogs           AuditLog[]
   quizAttempts        QuizAttempt[]
   redemptions         Redemption[]
+  emailVerifications  EmailVerification[]
 
   @@index([tenantId])
   @@index([tenantId, pointsBalance])
@@ -90,8 +140,8 @@ model Course {
   title           String
   description     String?
   aiCreditsSpent  Int      @default(0)
-  quizJson        String?  // JSON array of module quizzes from AI generation
-  status          String   @default("draft") // 'draft', 'published'
+  quizJson        Json?    // A3: array de módulos (validado por schemas/quiz.ts)
+  status          CourseStatus @default(draft)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -111,6 +161,11 @@ model Lesson {
   title           String
   type            String   // 'video', 'text'
   contentUrl      String?  @db.Text
+  /// Kit multi-formato da aula: { video: { scenes[] }, slides[], plain{}, checkpoint[] }.
+  /// Validado por schemas/lesson-kit.ts. NULL = curso anterior a este motor; o
+  /// player deriva o kit do próprio markdown, então nenhuma aula fica sem os
+  /// formatos novos.
+  blocks          Json?
   pointsAssigned  Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -155,11 +210,47 @@ model QuizAttempt {
   @@index([tenantId])
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A1 — Lote de pontos
+//
+// O saldo (User.pointsBalance) é um número; o ledger diz que houve ganhos e
+// perdas, mas não QUANTO de cada ganho ainda está disponível. Sem isso, a
+// expiração era heurística: "soma dos ganhos antigos menos soma das expirações",
+// que pode expirar pontos de um ganho recente e não expirar os do antigo.
+//
+// Cada gain gera um lote com "remaining" e "expiresAt". O consumo (resgate ou
+// expiração) acontece por lote, do que vence primeiro para o que vence depois
+// (FIFO por validade), e o invariante é:
+//
+//   SUM(PointsLot.remaining) == User.pointsBalance
+//
+// sourceLedgerId é único: um crédito gera no máximo um lote (idempotência).
+// ═══════════════════════════════════════════════════════════════════════════
+model PointsLot {
+  id             String   @id @default(uuid())
+  userId         String
+  tenantId       String
+  /// Valor original do crédito.
+  amount         Int
+  /// Quanto ainda não foi consumido (resgate ou expiração).
+  remaining      Int
+  expiresAt      DateTime
+  sourceLedgerId String?  @unique
+  createdAt      DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, remaining])
+  @@index([tenantId])
+}
 model PointsLedger {
   id              String   @id @default(uuid())
   userId          String
   tenantId        String
-  type            String   // 'gain', 'loss'
+  type            LedgerType
   pointsAmount    Int
   description     String
   timestamp       DateTime @default(now())
@@ -239,9 +330,78 @@ model PasswordReset {
   @@index([token])
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Verificação de e-mail do tenant (V3 do SEGURANCA-ESTRUTURAL.md)
+// ───────────────────────────────────────────────────────────────────────────
+// Tenant criado pelo formulário público nasce em `contractStatus =
+// 'pending_verification'` com `aiCredits = 0`. Os créditos de trial só são
+// concedidos — e o login liberado — quando o e-mail é provado por este token.
+// Substitui o provisionamento implícito que criava empresa para qualquer login
+// Google desconhecido, sem limite e com 20 créditos de IA.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model EmailVerification {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  email     String
+  tenantId  String
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([tenantId])
+}
+
+// Contadores diários de provisionamento. Kill switch de custo: limita quantos
+// tenants nascem por dia e quantos créditos de IA são concedidos por dia.
+// Vive no banco (não no Redis) para funcionar mesmo com a infra de cache fora.
+model ProvisioningQuota {
+  day       String   @id // YYYY-MM-DD (UTC)
+  tenants   Int      @default(0)
+  aiCredits Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// Exclusão mútua de jobs (V7). Tabela em vez de pg_advisory_lock porque o app
+// roda atrás de pooler (PgBouncer/Supabase): advisory locks são por sessão de
+// conexão e o par acquire/release pode cair em conexões diferentes — o lock
+// vazaria. Aqui o "claim" é um INSERT ... ON CONFLICT condicional, atômico e
+// independente de conexão (e funciona sem Redis).
+model JobLock {
+  name      String   @id
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+// Quota diária de upload por tenant (V6, parte 2).
+// O limite por requisição (5 arquivos / 12 MB) não impede um cliente de fazer
+// a mesma chamada em sequência. Esta tabela mede o consumo do dia por tenant:
+// é o que transforma "limite por lote" em "limite de uso".
+model UploadQuota {
+  tenantId  String
+  day       String   // YYYY-MM-DD (UTC)
+  files     Int      @default(0)
+  bytes     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, day])
+  @@index([day])
+}
+
 model AuditLog {
   id         String   @id @default(uuid())
-  tenantId   String
+  /// B5 — nullable: evento de PLATAFORMA (cron, provisionamento, migração)
+  /// não pertence a um tenant de cliente.
+  tenantId   String?
   userId     String?
   action     String   // ex.: "COURSE_CREATED", "USER_ROLE_UPDATED", "POINTS_MANUAL_ADJUST"
   entity     String   // ex.: "Course", "User", "Reward", "Tenant", "Invitation"
@@ -252,7 +412,7 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
@@ -264,7 +424,7 @@ model Invitation {
   tenantId  String
   email     String
   token     String   @unique
-  role      String   @default("employee") // 'admin_rh', 'employee', 'guest'
+  role            Role     @default(employee)
   status    String   @default("pending") // 'pending', 'accepted', 'expired'
   expiresAt DateTime
   usedAt    DateTime?
@@ -288,12 +448,18 @@ model StripeEvent {
   eventId     String   @unique
   type        String
   tenantId    String?
+  /// 'processing' | 'processed' | 'failed' — permite reprocessar o que falhou
+  /// em vez de tratar toda linha existente como "já processado".
+  status      String   @default("processing")
+  attempts    Int      @default(0)
   processedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   tenant      Tenant?  @relation(fields: [tenantId], references: [id])
 
   @@index([type])
   @@index([tenantId])
+  @@index([status])
 }
 
 model IssuedCertificate {
@@ -304,6 +470,7 @@ model IssuedCertificate {
   courseName       String
   verificationHash String?  @unique // Código único de verificação impresso no PDF
   signature        String?  // Assinatura HMAC-SHA256 para verificação criptográfica
+  signedPayload    String?  @db.Text // Payload canônico EXATO que foi assinado (JSON, chaves ordenadas)
   issuedAt         DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -462,7 +629,7 @@ model Battle {
   challengerId       String
   opponentId         String
   status             String   @default("pending") // 'pending' | 'challenger_done' | 'completed'
-  questionsJson      String   @db.Text            // 5 questões com correctIndex (server-side)
+  questionsJson      Json                         // A3: { questions: [...] } validado por schemas/quiz.ts
   challengerScore    Int      @default(0)
   opponentScore      Int      @default(0)
   challengerElapsed  Int?     // segundos totais do turno (anti-trapaça)
@@ -480,4 +647,58 @@ model Battle {
   @@index([tenantId, status])
   @@index([challengerId])
   @@index([opponentId])
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// B3 — Outbox
+//
+// Notificação, auditoria e e-mail eram fire-and-forget: se o provedor falhasse
+// (ou a função morresse no meio), o efeito simplesmente não acontecia e
+// ninguém ficava sabendo. O outbox inverte: grava o evento na MESMA transação
+// do fato e um worker processa depois, com tentativa e backoff.
+//
+// vailableAt é o agendamento da próxima tentativa; ttempts conta as
+// execuções; lastError guarda o último motivo para diagnóstico.
+// ═══════════════════════════════════════════════════════════════════════════
+model OutboxEvent {
+  id          String       @id @default(uuid())
+  tenantId    String?
+  type        String
+  payload     Json
+  status      OutboxStatus @default(pending)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, availableAt])
+  @@index([tenantId])
+}
+
+enum OutboxStatus {
+  pending
+  processing
+  done
+  failed
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// C4 — Feature flags por tenant
+//
+// Rollout de mudança em pontos/certificados sem deploy e sem afetar todos os
+// clientes ao mesmo tempo. A flag vive no banco (funciona sem Redis) e é
+// lida com cache curto em memória para não virar query por requisição.
+//
+// key é livre mas convencionada: dominio.recurso (ex.: i.review).
+// Ausência de linha = desabilitado, exceto quando o call site declara padrão.
+// ═══════════════════════════════════════════════════════════════════════════
+model FeatureFlag {
+  tenantId  String
+  key       String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, key])
+  @@index([key])
 }

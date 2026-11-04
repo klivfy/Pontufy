@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Migrações de banco — passo explícito, FORA do build da aplicação.
+#
+# Por que não no build:
+#   • deploys concorrentes (push duplo, preview + produção) rodariam DDL em
+#     paralelo contra o mesmo banco;
+#   • a migração rodaria ANTES do código novo começar a servir, criando janela
+#     de incompatibilidade;
+#   • falha de DDL no build passava "verde" (fail-soft), deixando o app com
+#     schema defasado — agora `migrate.mjs` é fail-closed.
+#
+# Requisito: secret `DIRECT_URL` (endpoint :5432, sem pooler) configurado em
+# Settings → Secrets and variables → Actions.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Migrate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/pontufy/prisma/**'
+      - '.github/workflows/migrate.yml'
+
+concurrency:
+  group: migrate-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: prisma migrate deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    env:
+      DATABASE_URL: ${{ secrets.DIRECT_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Guard — secret presente
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Secret DIRECT_URL não configurado. Migração NÃO executada (fail-closed)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Status antes
+        working-directory: apps/pontufy
+        run: npx prisma migrate status --schema prisma/schema.prisma
+
+      - name: Aplicar migrações
+        working-directory: apps/pontufy
+        run: npm run db:deploy
+
+      - name: Status depois
+        if: always()
+        working-directory: apps/pontufy
+        run: npx prisma migrate status --schema prisma/schema.prisma

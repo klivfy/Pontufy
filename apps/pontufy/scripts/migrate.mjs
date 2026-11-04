@@ -64,27 +64,43 @@ console.log(
 // matter which variable names the platform provides.
 const env = { ...process.env, DATABASE_URL: databaseUrl, DIRECT_URL: directUrl || databaseUrl };
 
+// ── Fail-closed (F2.7) ──────────────────────────────────────────────────────
+// Antes este script engolia a falha e deixava o build continuar: o deploy
+// ficava VERDE com o schema defasado e o app quebrava em runtime ("column does
+// not exist") — inclusive com a migração marcada como `failed` em
+// `_prisma_migrations`, o que passa a travar todos os deploys seguintes em
+// silêncio. Agora a falha aborta com exit 1 e mensagem acionável.
+//
+// Este script NÃO roda mais dentro do `next build`: `npm run build` não migra
+// nada. Em produção, a migração é um passo explícito:
+//   npm run db:deploy            (ou o workflow .github/workflows/migrate.yml)
 try {
   execSync('npx prisma migrate deploy', { stdio: 'inherit', env });
-} catch {
-  console.warn(
-    '\n🟠 `prisma migrate deploy` failed during build — continuing so the deploy ' +
-      'completes.\n' +
-      '   If DATABASE_URL is a transaction-mode pooler (PgBouncer / Supabase :6543 / ' +
-      'Neon -pooler), migrations cannot run through it. Set DIRECT_URL to the direct ' +
-      '(:5432) endpoint and redeploy, or run `npm run db:migrate` against the direct URL.\n',
+  console.log('✅ Migrações aplicadas com sucesso.');
+} catch (error) {
+  console.error(
+    '\n🔴 `prisma migrate deploy` FALHOU — abortando (fail-closed).\n\n' +
+      '   Causas comuns:\n' +
+      '   1. DATABASE_URL é um pooler em transaction-mode (PgBouncer / Supabase :6543 /\n' +
+      '      Neon -pooler) e não aceita DDL → configure DIRECT_URL com o endpoint :5432.\n' +
+      '   2. Uma migração anterior falhou e está registrada em `_prisma_migrations`\n' +
+      '      (rode `npx prisma migrate status` e resolva antes de continuar).\n' +
+      '   3. A migração não é compatível com os dados atuais (ex.: ADD COLUMN NOT NULL\n' +
+      '      sem default numa tabela populada).\n\n' +
+      `   Detalhe: ${error?.message ?? error}\n`,
   );
+  process.exit(1);
 }
 
-// Bootstrap idempotente: o pipeline de deploy NÃO roda o seed — se o banco está
-// vazio (sem usuários), nenhum login é possível ("Email ou senha incorretos").
-// scripts/check-and-seed.ts roda SEMPRE (idempotente): valida conectividade,
-// faz upsert do tenant + utilizadores de teste (scrypt canónico, senha 123456)
-// e verifica cada hash com PASSED/FAILED. Nunca bloqueia o deploy em caso de
-// falha — apenas alerta, para que o `next build` prossiga.
-try {
-  execSync('npx tsx scripts/check-and-seed.ts', { stdio: 'inherit', env });
-} catch (err) {
-  // Intentionally non-fatal: never block the deploy on a seed problem.
-  console.warn(`🟠 Auto-seed falhou (deploy continua): ${err?.message ?? err}`);
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// NUNCA semear o banco a partir do build/deploy.
+// ───────────────────────────────────────────────────────────────────────────
+// Este script já executou `scripts/check-and-seed.ts` a cada deploy, o que
+// reescrevia o `passwordHash` de contas seed (inclusive um `super_admin`
+// @pontufy.com) para uma senha conhecida ('123456') — backdoor permanente em
+// produção, re-armado em todo push.
+//
+// O bootstrap de dados agora é MANUAL e LOCAL:
+//   SEED_ADMIN_PASSWORD='<senha-forte>' npx tsx scripts/check-and-seed.ts
+// O script se recusa a rodar em produção e nunca sobrescreve senha existente.
+// ═══════════════════════════════════════════════════════════════════════════

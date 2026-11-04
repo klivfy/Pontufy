@@ -64,8 +64,8 @@ export default function ProfilePage() {
     <main className="min-h-screen pb-20 pt-24 bg-md-surface-dim">
       <div className="max-w-[720px] mx-auto px-6 md:px-8">
         <header className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">Meu Perfil</h1>
-          <p className="text-gray-500 mt-1.5 text-sm">Gerencie suas informações pessoais.</p>
+          <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Meu Perfil</h1>
+          <p className="text-md-on-surface-variant mt-1.5 text-sm">Gerencie suas informações pessoais.</p>
         </header>
 
         <div className="space-y-6">
@@ -76,9 +76,9 @@ export default function ProfilePage() {
                 {session?.user?.name?.[0]?.toUpperCase() ?? <User size={28} />}
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-white truncate">{session?.user?.name}</h2>
-                <p className="text-sm text-gray-500 truncate">{session?.user?.email}</p>
-                <span className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold px-2 py-0.5 rounded-full border bg-white/5 text-gray-300 border-white/10">
+                <h2 className="text-lg font-bold text-md-on-surface truncate">{session?.user?.name}</h2>
+                <p className="text-sm text-md-on-surface-variant truncate">{session?.user?.email}</p>
+                <span className="inline-flex items-center gap-1.5 mt-1 text-xs font-bold px-2 py-0.5 rounded-full border bg-md-surface-container-low text-md-on-surface border-md-outline-variant">
                   <ShieldCheck size={11} className="text-md-tertiary" />
                   {roleLabel}
                 </span>
@@ -87,30 +87,30 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-md-surface-container border border-md-outline rounded-lg p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-md-on-surface-variant text-xs font-bold uppercase tracking-wider mb-1">
                   <Coins size={13} className="text-md-tertiary" /> Saldo de Pontos
                 </div>
                 <div className="text-2xl font-black text-md-tertiary">{currentPoints}</div>
               </div>
               <div className="bg-md-surface-container border border-md-outline rounded-lg p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-md-on-surface-variant text-xs font-bold uppercase tracking-wider mb-1">
                   <Building2 size={13} className="text-md-tertiary" /> Empresa
                 </div>
-                <div className="text-sm font-semibold text-white mt-1.5">{session?.user?.tenantId ? 'Conta corporativa' : '—'}</div>
+                <div className="text-sm font-semibold text-md-on-surface mt-1.5">{session?.user?.tenantId ? 'Conta corporativa' : '—'}</div>
               </div>
             </div>
           </section>
 
           {/* Edit name */}
           <section className="bg-md-surface border border-md-outline rounded-xl p-6">
-            <h3 className="font-bold text-white mb-4">Editar Nome</h3>
+            <h3 className="font-bold text-md-on-surface mb-4">Editar Nome</h3>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Seu nome completo"
-                className="flex-1 px-4 py-2.5 rounded-lg bg-md-surface-container border border-md-outline text-white placeholder-gray-600 focus:outline-none focus:border-md-primary text-sm"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-md-surface-container border border-md-outline text-md-on-surface placeholder:text-md-on-surface-muted focus:outline-none focus:border-md-primary text-sm"
               />
               <button
                 type="button"
@@ -131,8 +131,8 @@ export default function ProfilePage() {
 
           {/* Preferências de feedback sensorial (5.2) */}
           <section className="bg-md-surface border border-md-outline rounded-xl p-6">
-            <h3 className="font-bold text-white mb-1">Feedback Sonoro</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <h3 className="font-bold text-md-on-surface mb-1">Feedback Sonoro</h3>
+            <p className="text-sm text-md-on-surface-variant mb-4">
               Sons sutis e vibração háptica ao ganhar pontos, acertar quizzes e concluir cursos.
             </p>
             <button
@@ -145,8 +145,8 @@ export default function ProfilePage() {
               aria-pressed={soundEnabled}
               className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border transition-colors ${
                 soundEnabled
-                  ? 'bg-md-primary/15 border-md-primary/40 text-white'
-                  : 'bg-md-surface-container border-md-outline text-gray-400'
+                  ? 'bg-md-primary/15 border-md-primary/40 text-md-on-surface'
+                  : 'bg-md-surface-container border-md-outline text-md-on-surface-variant'
               }`}
             >
               <span className="flex items-center gap-2 font-medium text-sm">
@@ -159,7 +159,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-md-surface-container-lowest transition-all ${
                     soundEnabled ? 'left-[18px]' : 'left-0.5'
                   }`}
                 />
@@ -172,8 +172,8 @@ export default function ProfilePage() {
 
           {/* Segurança (7.3) — revogação instantânea de sessões */}
           <section className="bg-md-surface border border-md-outline rounded-xl p-6">
-            <h3 className="font-bold text-white mb-1">Sessões Ativas</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <h3 className="font-bold text-md-on-surface mb-1">Sessões Ativas</h3>
+            <p className="text-sm text-md-on-surface-variant mb-4">
               Encerra todas as sessões em outros dispositivos imediatamente (útil se seu
               dispositivo for perdido ou roubado).
             </p>
@@ -187,7 +187,7 @@ export default function ProfilePage() {
                   setMessage({ type: 'error', text: 'Erro ao encerrar sessões.' });
                 }
               }}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors text-sm"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-md-on-error-container bg-md-error-container hover:bg-md-error/25 transition-colors text-sm"
             >
               <LogOut size={15} />
               Encerrar sessões em todos os dispositivos
@@ -195,7 +195,7 @@ export default function ProfilePage() {
           </section>
 
           <div className="text-center">
-            <Link href="/wallet" className="text-sm text-gray-400 hover:text-white transition-colors font-medium">
+            <Link href="/wallet" className="text-sm text-md-on-surface-variant hover:text-md-on-surface transition-colors font-medium">
               ← Ver histórico de pontos na Carteira
             </Link>
           </div>

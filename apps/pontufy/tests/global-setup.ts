@@ -1,5 +1,7 @@
 import { spawnSync } from 'child_process';
 import path from 'path';
+import { existsSync } from 'fs';
+import { createRequire } from 'module';
 import { randomBytes, scrypt } from 'crypto';
 import { promisify } from 'util';
 import { PrismaClient } from '@prisma/client';
@@ -8,17 +10,47 @@ import { FIXTURES, USERS } from './helpers/db';
 const scryptAsync = promisify(scrypt);
 
 const APP_DIR = path.resolve(__dirname, '..');
-const ROOT_DIR = path.resolve(__dirname, '../..');
 const NODE = process.execPath;
-const PRISMA_CLI = path.join(ROOT_DIR, 'node_modules', 'prisma', 'build', 'index.js');
-const TSX_CLI = path.join(ROOT_DIR, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+
+/**
+ * Localiza um binário de dependência SEM assumir o layout do node_modules.
+ *
+ * O código anterior apontava para `path.resolve(__dirname, '../..')/node_modules`,
+ * ou seja `apps/node_modules` — que não existe. Dependia do hoisting do npm
+ * colocar tudo em `Pontufy/node_modules`, e quebrava em qualquer instalação que
+ * mantivesse o pacote local ao workspace (`apps/pontufy/node_modules`). Foi
+ * assim que a suíte nunca rodou: `MODULE_NOT_FOUND` antes do primeiro teste,
+ * mascarado pelo timeout de prontidão do webServer.
+ */
+function resolveDependency(entry: string): string {
+  const require = createRequire(path.join(APP_DIR, 'package.json'));
+  return require.resolve(entry);
+}
+
+const PRISMA_CLI = resolveDependency('prisma/build/index.js');
+// `tsx` declara `./cli` no mapa de exports; o caminho cru (`tsx/dist/cli.mjs`)
+// é bloqueado pelo Node com ERR_PACKAGE_PATH_NOT_EXPORTED.
+const TSX_CLI = resolveDependency('tsx/cli');
 const SEED_FILE = path.join(APP_DIR, 'prisma', 'seed.ts');
 const SCHEMA_FILE = path.join(APP_DIR, 'prisma', 'schema.prisma');
 
-function run(cmd: string, args: string[], cwd: string, label: string): void {
-  const res = spawnSync(cmd, args, { cwd, stdio: 'inherit', env: process.env, shell: false });
+if (!existsSync(SEED_FILE) || !existsSync(SCHEMA_FILE)) {
+  throw new Error('[global-setup] seed.ts ou schema.prisma não encontrados em apps/pontufy/prisma');
+}
+
+/** Executa um comando Node e junta stderr para a mensagem de erro. */
+function run(tsxEntry: string, args: string[], cwd: string, label: string): void {
+  const res = spawnSync(NODE, [tsxEntry, ...args], {
+    cwd,
+    stdio: 'inherit',
+    env: process.env,
+    shell: false,
+  });
   if (res.status !== 0) {
-    throw new Error(`[global-setup] ${label} falhou (exit ${res.status}). ${res.stderr?.toString() ?? ''}`);
+    const detail = res.stderr?.toString().trim() || res.error?.message || '';
+    throw new Error(
+      `[global-setup] ${label} falhou (exit ${res.status}).${detail ? `\n${detail}` : ''}`,
+    );
   }
 }
 
@@ -36,6 +68,30 @@ export default async function globalSetup(): Promise<void> {
         'antes de rodar os testes (veja apps/pontufy/.env.example).',
     );
   }
+
+  // ── 1.1 Trava de segurança (V8) ─────────────────────────────────────────
+  // Este setup APAGA ledger, conclusões, certificados e reseta saldos de
+  // usuários reais (ver seção 5). Se DATABASE_URL apontar para um banco
+  // remoto por engano — inclusive produção — o estrago é irreversível.
+  const databaseHost = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL as string).hostname;
+    } catch {
+      return '';
+    }
+  })();
+  const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', 'db', 'postgres']);
+  const isLocalDatabase = LOCAL_HOSTS.has(databaseHost);
+
+  if (!isLocalDatabase && process.env.ALLOW_DESTRUCTIVE_TESTS !== '1') {
+    throw new Error(
+      `[global-setup] DATABASE_URL aponta para "${databaseHost}", que não é local.\n` +
+        'A suíte APAGA lançamentos do ledger, conclusões de aula, tentativas de quiz e\n' +
+        'certificados de usuários reais. Se este banco é descartável e você aceita o\n' +
+        'risco, rode com ALLOW_DESTRUCTIVE_TESTS=1.',
+    );
+  }
+
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     console.warn(
       '[global-setup] ⚠ Redis (UPSTASH_REDIS_REST_URL/TOKEN) não configurado. ' +
@@ -45,8 +101,8 @@ export default async function globalSetup(): Promise<void> {
   }
 
   // ── 2. Migrations pendentes + seed idempotente ──────────────────────────
-  run(NODE, [PRISMA_CLI, 'migrate', 'deploy', '--schema', SCHEMA_FILE], APP_DIR, 'migrate deploy');
-  run(NODE, [TSX_CLI, SEED_FILE], APP_DIR, 'seed');
+  run(PRISMA_CLI, ['migrate', 'deploy', '--schema', SCHEMA_FILE], APP_DIR, 'migrate deploy');
+  run(TSX_CLI, [SEED_FILE], APP_DIR, 'seed');
 
   // ── 3. Fixtures dedicados de teste + reset de estado E2E ────────────────
   const prisma = new PrismaClient();
@@ -78,8 +134,8 @@ export default async function globalSetup(): Promise<void> {
     });
 
     const betaUsers = [
-      { id: 'user-beta-admin', email: USERS.betaAdmin, name: 'Admin Beta', role: 'admin_rh', pointsBalance: 0 },
-      { id: 'user-beta-emp', email: USERS.betaEmployee, name: 'Funcionário Beta', role: 'employee', pointsBalance: 300 },
+      { id: 'user-beta-admin', email: USERS.betaAdmin, name: 'Admin Beta', role: 'admin_rh' as const, pointsBalance: 0 },
+      { id: 'user-beta-emp', email: USERS.betaEmployee, name: 'Funcionário Beta', role: 'employee' as const, pointsBalance: 300 },
     ];
     for (const u of betaUsers) {
       await prisma.user.upsert({

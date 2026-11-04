@@ -1,26 +1,18 @@
 import { NextRequest } from 'next/server';
 import { getSessionContext } from '@/backend/session';
 import { getRedis } from '@/lib/redis';
+import { sseChannelKey } from '@/infra/sse';
 
 const POLL_MS = 1000;
-const SSE_TTL = 3600; // seconds — auto-clean Redis list after 1h of inactivity
 const encode = (s: string) => new TextEncoder().encode(s);
 
 /**
- * Publish a notification to all SSE clients connected to a tenant.
- * Uses a Redis List so events survive across serverless instances.
- * Fire-and-forget: callers do not need to await.
+ * Stream SSE das notificações do usuário autenticado.
+ *
+ * O canal é POR USUÁRIO (`sse:{tenantId}:{userId}`). Antes era por tenant, e
+ * todo colaborador conectado recebia o conteúdo das notificações dos colegas.
+ * A publicação vive em `src/infra/sse.ts`.
  */
-export function broadcastToTenant(tenantId: string, event: string, data: unknown): void {
-  const redis = getRedis();
-  if (!redis) return;
-  const key = `sse:${tenantId}`;
-  redis
-    .rpush(key, JSON.stringify({ type: event, data }))
-    .then(() => redis.expire(key, SSE_TTL))
-    .catch(() => {});
-}
-
 export async function GET(request: NextRequest) {
   let session;
   try {
@@ -31,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   const { tenantId, userId } = session;
   const redis = getRedis();
-  const key = `sse:${tenantId}`;
+  const key = sseChannelKey(tenantId, userId);
 
   const stream = new ReadableStream({
     async start(controller) {

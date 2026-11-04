@@ -19,9 +19,9 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, hint, icon, accent }: KpiCardProps) {
   return (
-    <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5 flex flex-col justify-between min-h-[130px]">
+    <div className="bg-md-surface-container border border-md-outline rounded-2xl p-5 flex flex-col justify-between min-h-[130px]">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="text-xs font-semibold text-md-on-surface-variant uppercase tracking-wide">{label}</p>
         <span
           className="flex h-9 w-9 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${accent}1A`, color: accent }}
@@ -29,8 +29,8 @@ function KpiCard({ label, value, hint, icon, accent }: KpiCardProps) {
           {icon}
         </span>
       </div>
-      <p className="text-2xl font-black text-white mt-2">{value}</p>
-      <p className="text-[11px] text-gray-500 mt-0.5">{hint}</p>
+      <p className="text-2xl font-black text-md-on-surface mt-2">{value}</p>
+      <p className="text-[11px] text-md-on-surface-variant mt-0.5">{hint}</p>
     </div>
   );
 }
@@ -43,14 +43,14 @@ export default function MetricsCards({ summary }: MetricsCardsProps) {
         value={formatNumber(summary.activeUsers)}
         hint={`de ${formatNumber(summary.totalUsers)} no total`}
         icon={<Users size={17} />}
-        accent="#10B981"
+        accent="#495453"
       />
       <KpiCard
         label="Aulas Concluídas"
         value={formatNumber(summary.totalCompletions)}
         hint={`em ${formatNumber(summary.totalCourses)} cursos`}
         icon={<BookOpenCheck size={17} />}
-        accent="#8B5CF6"
+        accent="#6d5f52"
       />
       <KpiCard
         label="Pontos Distribuídos"

@@ -178,7 +178,7 @@ export default function AdminSkillsClient() {
                 value={skillName}
                 onChange={(e) => setSkillName(e.target.value)}
                 placeholder="Ex.: Liderança"
-                className="sm:col-span-2 px-4 py-3 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+                className="sm:col-span-2 px-4 py-3 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
               />
               <select
                 value={skillCategory}
@@ -203,7 +203,7 @@ export default function AdminSkillsClient() {
                 ))}
               </select>
             </div>
-            <p className="text-body-sm text-md-on-surface-variant/60 mb-4">
+            <p className="text-body-sm text-md-on-surface-variant mb-4">
               Os nós da árvore são criados ao vincular cursos existentes — os primeiros nós ficam
               disponíveis automaticamente; os seguintes exigem ≥ 80% no pré-requisito.
             </p>
@@ -225,7 +225,7 @@ export default function AdminSkillsClient() {
             </h2>
             {skills.length === 0 ? (
               <div className="text-center py-12">
-                <TreePine size={48} className="mx-auto text-md-on-surface-variant/30 mb-4" />
+                <TreePine size={48} className="mx-auto text-md-on-surface-variant mb-4" />
                 <p className="text-body-md text-md-on-surface-variant">Nenhuma competência criada ainda.</p>
               </div>
             ) : (
@@ -234,17 +234,17 @@ export default function AdminSkillsClient() {
                   <div key={s.id} className="bg-md-surface-container-high border border-md-outline rounded-xl p-5 hover:border-md-primary/30 transition-colors">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-md-on-surface">{s.name}</p>
-                      <span className="text-label-sm font-bold uppercase text-md-tertiary bg-md-tertiary-container/20 border border-md-tertiary-container/30 rounded-full px-2 py-0.5">
+                      <span className="text-label-sm font-bold uppercase text-md-on-tertiary-container bg-md-tertiary-container/20 border border-md-tertiary-container/30 rounded-full px-2 py-0.5">
                         {s.category}
                       </span>
                     </div>
-                    <p className="text-body-sm text-md-on-surface-variant/60 mb-3">{s.nodes.length} nós · nível-alvo {s.targetLevel}</p>
+                    <p className="text-body-sm text-md-on-surface-variant mb-3">{s.nodes.length} nós · nível-alvo {s.targetLevel}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {s.nodes.map((n) => (
                         <span
                           key={n.id}
                           title={`${n.title}${n.prerequisiteId ? ' (requer pré-requisito)' : ' (raiz)'}`}
-                          className="text-label-sm font-mono text-md-on-surface-variant/60 bg-md-surface-container border border-md-outline rounded px-2 py-0.5 truncate max-w-[120px]"
+                          className="text-label-sm font-mono text-md-on-surface-variant bg-md-surface-container border border-md-outline rounded px-2 py-0.5 truncate max-w-[120px]"
                         >
                           {n.title.length > 14 ? `${n.title.slice(0, 13)}…` : n.title}
                         </span>
@@ -301,15 +301,15 @@ export default function AdminSkillsClient() {
 
             {pdis.length > 0 && (
               <div className="mt-5">
-                <p className="text-label-sm text-md-on-surface-variant/60 uppercase tracking-wider font-semibold mb-3">PDIs ativos</p>
+                <p className="text-label-sm text-md-on-surface-variant uppercase tracking-wider font-semibold mb-3">PDIs ativos</p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {pdis.map((p, i) => (
                     <div key={`${p.userId}-${p.nodeId}-${i}`} className="flex items-center justify-between bg-md-surface-container border border-md-outline rounded-xl px-4 py-3 text-body-sm">
                       <div>
                         <span className="font-semibold text-md-on-surface">{p.userName}</span>
-                        <span className="text-md-on-surface-variant/60 ml-2">→ {p.skillName}: {p.nodeTitle}</span>
+                        <span className="text-md-on-surface-variant ml-2">→ {p.skillName}: {p.nodeTitle}</span>
                       </div>
-                        <span className="text-label-sm text-md-on-surface-variant/50">{new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
+                        <span className="text-label-sm text-md-on-surface-variant">{new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
                     </div>
                   ))}
                 </div>
