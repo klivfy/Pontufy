@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getSessionContext } from '@/backend/session';
 import { prisma, getTenantDb } from '@/backend/db';
+import { buildAdoptionReport } from '@/domain/analytics/adoption';
 
 type DailyRow = { day: Date; completions: bigint; points: bigint; redemptions: bigint };
 type TopCourseRow = {
@@ -43,7 +44,7 @@ export async function GET() {
     // Daily engagement for the last 30 days: COUNT and SUM computed entirely in PostgreSQL.
     // $queryRaw is required because Prisma groupBy does not support DATE_TRUNC.
     // tenantId is injected explicitly here since $queryRaw bypasses the Zero-Trust extension.
-    const [engagementRows, topCourseRows] = await Promise.all([
+    const [engagementRows, topCourseRows, adoption] = await Promise.all([
       prisma.$queryRaw<DailyRow[]>(Prisma.sql`
         SELECT
           COALESCE(c.day, p.day, r.day) AS day,
@@ -100,6 +101,10 @@ export async function GET() {
         ORDER  BY completions DESC
         LIMIT   10
       `),
+      // O funil de adoção consulta o mesmo banco por SQL próprio: "concluiu um
+      // curso" depende de comparar conclusões com o total de aulas do curso,
+      // e isso o Prisma não expressa em groupBy.
+      buildAdoptionReport(tenantId),
     ]);
 
     // Only date formatting happens in Node.js — the aggregation is already done.
@@ -131,6 +136,7 @@ export async function GET() {
       },
       engagement,
       topCourses,
+      adoption,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'Não autenticado.') {
