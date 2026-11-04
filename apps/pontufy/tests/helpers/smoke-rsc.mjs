@@ -43,12 +43,29 @@ const pages = [
   { path: '/certificados', expect: 'Meus Certificados' },
   { path: '/loja', expect: 'Clube de Benefícios' },
   { path: '/cursos', expect: 'Meus Cursos' },
+  // `joao` não tem curso em andamento no seed, então "Continue de onde parou"
+  // não aparece; "Trilhas Recomendadas" prova que o catálogo veio do servidor.
+  { path: '/dashboard', expect: 'Trilhas Recomendadas' },
 ];
+
+let falhas = 0;
 
 for (const { path, expect } of pages) {
   const response = await call(path);
   const html = await response.text();
   const found = html.includes(expect);
-  const hasSpinner = html.includes('animate-spin');
-  console.log(`${path} -> ${response.status} | conteúdo: ${found ? 'ok' : 'AUSENTE'} | spinner inicial: ${hasSpinner ? 'sim' : 'não'}`);
+  // Contagem informativa: widgets client legítimos (StreakCard) têm spinner
+  // próprio. O critério de aprovação é o CONTEÚDO do servidor no HTML.
+  const spinners = (html.match(/animate-spin/g) ?? []).length;
+
+  if (response.status !== 200 || !found) falhas += 1;
+
+  console.log(
+    `${path} -> ${response.status} | conteúdo: ${found ? 'ok' : 'AUSENTE'} | spinner(s) de widget: ${spinners}`,
+  );
 }
+
+console.log(
+  falhas === 0 ? '\ntodas as páginas entregam conteúdo no HTML' : `\n${falhas} página(s) sem conteúdo no HTML`,
+);
+process.exit(falhas === 0 ? 0 : 1);
