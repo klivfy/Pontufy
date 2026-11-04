@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/infra/db';
 import { getRedis } from '@/infra/redis';
 import { emailTransport } from '@/infra/email';
+import { isSentryEnabled } from '@/infra/sentry';
 
 // Health check real (V4): banco + Redis, sem autenticação e sem chamar LLM.
 // Substitui o uso de /api/ai/health como probe — aquele exigia papel de admin
@@ -49,6 +50,9 @@ export async function GET() {
       // Sem Redis a autenticação é fail-closed — o probe precisa mostrar isso.
       auth: redis === 'up' ? 'available' : 'unavailable',
       email: transport === 'none' ? 'not_configured' : transport,
+      // Sem DSN não há captura de erro: o stack trace morre no log da
+      // plataforma. É opcional de propósito — mas precisa estar visível.
+      errors: isSentryEnabled() ? 'sentry' : 'not_configured',
       warnings: [
         ...(transport === 'none'
           ? ['email: RESEND_API_KEY ausente — nenhum e-mail é entregue em produção']
@@ -56,6 +60,9 @@ export async function GET() {
         ...(transport === 'log'
           ? ['email: transporte de console (dev/teste) — nada é entregue de fato']
           : []),
+        ...(isSentryEnabled()
+          ? []
+          : ['errors: SENTRY_DSN ausente — exceções não são reportadas a nenhum serviço']),
       ],
       uptimeSeconds: Math.round(process.uptime()),
       latencyMs: Date.now() - startedAt,
