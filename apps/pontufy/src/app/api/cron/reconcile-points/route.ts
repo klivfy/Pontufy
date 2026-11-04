@@ -34,8 +34,10 @@ export async function GET(request: Request) {
       success: true,
       usersChecked: result.usersChecked,
       driftCount: result.drift.length,
+      lotDriftCount: result.lotDrift.length,
       // Limite de resposta: o operador vê os primeiros e o log tem a amostra.
       drift: result.drift.slice(0, 50),
+      lotDrift: result.lotDrift.slice(0, 50),
       checkedAt: result.checkedAt,
     });
   } catch (error) {

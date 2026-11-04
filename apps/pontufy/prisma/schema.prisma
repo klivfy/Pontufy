@@ -39,6 +39,7 @@ model Tenant {
   users              User[]
   courses            Course[]
   pointsLedger       PointsLedger[]
+  pointsLots         PointsLot[]
   rewards            Reward[]
   invitations        Invitation[]
   lessonCompletions  LessonCompletion[]
@@ -73,6 +74,7 @@ model User {
 
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
   pointsLedger        PointsLedger[]
+  pointsLots          PointsLot[]
   lessonCompletions   LessonCompletion[]
   passwordReset       PasswordReset?
   issuedCertificates  IssuedCertificate[]
@@ -161,6 +163,42 @@ model QuizAttempt {
   @@index([tenantId])
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A1 — Lote de pontos
+//
+// O saldo (User.pointsBalance) é um número; o ledger diz que houve ganhos e
+// perdas, mas não QUANTO de cada ganho ainda está disponível. Sem isso, a
+// expiração era heurística: "soma dos ganhos antigos menos soma das expirações",
+// que pode expirar pontos de um ganho recente e não expirar os do antigo.
+//
+// Cada gain gera um lote com "remaining" e "expiresAt". O consumo (resgate ou
+// expiração) acontece por lote, do que vence primeiro para o que vence depois
+// (FIFO por validade), e o invariante é:
+//
+//   SUM(PointsLot.remaining) == User.pointsBalance
+//
+// sourceLedgerId é único: um crédito gera no máximo um lote (idempotência).
+// ═══════════════════════════════════════════════════════════════════════════
+model PointsLot {
+  id             String   @id @default(uuid())
+  userId         String
+  tenantId       String
+  /// Valor original do crédito.
+  amount         Int
+  /// Quanto ainda não foi consumido (resgate ou expiração).
+  remaining      Int
+  expiresAt      DateTime
+  sourceLedgerId String?  @unique
+  createdAt      DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, remaining])
+  @@index([tenantId])
+}
 model PointsLedger {
   id              String   @id @default(uuid())
   userId          String

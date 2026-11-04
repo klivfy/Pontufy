@@ -25,10 +25,20 @@ export interface DriftRow {
   delta: number;
 }
 
+export interface LotDriftRow {
+  userId: string;
+  tenantId: string;
+  balance: number;
+  lotsRemaining: number;
+  delta: number;
+}
+
 export interface ReconcileResult {
   checkedAt: string;
   usersChecked: number;
   drift: DriftRow[];
+  /** A1 — divergência entre saldo e soma dos lotes. */
+  lotDrift: LotDriftRow[];
   /** Tolerância aplicada (divergência menor ou igual é ignorada). */
   tolerance: number;
 }
@@ -78,6 +88,7 @@ export async function reconcilePointsBalances(tolerance = 0): Promise<ReconcileR
     checkedAt: new Date().toISOString(),
     usersChecked: rows.length,
     drift,
+    lotDrift: await reconcileLotInvariant(tolerance),
     tolerance,
   };
 
@@ -92,5 +103,52 @@ export async function reconcilePointsBalances(tolerance = 0): Promise<ReconcileR
     logger.info('Reconciliação sem divergências', { usersChecked: result.usersChecked }, 'points');
   }
 
+  if (result.lotDrift.length > 0) {
+    logger.error('Invariante dos lotes violado (SUM(remaining) != saldo)', {
+      driftCount: result.lotDrift.length,
+      sample: result.lotDrift.slice(0, 5),
+    }, 'points');
+  }
+
   return result;
+}
+
+/**
+ * A1 — `SUM(PointsLot.remaining)` precisa ser igual ao saldo de cada usuário.
+ *
+ * Se divergir, significa que algum caminho mexeu no saldo sem passar por
+ * `creditPoints`/`debitPoints`/expiração. É o alerta que torna o lote
+ * confiável; sem ele, o invariante é uma promessa no comentário.
+ */
+async function reconcileLotInvariant(tolerance: number): Promise<LotDriftRow[]> {
+  const prisma = getRawPrisma();
+
+  const rows = await prisma.$queryRaw<
+    Array<{ id: string; tenantId: string; pointsBalance: number; lotsRemaining: bigint | number | null }>
+  >`
+    SELECT u."id",
+           u."tenantId",
+           u."pointsBalance",
+           COALESCE(SUM(l."remaining"), 0) AS "lotsRemaining"
+    FROM "User" u
+    LEFT JOIN "PointsLot" l ON l."userId" = u."id"
+    GROUP BY u."id", u."tenantId", u."pointsBalance"
+  `;
+
+  const drift: LotDriftRow[] = [];
+  for (const row of rows) {
+    const lotsRemaining = Number(row.lotsRemaining ?? 0);
+    const delta = Number(row.pointsBalance) - lotsRemaining;
+    if (Math.abs(delta) > tolerance) {
+      drift.push({
+        userId: row.id,
+        tenantId: row.tenantId,
+        balance: Number(row.pointsBalance),
+        lotsRemaining,
+        delta,
+      });
+    }
+  }
+
+  return drift;
 }

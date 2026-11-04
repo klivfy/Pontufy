@@ -1,9 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
 
+import { consumeLots, createLotForGain } from '@/domain/points/lots';
+
 // Superfície mínima do client transacional usada por este módulo. Tipar com o
 // PrismaClient real (em vez de `any`/`never`) faz erro de schema — campo
 // inexistente num `decrement`, por exemplo — ser pego em compilação.
-export type PointsTx = Pick<PrismaClient, 'user' | 'pointsLedger'>;
+export type PointsTx = Pick<PrismaClient, 'user' | 'pointsLedger' | 'pointsLot'>;
 
 type Tx = PointsTx;
 
@@ -70,7 +72,7 @@ export async function creditPoints(
     throw new PointsError('Usuário não encontrado.', 'USER_NOT_FOUND');
   }
 
-  await tx.pointsLedger.create({
+  const entry = await tx.pointsLedger.create({
     data: {
       userId: params.userId,
       tenantId: params.tenantId,
@@ -78,6 +80,16 @@ export async function creditPoints(
       pointsAmount: params.amount,
       description: params.description,
     },
+    select: { id: true },
+  });
+
+  // A1 — o crédito nasce com validade. sourceLedgerId torna a criação
+  // idempotente: repetir o crédito não duplica o lote.
+  await createLotForGain(tx, {
+    userId: params.userId,
+    tenantId: params.tenantId,
+    amount: params.amount,
+    sourceLedgerId: entry.id,
   });
 
   return reloadUser(tx, params.userId);
@@ -137,6 +149,14 @@ export async function debitPoints(
       pointsAmount: params.amount,
       description: params.description,
     },
+  });
+
+  // A1 — consome os lotes mais próximos de vencer primeiro. O saldo já foi
+  // debitado; aqui mantemos o invariante SUM(remaining) == pointsBalance.
+  await consumeLots(tx, {
+    userId: params.userId,
+    tenantId: params.tenantId,
+    amount: params.amount,
   });
 
   return reloadUser(tx, params.userId);
