@@ -7,8 +7,13 @@ import {
   markFailed,
   outboxStats,
   requeueStale,
+  type ClaimedEvent,
 } from '@/domain/outbox';
-import { sendEmailDirect, type EmailPayload } from '@/infra/email';
+import {
+  isEmailDeliveryConfigured,
+  sendEmailDirect,
+  type EmailPayload,
+} from '@/infra/email';
 import { logger } from '@/infra/logger';
 import { authorizeCronRequest } from '@/lib/security/cron-auth';
 import { acquireJobLock } from '@/infra/job-lock';
@@ -28,17 +33,28 @@ export const dynamic = 'force-dynamic';
 
 const BATCH_SIZE = 25;
 
-type Handler = (payload: unknown) => Promise<void>;
+interface Handler {
+  /**
+   * O handler depende de um provedor externo configurado. Sem ele o evento
+   * NÃO deve ser reivindicado: consumir a tentativa marcaria como `failed`
+   * um e-mail que nunca teve chance de sair.
+   */
+  requiresEmail: boolean;
+  run: (payload: unknown) => Promise<void>;
+}
 
 const HANDLERS: Record<string, Handler> = {
-  'email.send': async (payload) => {
-    const email = payload as EmailPayload;
-    const sent = await sendEmailDirect(email);
-    if (!sent) throw new Error('provedor de e-mail recusou o envio');
+  'email.send': {
+    requiresEmail: true,
+    run: async (payload) => {
+      const email = payload as EmailPayload;
+      const sent = await sendEmailDirect(email);
+      if (!sent) throw new Error('provedor de e-mail recusou o envio');
+    },
   },
 };
 
-export async function POST(request: Request) {
+async function runWorker(request: Request) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -50,8 +66,33 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Só reivindica tipo cujo handler está de pé. Evento sem provedor fica
+    // `pending` — volta a fluir sozinho no primeiro tick depois que a chave é
+    // configurada, em vez de esgotar as tentativas e virar `failed`.
+    const ready = Object.entries(HANDLERS)
+      .filter(([, handler]) => !handler.requiresEmail || isEmailDeliveryConfigured())
+      .map(([type]) => type);
+
+    if (ready.length === 0) {
+      logger.warn(
+        'Worker sem handler pronto — eventos permanecem pendentes',
+        { reason: 'provedor de e-mail não configurado' },
+        'outbox',
+      );
+      return NextResponse.json(
+        { skipped: true, reason: 'provider_not_configured', ready },
+        { status: 200 },
+      );
+    }
+
     const requeued = await requeueStale();
-    const events = await claimBatch(BATCH_SIZE);
+
+    const events: ClaimedEvent[] = [];
+    for (const type of ready) {
+      if (events.length >= BATCH_SIZE) break;
+      const batch = await claimBatch(BATCH_SIZE - events.length, type);
+      events.push(...batch);
+    }
 
     let processed = 0;
     let failed = 0;
@@ -68,7 +109,7 @@ export async function POST(request: Request) {
       }
 
       try {
-        await handler(event.payload);
+        await handler.run(event.payload);
         await markDone(event.id);
         processed += 1;
       } catch (error) {
@@ -94,4 +135,19 @@ export async function POST(request: Request) {
   } finally {
     await lock.release();
   }
+}
+
+/**
+ * Vercel Cron dispara **GET**. Até aqui a rota só exportava POST: agendar o
+ * worker sem este handler trocaria "nunca roda" por "roda e recebe 405" — o
+ * outbox continuaria parado e o sintoma ficaria ainda mais difícil de achar.
+ *
+ * POST continua publicado para disparo manual e para o teste de integração.
+ */
+export async function GET(request: Request) {
+  return runWorker(request);
+}
+
+export async function POST(request: Request) {
+  return runWorker(request);
 }

@@ -72,6 +72,11 @@ jobs:
       - name: Autorização declarada por rota
         run: npm run check:routes -w apps/pontufy
 
+      # Fecha a classe de bug do outbox: rota de cron precisa exportar GET e
+      # estar na agenda do Vercel. Sem isto, "cron que nunca roda" passa verde.
+      - name: Contrato de cron (rota ↔ agenda)
+        run: npm run check:crons -w apps/pontufy
+
       - name: Dependências vulneráveis (produção)
         run: npm audit --omit=dev --audit-level=high
 

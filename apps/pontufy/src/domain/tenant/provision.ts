@@ -336,3 +336,122 @@ export async function verifyTenantEmail(token: string): Promise<VerifyTenantEmai
 
   return { ok: true, tenantId: record.tenantId, creditsGranted: applied.granted };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Ativação manual — a saída de emergência do suporte
+//
+// `pending_verification` bloqueia login e só é liberado pelo link do e-mail.
+// Se o e-mail não chega (provedor fora, chave ausente, link em spam), a
+// empresa fica presa: o cliente não entra e o superadmin não tinha como
+// liberar. O sintoma chegava ao suporte como "a plataforma não funciona".
+//
+// Regras:
+//   • só ativa quem está em `pending_verification` — `suspended` e `cancelled`
+//     são estados comerciais, não um e-mail perdido;
+//   • motivo é obrigatório e vai para a auditoria como ação crítica;
+//   • os convites de verificação pendentes são consumidos, para que um link
+//     que chegue depois não conceda os créditos uma segunda vez.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type ActivateTenantResult =
+  | { ok: true; tenantId: string; creditsGranted: number; alreadyActive: boolean }
+  | { ok: false; code: 'NOT_FOUND' | 'NOT_PENDING' | 'MISSING_REASON'; message: string };
+
+export async function activateTenantManually(input: {
+  tenantId: string;
+  actorUserId: string;
+  reason: string;
+}): Promise<ActivateTenantResult> {
+  const reason = input.reason.trim();
+
+  if (reason.length < 10) {
+    return {
+      ok: false,
+      code: 'MISSING_REASON',
+      message: 'Motivo da ativação é obrigatório (mínimo 10 caracteres).',
+    };
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: input.tenantId },
+    select: { id: true, name: true, contractStatus: true, aiCredits: true },
+  });
+
+  if (!tenant) {
+    return { ok: false, code: 'NOT_FOUND', message: 'Tenant não encontrado.' };
+  }
+
+  const status = (tenant.contractStatus ?? '').trim().toLowerCase();
+
+  if (status === 'active') {
+    return { ok: true, tenantId: tenant.id, creditsGranted: 0, alreadyActive: true };
+  }
+
+  if (status !== PENDING_VERIFICATION_STATUS) {
+    return {
+      ok: false,
+      code: 'NOT_PENDING',
+      message:
+        `Empresa está em "${tenant.contractStatus}". A ativação manual só se aplica a ` +
+        `${PENDING_VERIFICATION_STATUS}: suspender ou cancelar é decisão comercial.`,
+    };
+  }
+
+  const day = provisioningDayKey();
+
+  const applied = await prisma.$transaction(async (tx) => {
+    // Compare-and-set primeiro: se outra requisição ativou, nada é concedido e
+    // nenhuma cota do dia é consumida à toa.
+    const claimed = await tx.tenant.updateMany({
+      where: { id: tenant.id, contractStatus: PENDING_VERIFICATION_STATUS },
+      data: { contractStatus: 'active' },
+    });
+
+    if (claimed.count === 0) return null;
+
+    await tx.emailVerification.updateMany({
+      where: { tenantId: tenant.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const granted = await grantTrialCredits(tx, day, TRIAL_AI_CREDITS);
+
+    if (granted > 0) {
+      await tx.tenant.update({
+        where: { id: tenant.id },
+        data: { aiCredits: { increment: granted } },
+      });
+    }
+
+    return { granted };
+  });
+
+  if (!applied) {
+    return { ok: true, tenantId: tenant.id, creditsGranted: 0, alreadyActive: true };
+  }
+
+  await logAudit({
+    tenantId: tenant.id,
+    userId: input.actorUserId,
+    action: 'TENANT_ACTIVATED_MANUALLY',
+    entity: 'Tenant',
+    entityId: tenant.id,
+    oldValue: { contractStatus: tenant.contractStatus, aiCredits: tenant.aiCredits },
+    newValue: { contractStatus: 'active', aiCreditsGranted: applied.granted, reason },
+    // Libera login e concede crédito pago: mesma criticidade de ajuste manual.
+    critical: true,
+  });
+
+  logger.warn(
+    'Tenant ativado manualmente (sem confirmação de e-mail)',
+    { tenantId: tenant.id, actorUserId: input.actorUserId, creditsGranted: applied.granted },
+    'tenants',
+  );
+
+  return {
+    ok: true,
+    tenantId: tenant.id,
+    creditsGranted: applied.granted,
+    alreadyActive: false,
+  };
+}
