@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, CheckCircle, ChevronRight, ArrowLeft, AlertCircle, Upload, X, FileText, AlertTriangle, Zap, Loader2 } from 'lucide-react';
+import { Sparkles, CheckCircle, ChevronRight, ArrowLeft, AlertCircle, Upload, X, FileText, AlertTriangle, Zap, Loader2, Download } from 'lucide-react';
 import { generateTrainingCourse, checkAIProviders } from '@/actions/course-generator';
 import type { GenerateTrainingResult } from '@/actions/course-generator';
 import { saveCourse } from '@/lib/local-courses';
@@ -506,6 +506,16 @@ export default function AIWizard() {
                 {publishing ? 'Publicando…' : 'Publicar curso'}
               </button>
             )}
+            {/* Levar o curso para o LMS do cliente é o que fecha venda em
+                empresa que já tem Moodle/Totara. Download direto: a rota
+                responde com Content-Disposition, então âncora basta. */}
+            <a
+              href={`/api/admin/courses/${result.courseId}/scorm`}
+              className="md-btn-tonal px-4 py-2 text-body-sm font-semibold inline-flex items-center gap-2"
+              title="Baixar pacote SCORM 1.2 para importar em Moodle, Totara ou outro LMS"
+            >
+              <Download size={16} /> SCORM
+            </a>
             <button
               onClick={() => {
                 setStep(1);
