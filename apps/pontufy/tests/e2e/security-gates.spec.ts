@@ -48,9 +48,13 @@ test.describe('Barreiras de UI', () => {
     expect(response?.status()).toBe(200);
   });
 
-  test('não autenticado em /superadmin → 403 (sem vazamento da rota)', async ({ page }) => {
-    const response = await page.goto('/superadmin', { waitUntil: 'domcontentloaded' });
-    expect(response?.status()).toBe(403);
+  // Não autenticado NÃO recebe 403: o proxy manda para o login antes de avaliar
+  // a role. A asserção antiga (403) descrevia o comportamento errado — e mandar
+  // anônimo para o login é o certo, tanto por UX quanto por não revelar nada:
+  // /admin, /superadmin e rota desconhecida se comportam igual.
+  test('não autenticado em /superadmin → login (sem vazamento da rota)', async ({ page }) => {
+    await page.goto('/superadmin', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('/unlock-account é rota pública (não redireciona para /login)', async ({ page }) => {
