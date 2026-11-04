@@ -120,6 +120,9 @@ jobs:
       LOMADEE_POSTBACK_SECRET: ci-e2e-lomadee-secret-0000000
       CERTIFICATE_VERIFICATION_SECRET: ci-e2e-certificate-secret-000000
       PW_BASE_URL: http://127.0.0.1:3100
+      # A suíte faz ~30 logins do mesmo IP (127.0.0.1). Sem elevar o limite,
+      # o rate limit de login (5/15min) derruba 20 testes com 429.
+      AUTH_RATE_LIMIT_MAX: '1000'
       ALLOW_DESTRUCTIVE_TESTS: '1'
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
