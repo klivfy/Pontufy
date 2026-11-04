@@ -642,3 +642,36 @@ model Battle {
   @@index([challengerId])
   @@index([opponentId])
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// B3 — Outbox
+//
+// Notificação, auditoria e e-mail eram fire-and-forget: se o provedor falhasse
+// (ou a função morresse no meio), o efeito simplesmente não acontecia e
+// ninguém ficava sabendo. O outbox inverte: grava o evento na MESMA transação
+// do fato e um worker processa depois, com tentativa e backoff.
+//
+// vailableAt é o agendamento da próxima tentativa; ttempts conta as
+// execuções; lastError guarda o último motivo para diagnóstico.
+// ═══════════════════════════════════════════════════════════════════════════
+model OutboxEvent {
+  id          String       @id @default(uuid())
+  tenantId    String?
+  type        String
+  payload     Json
+  status      OutboxStatus @default(pending)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, availableAt])
+  @@index([tenantId])
+}
+
+enum OutboxStatus {
+  pending
+  processing
+  done
+  failed
+}

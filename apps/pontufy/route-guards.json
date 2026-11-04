@@ -36,6 +36,7 @@
   "/api/courses/recommendations": "session",
   "/api/cron/expire-points": "cron:bearer",
   "/api/cron/link-health": "cron:bearer",
+  "/api/cron/outbox-worker": "cron:bearer",
   "/api/cron/reconcile-points": "cron:bearer",
   "/api/cron/rewards-sync": "cron:bearer",
   "/api/cron/sync-lomadee": "cron:bearer",

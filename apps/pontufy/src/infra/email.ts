@@ -1,4 +1,6 @@
-type EmailPayload = {
+import { logger } from '@/infra/logger';
+
+export type EmailPayload = {
   to: string;
   subject: string;
   html: string;
@@ -16,7 +18,49 @@ import { escapeHtml } from '@/lib/html';
 
 export { escapeHtml };
 
-async function sendEmail(payload: EmailPayload): Promise<boolean> {
+
+/**
+ * B3 — enfileira o e-mail em vez de enviar e esquecer.
+ *
+ * Antes: `fetch` para o Resend dentro da requisição. Se o provedor falhasse —
+ * ou a função morresse — o e-mail simplesmente não existia, sem retry e sem
+ * registro. Agora o evento é gravado e o worker (`/api/cron/outbox-worker`)
+ * processa com backoff.
+ *
+ * Retorno: `true` significa ACEITO na fila, não entregue. Quem precisa de
+ * confirmação de entrega deve consultar o outbox.
+ *
+ * Degradação: se o enfileiramento falhar (banco indisponível), cai no envio
+ * direto e registra — entregar agora é melhor que não entregar.
+ */
+export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+  if (process.env.OUTBOX_DISABLED === '1') {
+    return sendEmailDirect(payload);
+  }
+
+  try {
+    await enqueueEmail(payload);
+    return true;
+  } catch (error) {
+    logger.warn('Falha ao enfileirar e-mail — enviando direto', {
+      to: payload.to,
+      error: String(error),
+    }, 'email');
+    return sendEmailDirect(payload);
+  }
+}
+
+async function enqueueEmail(payload: EmailPayload): Promise<void> {
+  const { enqueueEvent } = await import('@/domain/outbox');
+  const { getRawPrisma } = await import('@/infra/platform-db');
+
+  await enqueueEvent(getRawPrisma(), {
+    type: 'email.send',
+    payload: payload as unknown as Record<string, unknown>,
+  });
+}
+
+export async function sendEmailDirect(payload: EmailPayload): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
