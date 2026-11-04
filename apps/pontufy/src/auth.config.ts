@@ -20,6 +20,30 @@ if (!process.env.AUTH_SECRET && process.env.NODE_ENV === 'production' && !isBuil
 
 const authSecret = process.env.AUTH_SECRET || 'pontufy-dev-insecure-replace-in-production';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Cookie de sessão seguro — decidido pelo PROTOCOLO, não por NODE_ENV
+//
+// A versão anterior usava `NODE_ENV === 'production'` para escolher o prefixo
+// `__Host-` e o atributo `Secure`. O problema: `next start` roda com
+// NODE_ENV=production mesmo servindo HTTP. Cookie `__Host-` exige HTTPS, então
+// qualquer cliente compatível (navegador, Playwright) DESCARTA o cookie — a
+// sessão nunca se estabelece e toda rota autenticada responde 401.
+//
+// Descoberto no job E2E do CI: 20 testes falhavam com 401 apesar de o login
+// responder 302. Também afetava quem validava o build de produção localmente.
+//
+// Regra: HTTPS ⇒ cookie `__Host-` + Secure (correto em produção). HTTP com URL
+// explícita ⇒ cookie simples (só acontece em ambiente controlado). Sem URL
+// configurada em produção, assume-se HTTPS — o padrão seguro.
+// ═══════════════════════════════════════════════════════════════════════════
+const configuredAuthUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? '';
+const USE_SECURE_COOKIES =
+  configuredAuthUrl.startsWith('https://') ||
+  (process.env.NODE_ENV === 'production' && configuredAuthUrl === '');
+const SESSION_COOKIE_NAME = USE_SECURE_COOKIES
+  ? '__Host-authjs.session-token'
+  : 'authjs.session-token';
+
 export const authConfig = {
   secret: authSecret,
   trustHost: true,
@@ -86,16 +110,12 @@ export const authConfig = {
   },
   cookies: {
     sessionToken: {
-      // 7.4 — __Host- em produção: exige Secure + path=/ + sem Domain (mais
-      // restritivo que __Secure-). Em dev usa nome simples (HTTP local).
-      name: process.env.NODE_ENV === 'production'
-        ? '__Host-authjs.session-token'
-        : 'authjs.session-token',
+      name: SESSION_COOKIE_NAME,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: USE_SECURE_COOKIES,
       },
     },
   },
