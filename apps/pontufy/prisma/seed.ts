@@ -131,7 +131,14 @@ async function main() {
   }
 
   // 3. Curso inicial + 3 lições completas em Markdown + quiz de 3 perguntas
-  const LGPD_QUIZ = JSON.stringify([
+  //
+  // O quiz vai como ARRAY, não como string. `Course.quizJson` é `Json` no
+  // Prisma: `JSON.stringify(...)` gravava um jsonb do tipo `string`, e o leitor
+  // (`parseQuizModules`) devolvia [] — o curso de demonstração simplesmente não
+  // tinha quiz. Pior: `submitQuiz` respondia 500 ao validar a string como array
+  // de módulos. Descoberto pelo teste do quiz dinâmico no CI, que não encontrava
+  // nenhum curso publicado com questões.
+  const LGPD_QUIZ = [
     {
       module: 'Segurança da Informação e LGPD',
       questions: [
@@ -173,7 +180,7 @@ async function main() {
         },
       ],
     },
-  ]);
+  ];
 
   const lgpdCourse = await prisma.course.upsert({
     where: { id: 'course-lgpd-001' },
