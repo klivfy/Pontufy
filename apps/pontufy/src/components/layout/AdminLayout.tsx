@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext, ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { signOutAll } from '@/components/auth/signOutAll';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
@@ -80,11 +81,29 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
 ];
 
 export function AdminLayoutProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
   const [tenant, setTenant] = useState<{ name: string; aiCredits: number } | null>(null);
+
+  // Título da página derivado da MESMA lista que monta a navegação.
+  //
+  // Antes havia `{children && false} // Placeholder ...` no header: um
+  // comentário `//` solto em JSX não é comentário — vira TEXTO na tela, e era
+  // ele que aparecia como "// Placeholder - actual title comes from page".
+  //
+  // Prefixo mais longo ganha, senão `/admin/settings/branding` casaria com
+  // `/admin` e mostraria "Dashboard".
+  const pageTitle = useMemo(() => {
+    const items = NAV_SECTIONS.flatMap((section) => section.items);
+    const match = items
+      .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+      .sort((a, b) => b.href.length - a.href.length)[0];
+
+    return match?.label ?? 'Administração';
+  }, [pathname]);
 
   // Load tenant info and AI credits
   useEffect(() => {
@@ -189,7 +208,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-md font-medium transition-all duration-200 ${
-                        item.href === window.location.pathname
+                        item.href === pathname
                           ? 'bg-md-primary-container text-md-on-primary-container'
                           : 'text-md-on-surface-variant hover:bg-md-surface-container-high hover:text-md-on-surface'
                       }`}
@@ -271,8 +290,8 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-30 bg-md-surface-container border-b border-md-outline backdrop-blur-sm bg-opacity-80">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6 md:px-8">
               {/* Page Title */}
-              <div className="flex-1" data-page-title>
-                {children && false} // Placeholder - actual title comes from page
+              <div className="flex-1 min-w-0" data-page-title>
+                <h1 className="text-title-lg font-bold text-md-on-surface truncate">{pageTitle}</h1>
               </div>
 
               {/* Actions */}

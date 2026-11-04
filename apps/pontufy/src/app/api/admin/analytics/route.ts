@@ -79,9 +79,15 @@ export async function GET() {
         ORDER  BY day ASC
       `),
       prisma.$queryRaw<TopCourseRow[]>(Prisma.sql`
-        SELECT lc."courseId"                             AS course_id,
+        -- O curso vem de Lesson: "LessonCompletion" NÃO tem courseId.
+        -- Referenciar lc."courseId" quebrava com 42703 (coluna não existe) e
+        -- derrubava /api/admin/analytics com 500 no painel do RH.
+        SELECT l."courseId"                              AS course_id,
                COALESCE(c."title", '(Curso removido)')   AS course_title,
-               COALESCE(c."status", 'removed')           AS status,
+               -- status virou enum (CourseStatus) no A2. Sem o cast, o
+               -- Postgres tenta coagir o COALESCE ao enum e rejeita o literal
+               -- 'removed' (22P02) — curso removido não tem status.
+               COALESCE(c."status"::text, 'removed')     AS status,
                COUNT(*)                                   AS completions,
                COUNT(DISTINCT lc."userId")                AS enrolled_users,
                COALESCE(SUM(l."pointsAssigned"), 0)       AS points_generated,
@@ -90,7 +96,7 @@ export async function GET() {
         LEFT   JOIN "Lesson" l ON lc."lessonId" = l.id
         LEFT   JOIN "Course" c ON l."courseId" = c.id
         WHERE  lc."tenantId" = ${tenantId}
-        GROUP  BY lc."courseId", c."title", c."status"
+        GROUP  BY l."courseId", c."title", c."status"
         ORDER  BY completions DESC
         LIMIT   10
       `),
