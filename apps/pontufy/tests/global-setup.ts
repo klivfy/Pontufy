@@ -134,8 +134,8 @@ export default async function globalSetup(): Promise<void> {
     });
 
     const betaUsers = [
-      { id: 'user-beta-admin', email: USERS.betaAdmin, name: 'Admin Beta', role: 'admin_rh', pointsBalance: 0 },
-      { id: 'user-beta-emp', email: USERS.betaEmployee, name: 'Funcionário Beta', role: 'employee', pointsBalance: 300 },
+      { id: 'user-beta-admin', email: USERS.betaAdmin, name: 'Admin Beta', role: 'admin_rh' as const, pointsBalance: 0 },
+      { id: 'user-beta-emp', email: USERS.betaEmployee, name: 'Funcionário Beta', role: 'employee' as const, pointsBalance: 300 },
     ];
     for (const u of betaUsers) {
       await prisma.user.upsert({

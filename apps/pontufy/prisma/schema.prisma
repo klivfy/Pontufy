@@ -1,3 +1,44 @@
+enum Role {
+  admin_rh
+  employee
+  super_admin
+  guest
+}
+
+enum Plan {
+  trial
+  starter
+  enterprise
+}
+
+// 'cancelled' e 'canceled' coexistem: a base tem as duas grafias e
+// isTenantBlocked() reconhece ambas. Unificar exige migração de dados —
+// fica explícito no enum em vez de virar bug silencioso.
+enum ContractStatus {
+  active
+  suspended
+  cancelled
+  canceled
+  pending_verification
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A2 — Enums de domínio
+//
+// status e 	ype eram strings livres: qualquer valor era aceito pelo banco,
+// e um typo ('publised') fazia o curso sumir da listagem sem erro em lugar
+// nenhum. Enum move a validação para o schema — e para o TypeScript.
+// ═══════════════════════════════════════════════════════════════════════════
+enum CourseStatus {
+  draft
+  published
+}
+
+enum LedgerType {
+  gain
+  loss
+  expiration
+}
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -23,8 +64,8 @@ model Tenant {
   accentColor     String?  @default("#8B5CF6") // Padrão Lavanda/Roxo
   customDomain    String?  @unique
   sector          String   // 'tech', 'health', 'retail', 'industry'
-  contractStatus  String   @default("active") // 'active', 'suspended', 'cancelled'
-  plan            String   @default("trial") // 'trial', 'starter', 'enterprise'
+  contractStatus  ContractStatus @default(active)
+  plan            Plan     @default(trial)
   trialEndsAt     DateTime?
   aiCredits       Int      @default(20)
   stripeCustomerId     String?  @unique
@@ -63,7 +104,7 @@ model User {
   name            String
   email           String   @unique
   passwordHash    String?  // scrypt: "<salt>:<hash>". Null only for legacy/migrated accounts.
-  role            String   @default("employee") // 'admin_rh', 'employee', 'guest'
+  role            Role     @default(employee)
   pointsBalance   Int      @default(0)
   department      String?  // TAREFA 13.2 — departamento p/ ranking interdepartamental
   /// Revogação de sessão SEM Redis (V5): cada emissão de JWT carrega a versão
@@ -99,7 +140,7 @@ model Course {
   description     String?
   aiCreditsSpent  Int      @default(0)
   quizJson        Json?    // A3: array de módulos (validado por schemas/quiz.ts)
-  status          String   @default("draft") // 'draft', 'published'
+  status          CourseStatus @default(draft)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -203,7 +244,7 @@ model PointsLedger {
   id              String   @id @default(uuid())
   userId          String
   tenantId        String
-  type            String   // 'gain', 'loss'
+  type            LedgerType
   pointsAmount    Int
   description     String
   timestamp       DateTime @default(now())
@@ -377,7 +418,7 @@ model Invitation {
   tenantId  String
   email     String
   token     String   @unique
-  role      String   @default("employee") // 'admin_rh', 'employee', 'guest'
+  role            Role     @default(employee)
   status    String   @default("pending") // 'pending', 'accepted', 'expired'
   expiresAt DateTime
   usedAt    DateTime?

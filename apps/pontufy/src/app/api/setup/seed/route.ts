@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Role } from '@prisma/client';
 import { timingSafeEqual } from 'node:crypto';
 import { prisma } from '@/backend/db';
 import { hashPassword } from '@/lib/crypto';
@@ -89,7 +90,15 @@ export async function POST(request: Request) {
 
     // Mesmas contas do prisma/seed.ts (auto-seed do deploy) — nunca divida os
     // dois seeds, ou o desbloqueio manual cria contas diferentes das testadas.
-    const users = [
+    // A2 — tipado com o enum: um papel inexistente passaria batido antes.
+    const users: Array<{
+      id: string;
+      email: string;
+      name: string;
+      role: Role;
+      points: number;
+      tenantId: string;
+    }> = [
       { id: 'user-admin-001', email: 'admin@empresaalpha.com', name: 'Maria Silva (RH)', role: 'admin_rh', points: 0, tenantId: tenant.id },
       { id: 'user-emp-002', email: 'joao@empresaalpha.com', name: 'João Souza', role: 'employee', points: 450, tenantId: tenant.id },
       { id: 'user-guest-001', email: 'guest@empresaalpha.com', name: 'Convidado Alpha', role: 'guest', points: 0, tenantId: tenant.id },

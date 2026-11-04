@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import type { Role } from '@prisma/client';
 import { hashPassword } from '../src/lib/crypto';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -79,7 +80,7 @@ async function main() {
 
   // 2. Utilizadores de teste (upsert por email; senha padrão 123456)
   const passwordHash = hashPassword(DEFAULT_PASSWORD);
-  const users = [
+  const users: Array<{ id: string; tenantId: string; email: string; name: string; role: Role; pointsBalance: number }> = [
     {
       id: 'user-admin-001',
       tenantId: alpha.id,

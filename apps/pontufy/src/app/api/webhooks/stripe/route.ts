@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
+import type { Plan } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/backend/db';
 import { hashPassword } from '@/lib/crypto';
@@ -168,7 +169,9 @@ export async function POST(request: NextRequest) {
         const companyName = metadata.company_name;
         const email = session.customer_email || metadata.admin_email;
         const sector = metadata.sector || 'tech';
-        const plan = metadata.plan || 'starter';
+      // A2 — metadata.plan é string arbitrária vinda do Stripe: só entra no
+      // domínio depois de normalizada, senão o enum rejeita a escrita.
+      const plan: Plan = metadata.plan === 'enterprise' ? 'enterprise' : metadata.plan === 'trial' ? 'trial' : 'starter';
 
         if (!companyName || !email) {
           return NextResponse.json({ error: 'MISSING_METADATA' }, { status: 400 });
