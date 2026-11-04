@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-11-03T16:38:49.639Z",
+  "updatedAt": "2026-11-04T03:22:27.915Z",
   "note": "Dívida de lint congelada. O CI falha se o total AUMENTAR. Reduza e rode --update.",
   "errors": 98,
-  "warnings": 38,
-  "total": 136
+  "warnings": 34,
+  "total": 132
 }
