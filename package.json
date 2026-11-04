@@ -13,5 +13,10 @@
   },
   "devDependencies": {
     "lightningcss": "^1.32.0"
+  },
+  "//overrides": "O SDK do Sentry arrasta @sentry/cloudflare, que depende de vite. As versões resolvidas por padrão (vite 6.4.3, postcss 8.5.22) têm advisory de severidade alta fora do devDependencies — o gate `npm audit --omit=dev --audit-level=high` reprova o deploy por causa disso. Fixamos só esses dois, em vez de rodar `npm audit fix`, que mexeu em next e tailwind dentro de uma PR de observabilidade.",
+  "overrides": {
+    "vite": "6.4.5",
+    "postcss": "8.5.32"
   }
 }
