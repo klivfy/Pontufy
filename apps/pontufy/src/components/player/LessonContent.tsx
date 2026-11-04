@@ -24,7 +24,7 @@ function formatInline(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold text-md-on-surface">{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
       return <em key={i} className="italic">{part.slice(1, -1)}</em>;
@@ -45,7 +45,7 @@ function MarkdownContent({ content }: { content: string }) {
       const items = currentList.items;
       if (currentList.type === 'ul') {
         elements.push(
-          <ul key={key++} className="list-disc ml-5 space-y-1.5 mb-5 text-gray-300">
+          <ul key={key++} className="list-disc ml-5 space-y-1.5 mb-5 text-md-on-surface">
             {items.map((item, i) => (
               <li key={i} className="leading-relaxed">{formatInline(item)}</li>
             ))}
@@ -53,7 +53,7 @@ function MarkdownContent({ content }: { content: string }) {
         );
       } else {
         elements.push(
-          <ol key={key++} className="list-decimal ml-5 space-y-1.5 mb-5 text-gray-300">
+          <ol key={key++} className="list-decimal ml-5 space-y-1.5 mb-5 text-md-on-surface">
             {items.map((item, i) => (
               <li key={i} className="leading-relaxed">{formatInline(item)}</li>
             ))}
@@ -66,7 +66,7 @@ function MarkdownContent({ content }: { content: string }) {
       const text = currentParagraph.join(' ');
       if (text.trim()) {
         elements.push(
-          <p key={key++} className="mb-5 leading-relaxed text-gray-300">
+          <p key={key++} className="mb-5 leading-relaxed text-md-on-surface">
             {formatInline(text)}
           </p>,
         );
@@ -81,14 +81,14 @@ function MarkdownContent({ content }: { content: string }) {
     if (trimmed.startsWith('## ')) {
       flush();
       elements.push(
-        <h2 key={key++} className="text-xl font-bold text-white mt-8 mb-3 first:mt-0 border-b border-md-outline pb-2">
+        <h2 key={key++} className="text-xl font-bold text-md-on-surface mt-8 mb-3 first:mt-0 border-b border-md-outline pb-2">
           {formatInline(trimmed.slice(3))}
         </h2>,
       );
     } else if (trimmed.startsWith('### ')) {
       flush();
       elements.push(
-        <h3 key={key++} className="text-base font-bold text-white mt-6 mb-2">
+        <h3 key={key++} className="text-base font-bold text-md-on-surface mt-6 mb-2">
           {formatInline(trimmed.slice(4))}
         </h3>,
       );
@@ -135,11 +135,11 @@ export default function LessonContent({
       <div className="flex-1 overflow-y-auto">
         {/* Cabeçalho da aula */}
         <div className="bg-md-surface border-b border-md-outline px-6 sm:px-10 py-6">
-          <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
+          <div className="flex items-center gap-2 text-md-on-surface-muted text-xs mb-2">
             <BookOpen size={13} />
             <span>Aula {lessonIndex} de {totalLessons}</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white">{lessonTitle}</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-md-on-surface">{lessonTitle}</h2>
         </div>
 
         {/* Conteúdo markdown DA AULA ATIVA */}
@@ -148,8 +148,8 @@ export default function LessonContent({
             <MarkdownContent content={content} />
           ) : (
             <div className="text-center py-16">
-              <BookOpen size={40} className="mx-auto text-gray-700 mb-4" />
-              <p className="text-gray-500">Conteúdo desta aula em breve.</p>
+              <BookOpen size={40} className="mx-auto text-md-on-surface-muted mb-4" />
+              <p className="text-md-on-surface-variant">Conteúdo desta aula em breve.</p>
             </div>
           )}
         </div>
@@ -163,8 +163,8 @@ export default function LessonContent({
             disabled={!onPrevious}
             className={`px-4 py-3 rounded-lg font-bold transition-all text-sm flex items-center gap-2 border ${
               onPrevious
-                ? 'border-md-outline text-gray-300 hover:border-md-outline-variant hover:text-white'
-                : 'border-md-outline text-gray-700 cursor-not-allowed'
+                ? 'border-md-outline text-md-on-surface hover:border-md-outline-variant hover:text-md-on-surface'
+                : 'border-md-outline text-md-on-surface-muted cursor-not-allowed'
             }`}
           >
             <ArrowLeft size={15} /> Aula Anterior
@@ -175,7 +175,7 @@ export default function LessonContent({
             disabled={completed || isCompleting}
             className={`px-6 py-3 rounded-lg font-bold transition-all text-sm flex items-center gap-2 ${
               completed
-                ? 'bg-md-surface-container text-gray-600 cursor-not-allowed border border-md-outline'
+                ? 'bg-md-surface-container text-md-on-surface-muted cursor-not-allowed border border-md-outline'
                 : 'bg-md-primary text-md-on-primary hover:bg-md-primary-container'
             }`}
           >
@@ -198,7 +198,7 @@ export default function LessonContent({
             className={`px-4 py-3 rounded-lg font-bold transition-all text-sm flex items-center gap-2 ${
               onNext
                 ? 'bg-md-secondary text-md-on-secondary hover:bg-md-secondary/90'
-                : 'bg-md-surface-container text-gray-700 cursor-not-allowed border border-md-outline'
+                : 'bg-md-surface-container text-md-on-surface-muted cursor-not-allowed border border-md-outline'
             }`}
           >
             Próxima Aula <ArrowRight size={15} />

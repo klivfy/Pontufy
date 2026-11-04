@@ -19,7 +19,7 @@ export default function MetricCard({ title, value, trend, trendType = 'neutral' 
   const config = TREND_CONFIG[trendType];
 
   return (
-    <div className="md-card-outlined md-elevation-1 p-5 sm:p-6 hover:md-elevation-2 transition-all duration-200">
+    <div className="md-card-outlined md-elevation-1 p-5 sm:p-6 hover:shadow-lg transition-all duration-200">
       <h3 className="text-label-lg text-md-on-surface-variant mb-3">{title}</h3>
       <div className="text-display-sm font-bold text-md-on-surface mb-3">{value}</div>
       <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${config.bg} border border-current/20`}>

@@ -110,11 +110,11 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between p-4 border-b border-md-outline">
-            <h2 className="text-lg font-bold text-white">Resgatar Recompensa</h2>
+            <h2 className="text-lg font-bold text-md-on-surface">Resgatar Recompensa</h2>
             <button
               onClick={onClose}
               disabled={step === 'processing'}
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-md-on-surface-variant hover:text-md-on-surface hover:bg-md-surface-container rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X size={20} />
             </button>
@@ -131,7 +131,7 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
                   className="space-y-4"
                 >
                   <div className="flex gap-4">
-                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-[#0a0a0a]">
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-md-surface-container-low">
                       {reward.imageUrl ? (
                         <Image src={reward.imageUrl} alt={reward.title} fill className="object-cover" />
                       ) : (
@@ -139,34 +139,34 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate">{reward.title}</h3>
-                      <p className="text-sm text-gray-400 mt-1">{partnerIcon} {partnerDisplay}</p>
-                      <p className="text-sm text-gray-500 mt-1">Categoria: {reward.pricePoints > 5000 ? 'Premium' : reward.pricePoints > 1000 ? 'Standard' : 'Essencial'}</p>
+                      <h3 className="font-semibold text-md-on-surface truncate">{reward.title}</h3>
+                      <p className="text-sm text-md-on-surface-variant mt-1">{partnerIcon} {partnerDisplay}</p>
+                      <p className="text-sm text-md-on-surface-variant mt-1">Categoria: {reward.pricePoints > 5000 ? 'Premium' : reward.pricePoints > 1000 ? 'Standard' : 'Essencial'}</p>
                     </div>
                   </div>
 
                   <div className="bg-md-surface-dim border border-md-outline rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Seu saldo atual</span>
+                      <span className="text-md-on-surface-variant">Seu saldo atual</span>
                       <span className="font-bold text-md-tertiary text-lg">{pointsBalance.toLocaleString('pt-BR')} pts</span>
                     </div>
                     <div className="flex items-center justify-between text-md-tertiary">
-                      <span className="text-gray-400">Custo do resgate</span>
+                      <span className="text-md-on-surface-variant">Custo do resgate</span>
                       <span className="font-bold text-lg">{reward.pricePoints.toLocaleString('pt-BR')} pts</span>
                     </div>
                     <div className="h-px bg-md-outline" />
-                    <div className="flex items-center justify-between text-white">
+                    <div className="flex items-center justify-between text-md-on-surface">
                       <span>Saldo projetado</span>
                       <span className="font-bold text-lg">{canAfford ? newBalance.toLocaleString('pt-BR') : '—'}</span>
                     </div>
                   </div>
 
                   {!canAfford && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-3">
-                      <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
+                    <div className="bg-md-error/25 border border-md-error/20 rounded-xl p-3 flex items-center gap-3">
+                      <AlertCircle size={20} className="text-md-error flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-red-400">Saldo insuficiente</p>
-                        <p className="text-sm text-gray-400">Faltam {missingPoints.toLocaleString('pt-BR')} pontos para resgatar esta recompensa.</p>
+                        <p className="font-medium text-md-error">Saldo insuficiente</p>
+                        <p className="text-sm text-md-on-surface-variant">Faltam {missingPoints.toLocaleString('pt-BR')} pontos para resgatar esta recompensa.</p>
                       </div>
                     </div>
                   )}
@@ -177,13 +177,13 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
                     className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${
                       canAfford
                         ? 'bg-md-primary text-md-on-primary hover:bg-md-primary-container active:scale-[0.98]'
-                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                        : 'bg-md-surface-container-low text-md-on-surface-variant cursor-not-allowed'
                     }`}
                   >
                     Confirmar Resgate
                   </button>
 
-                  <p className="text-center text-xs text-gray-500">
+                  <p className="text-center text-xs text-md-on-surface-variant">
                     Ao confirmar, os pontos serão debitados imediatamente e você receberá o link de acesso ao parceiro.
                   </p>
                 </motion.div>
@@ -198,8 +198,8 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
                   className="flex flex-col items-center justify-center py-12 space-y-4"
                 >
                   <Loader2 size={48} className="text-md-primary animate-spin" />
-                  <h3 className="text-lg font-semibold text-white">Processando resgate...</h3>
-                  <p className="text-gray-400 text-center px-4">
+                  <h3 className="text-lg font-semibold text-md-on-surface">Processando resgate...</h3>
+                  <p className="text-md-on-surface-variant text-center px-4">
                     Debitando pontos e gerando seu link de acesso. Isso pode levar alguns segundos.
                   </p>
                 </motion.div>
@@ -224,22 +224,22 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
                     <CheckCircle size={36} className="text-md-tertiary" />
                   </motion.div>
                   <div className="space-y-1">
-                    <h3 className="text-xl font-bold text-white">Resgate Concluído!</h3>
-                    <p className="text-gray-400">{reward.pricePoints.toLocaleString('pt-BR')} pontos debitados com sucesso.</p>
+                    <h3 className="text-xl font-bold text-md-on-surface">Resgate Concluído!</h3>
+                    <p className="text-md-on-surface-variant">{reward.pricePoints.toLocaleString('pt-BR')} pontos debitados com sucesso.</p>
                   </div>
 
                   <div className="bg-md-tertiary/10 border border-md-tertiary/20 rounded-xl p-4 w-full space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Novo saldo</span>
+                      <span className="text-md-on-surface-variant">Novo saldo</span>
                       <span className="font-bold text-md-tertiary text-lg">{newBalance.toLocaleString('pt-BR')} pts</span>
                     </div>
-                    <p className="text-sm text-gray-500">Seu voucher está pronto para uso no {partnerDisplay}.</p>
+                    <p className="text-sm text-md-on-surface-variant">Seu voucher está pronto para uso no {partnerDisplay}.</p>
                   </div>
 
                   <div className="w-full space-y-3">
                     <button
                       onClick={handleGoToPartner}
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500 text-white font-semibold rounded-xl hover:bg-emerald-400 transition-colors active:scale-[0.98]"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-md-tertiary text-white font-semibold rounded-xl hover:bg-md-tertiary transition-colors active:scale-[0.98]"
                     >
                       <ExternalLink size={18} />
                       Acessar Benefício no {partnerDisplay}
@@ -247,7 +247,7 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
 
                     <button
                       onClick={onClose}
-                      className="w-full py-2 px-4 text-gray-400 font-medium hover:text-white transition-colors"
+                      className="w-full py-2 px-4 text-md-on-surface-variant font-medium hover:text-md-on-surface transition-colors"
                     >
                       Fechar
                     </button>
@@ -261,10 +261,10 @@ export function CheckoutDrawer({ isOpen, onClose, reward }: CheckoutDrawerProps)
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-3"
+                className="bg-md-error/25 border border-md-error/20 rounded-xl p-3 flex items-center gap-3"
               >
-                <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
-                <p className="text-red-400 text-sm">{error}</p>
+                <AlertCircle size={20} className="text-md-error flex-shrink-0" />
+                <p className="text-md-error text-sm">{error}</p>
               </motion.div>
             )}
           </div>

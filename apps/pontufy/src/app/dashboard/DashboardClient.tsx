@@ -113,8 +113,8 @@ export default function DashboardClient({ initialCourses, initialEnrolled }: Pro
     <>
       {heroCourse && <HeroCourse course={heroCourse} />}
 
-      <div className="relative z-20 -mt-8 space-y-2 pt-4">
-        <div className="px-8 md:px-16 pb-2">
+      <div className="relative z-20 space-y-6 pt-8">
+        <div className="px-4 sm:px-6 md:px-10">
           <StreakCard />
         </div>
 
@@ -124,7 +124,7 @@ export default function DashboardClient({ initialCourses, initialEnrolled }: Pro
 
         {inProgress.length === 0 && available.length === 0 && !heroCourse && (
           <div className="px-8 md:px-16 py-20 text-center">
-            <p className="text-gray-500 text-base">
+            <p className="text-md-on-surface-variant text-base">
               {searchQuery
                 ? `Nenhum curso encontrado para "${searchQuery}".`
                 : 'Nenhum curso disponível ainda. Peça ao seu gestor para criar treinamentos.'}

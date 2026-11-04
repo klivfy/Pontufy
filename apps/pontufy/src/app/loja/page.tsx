@@ -39,9 +39,9 @@ export default async function MarketplacePage() {
         <div className="px-8 md:px-16 mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Gift size={24} className="text-md-secondary" />
-            <h1 className="text-3xl font-black text-white tracking-tight">Clube de Benefícios</h1>
+            <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Clube de Benefícios</h1>
           </div>
-          <p className="text-gray-500 text-sm">Troque seu esforço por recompensas reais.</p>
+          <p className="text-md-on-surface-variant text-sm">Troque seu esforço por recompensas reais.</p>
         </div>
 
         <MarketplaceClient

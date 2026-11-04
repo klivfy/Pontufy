@@ -24,34 +24,34 @@ function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-28">
-      <h2 className="text-headline-sm font-bold text-white">{title}</h2>
-      <div className="mt-4 space-y-4 text-body-md text-gray-400">{children}</div>
+      <h2 className="text-headline-sm font-bold text-md-on-surface">{title}</h2>
+      <div className="mt-4 space-y-4 text-body-md text-md-on-surface-variant">{children}</div>
     </section>
   );
 }
 
 export default function TermosPage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] py-20 px-6">
+    <main className="min-h-screen bg-md-surface-container-low py-20 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400">
+          <div className="flex size-12 items-center justify-center rounded-md bg-md-tertiary/38 text-md-tertiary">
             <ScrollText className="size-6" aria-hidden="true" />
           </div>
-          <span className="rounded-full border border-[#2a2a2a] bg-[#141414] px-3 py-1 text-label-sm text-gray-400">
+          <span className="rounded-full border border-md-outline bg-md-surface-container px-3 py-1 text-label-sm text-md-on-surface-variant">
             Termos de Uso
           </span>
         </div>
 
-        <h1 className="mt-6 text-display-sm font-black text-white">
-          Termos de <span className="text-emerald-400">Uso</span>
+        <h1 className="mt-6 text-display-sm font-black text-md-on-surface">
+          Termos de <span className="text-md-tertiary">Uso</span>
         </h1>
-        <p className="mt-4 text-body-sm text-gray-500">Última atualização: {LAST_UPDATED}</p>
+        <p className="mt-4 text-body-sm text-md-on-surface-variant">Última atualização: {LAST_UPDATED}</p>
 
-        <div className="mt-8 md-card-elevated p-5 text-body-sm text-gray-400 border border-[#2a2a2a]">
+        <div className="mt-8 md-card-elevated p-5 text-body-sm text-md-on-surface-variant border border-md-outline">
           Este documento estabelece as condições gerais de uso da plataforma Pontufy, um
           serviço B2B SaaS de gamificação corporativa operado pela{' '}
-          <strong className="text-white">Mestry&apos;s Tecnologia e Consultoria em TI LTDA</strong>{' '}
+          <strong className="text-md-on-surface">Mestry&apos;s Tecnologia e Consultoria em TI LTDA</strong>{' '}
           ("Pontufy", "nós", "nosso"). Ele respeita a Lei Geral de Proteção de Dados (LGPD, Lei
           nº 13.709/2018) e, quando aplicável a usuários na União Europeia, o Regulamento Geral
           de Proteção de Dados (GDPR, Regulamento (UE) 2016/679). Este material é informativo;
@@ -82,11 +82,11 @@ export default function TermosPage() {
             </p>
             <p>
               Para dúvidas gerais sobre estes termos, utilize o canal{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-md-tertiary hover:underline">
                 {CONTACT_EMAIL}
               </a>
               . Para assuntos relacionados a dados pessoais, utilize{' '}
-              <a href={`mailto:${DPO_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${DPO_EMAIL}`} className="text-md-tertiary hover:underline">
                 {DPO_EMAIL}
               </a>
               .
@@ -168,7 +168,7 @@ export default function TermosPage() {
           <Section id="protecao-de-dados" title="8. Proteção de dados pessoais (LGPD e GDPR)">
             <p>
               O tratamento de dados pessoais realizado por meio da plataforma segue nossa{' '}
-              <Link href="/privacidade" className="text-emerald-400 hover:underline">
+              <Link href="/privacidade" className="text-md-tertiary hover:underline">
                 Política de Privacidade
               </Link>
               , elaborada em conformidade com a LGPD. Caso você seja titular de dados localizado
@@ -177,7 +177,7 @@ export default function TermosPage() {
             </p>
             <p>
               Solicitações relacionadas a esses direitos podem ser enviadas a{' '}
-              <a href={`mailto:${DPO_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${DPO_EMAIL}`} className="text-md-tertiary hover:underline">
                 {DPO_EMAIL}
               </a>
               . Nenhuma cláusula destes Termos limita os direitos que titulares de dados possuem
@@ -238,15 +238,15 @@ export default function TermosPage() {
           <Section id="contato" title="14. Contato">
             <p>
               Dúvidas sobre estes Termos de Uso podem ser enviadas para{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-md-tertiary hover:underline">
                 {CONTACT_EMAIL}
               </a>
               . Para exercer direitos relacionados a dados pessoais, utilize{' '}
-              <a href={`mailto:${DPO_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${DPO_EMAIL}`} className="text-md-tertiary hover:underline">
                 {DPO_EMAIL}
               </a>
               . Veja também nossa{' '}
-              <Link href="/privacidade" className="text-emerald-400 hover:underline">
+              <Link href="/privacidade" className="text-md-tertiary hover:underline">
                 Política de Privacidade
               </Link>
               .

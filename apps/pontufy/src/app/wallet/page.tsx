@@ -39,11 +39,11 @@ export default function WalletPage() {
   };
 
   return (
-    <main className="min-h-screen pb-20 pt-24 bg-[#0a0a0a]">
+    <main className="min-h-screen pb-20 pt-24 bg-md-surface-container-low">
       <div className="max-w-[1000px] mx-auto px-6 md:px-8">
         <header className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">Central de Conquistas</h1>
-          <p className="text-gray-500 mt-1.5 text-sm">
+          <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Central de Conquistas</h1>
+          <p className="text-md-on-surface-variant mt-1.5 text-sm">
             {currentUser?.name ? `Olá, ${currentUser.name}! ` : ''}Acompanhe seu esforço e recompensas.
           </p>
         </header>
@@ -52,12 +52,12 @@ export default function WalletPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="animate-spin text-emerald-500" size={36} />
+            <Loader2 className="animate-spin text-md-tertiary" size={36} />
           </div>
         ) : history.length > 0 ? (
           <PointsHistory history={history} />
         ) : (
-          <div className="bg-[#141414] rounded-xl border border-[#2a2a2a] p-8 text-center text-gray-500">
+          <div className="bg-md-surface-container rounded-xl border border-md-outline p-8 text-center text-md-on-surface-variant">
             Nenhuma movimentação registrada ainda. Complete aulas para ganhar pontos!
           </div>
         )}

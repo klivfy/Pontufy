@@ -275,13 +275,13 @@ export default function AIWizard() {
                   <li><code className="bg-md-highlight/20 px-1 rounded text-xs">OPENAI_API_KEY</code> — platform.openai.com</li>
                   <li><code className="bg-md-highlight/20 px-1 rounded text-xs">ANTHROPIC_API_KEY</code> — console.anthropic.com</li>
                 </ul>
-                <p className="text-xs mt-3 text-md-on-highlight/70 font-medium">
+                <p className="text-xs mt-3 text-md-on-highlight font-medium">
                   Importante: Configure a variável para TODOS os ambientes (Production, Preview e Development) no Vercel.
                 </p>
                 {providerStatus.diagnostics && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-medium text-md-on-highlight/70">Diagnóstico do servidor</summary>
-                    <ul className="mt-1 space-y-0.5 text-xs text-md-on-highlight/60">
+                    <summary className="cursor-pointer text-xs font-medium text-md-on-highlight">Diagnóstico do servidor</summary>
+                    <ul className="mt-1 space-y-0.5 text-xs text-md-on-highlight">
                       {Object.entries(providerStatus.diagnostics).map(([k, v]) => (
                         <li key={k}><strong>{k}:</strong> {v}</li>
                       ))}
@@ -338,14 +338,14 @@ export default function AIWizard() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full h-32 bg-md-surface-container border border-md-outline text-md-on-surface rounded-xl p-3 outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 transition-all resize-none text-body-md placeholder:text-md-on-surface-variant/50"
+              className="w-full h-32 bg-md-surface-container border border-md-outline text-md-on-surface rounded-xl p-3 outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 transition-all resize-none text-body-md placeholder:text-md-on-surface-variant"
               placeholder="Ex: Crie um treinamento de LGPD focado na equipe de atendimento ao cliente, com foco prático em proteção de dados e cenários de call center..."
             />
           </div>
 
           <div>
             <label className="text-label-lg text-md-on-surface-variant mb-2 block">
-              Material de Referência <span className="text-md-on-surface-variant/60 font-normal">(opcional)</span>
+              Material de Referência <span className="text-md-on-surface-variant font-normal">(opcional)</span>
             </label>
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -370,11 +370,11 @@ export default function AIWizard() {
                 onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }}
                 className="hidden"
               />
-              <Upload size={24} className="mx-auto mb-2 text-md-on-surface-variant/50" />
+              <Upload size={24} className="mx-auto mb-2 text-md-on-surface-variant" />
               <p className="text-body-sm text-md-on-surface-variant">
                 Arraste arquivos aqui ou <span className="text-md-primary font-semibold">clique para selecionar</span>
               </p>
-              <p className="text-xs text-md-on-surface-variant/50 mt-1">
+              <p className="text-xs text-md-on-surface-variant mt-1">
                 PDF, Word, TXT, PowerPoint, Excel, MD, MP4, MP3 — até {MAX_FILES} arquivos, 10MB cada
               </p>
             </div>
@@ -385,13 +385,13 @@ export default function AIWizard() {
                   <div key={i} className="flex items-center gap-3 bg-md-surface-container-high rounded-lg px-3 py-2 group">
                     <FileText size={16} className="text-md-primary flex-shrink-0" />
                     <span className="text-body-sm text-md-on-surface truncate flex-1">{f.name}</span>
-                    <span className="text-xs text-md-on-surface-variant/60">{formatFileSize(f.size)}</span>
+                    <span className="text-xs text-md-on-surface-variant">{formatFileSize(f.size)}</span>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                       className="p-1 rounded hover:bg-md-outline transition-colors opacity-0 group-hover:opacity-100"
                     >
-                      <X size={14} className="text-md-on-surface-variant/50" />
+                      <X size={14} className="text-md-on-surface-variant" />
                     </button>
                   </div>
                 ))}
@@ -402,7 +402,7 @@ export default function AIWizard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-md-outline">
             <div className="flex items-center gap-2 text-body-sm">
               <span className="text-md-on-surface-variant">Custo da operação:</span>
-              <span className="font-bold text-md-primary bg-md-primary-container px-2 py-0.5 rounded-full">
+              <span className="font-bold text-md-on-primary-container bg-md-primary-container px-2 py-0.5 rounded-full">
                 1 Crédito de IA
               </span>
             </div>
@@ -450,7 +450,7 @@ export default function AIWizard() {
               <div
                 key={index}
                 className={`flex items-center gap-3 transition-all duration-500 ${
-                  isCompleted ? 'text-md-tertiary' : isActive ? 'text-md-on-surface font-semibold' : 'text-md-on-surface-variant/60'
+                  isCompleted ? 'text-md-tertiary' : isActive ? 'text-md-on-surface font-semibold' : 'text-md-on-surface-variant'
                 }`}
               >
                 {isCompleted ? (
@@ -539,8 +539,8 @@ export default function AIWizard() {
               </p>
               {result.aiErrors && result.aiErrors.length > 0 && (
                 <details className="mt-2">
-                  <summary className="cursor-pointer font-medium text-md-on-highlight/70">Ver erros dos provedores</summary>
-                  <ul className="mt-1 space-y-1 ml-4 list-disc text-xs text-md-on-highlight/60">
+                  <summary className="cursor-pointer font-medium text-md-on-highlight">Ver erros dos provedores</summary>
+                  <ul className="mt-1 space-y-1 ml-4 list-disc text-xs text-md-on-highlight">
                     {result.aiErrors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
                 </details>
@@ -627,7 +627,7 @@ export default function AIWizard() {
               {lessons.map((lesson, i) => (
                 <div key={i} className="px-4 py-3 flex justify-between items-center">
                   <span className="text-body-md font-medium text-md-on-surface">{lesson.title}</span>
-                  <span className="text-label-sm font-bold text-md-primary bg-md-primary-container px-2 py-1 rounded-full">
+                  <span className="text-label-sm font-bold text-md-on-primary-container bg-md-primary-container px-2 py-1 rounded-full">
                     +{lesson.pointsAssigned} pts
                   </span>
                 </div>

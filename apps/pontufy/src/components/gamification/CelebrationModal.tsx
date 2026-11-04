@@ -29,19 +29,19 @@ const TIER_ICONS: Record<string, typeof Trophy | typeof Crown | typeof Medal> = 
 };
 
 const TIER_COLORS: Record<string, string> = {
-  Iniciante: 'text-gray-400',
-  Analista: 'text-emerald-400',
-  'Analista Sénior': 'text-blue-400',
-  Especialista: 'text-amber-400',
-  Mestre: 'text-purple-400',
+  Iniciante: 'text-md-on-surface-variant',
+  Analista: 'text-md-tertiary',
+  'Analista Sénior': 'text-md-primary',
+  Especialista: 'text-md-secondary',
+  Mestre: 'text-md-on-highlight',
 };
 
 const TIER_BG: Record<string, string> = {
-  Iniciante: 'bg-gray-400/10 border-gray-400/30',
-  Analista: 'bg-emerald-500/10 border-emerald-500/30',
-  'Analista Sénior': 'bg-blue-500/10 border-blue-500/30',
-  Especialista: 'bg-amber-500/10 border-amber-500/30',
-  Mestre: 'bg-purple-500/10 border-purple-500/30',
+  Iniciante: 'bg-md-outline border-md-outline',
+  Analista: 'bg-md-tertiary/25 border-md-tertiary/30',
+  'Analista Sénior': 'bg-md-primary/25 border-md-primary/30',
+  Especialista: 'bg-md-secondary/25 border-md-secondary/30',
+  Mestre: 'bg-md-highlight/25 border-md-highlight/30',
 };
 
 export default function CelebrationModal({
@@ -61,8 +61,8 @@ export default function CelebrationModal({
   }, [isVisible, onComplete]);
 
   const TierIcon = newTier ? TIER_ICONS[newTier.name] : Trophy;
-  const tierColor = newTier ? TIER_COLORS[newTier.name] : 'text-emerald-400';
-  const tierBg = newTier ? TIER_BG[newTier.name] : 'bg-emerald-500/10 border-emerald-500/30';
+  const tierColor = newTier ? TIER_COLORS[newTier.name] : 'text-md-tertiary';
+  const tierBg = newTier ? TIER_BG[newTier.name] : 'bg-md-tertiary/25 border-md-tertiary/30';
 
   return (
     <AnimatePresence>
@@ -72,14 +72,14 @@ export default function CelebrationModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-emerald-500/5"
+            className="absolute inset-0 bg-md-tertiary/13"
           />
           <motion.div
             initial={{ scale: 0.5, opacity: 0, y: 60 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 24 }}
             transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-            className="relative bg-[#141414] px-10 py-8 rounded-2xl shadow-2xl border border-[#2a2a2a] flex flex-col items-center gap-4 max-w-md w-full mx-4"
+            className="relative bg-md-surface-container px-10 py-8 rounded-2xl shadow-2xl border border-md-outline flex flex-col items-center gap-4 max-w-md w-full mx-4"
           >
             {/* Animated background glow */}
             <motion.div
@@ -91,7 +91,7 @@ export default function CelebrationModal({
             {/* Close button */}
             <button
               onClick={onComplete}
-              className="absolute top-3 right-3 p-1 rounded-lg hover:bg-white/5 transition-colors text-gray-500 hover:text-white"
+              className="absolute top-3 right-3 p-1 rounded-lg hover:bg-md-surface-container-low transition-colors text-md-on-surface-variant hover:text-md-on-surface"
               aria-label="Fechar"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -131,13 +131,13 @@ export default function CelebrationModal({
 
             {/* Content */}
             <div className="text-center relative z-10">
-              <h2 className="text-2xl font-black text-white mb-1">{title}</h2>
-              <p className="text-gray-400 text-sm mb-4">{subtitle}</p>
+              <h2 className="text-2xl font-black text-md-on-surface mb-1">{title}</h2>
+              <p className="text-md-on-surface-variant text-sm mb-4">{subtitle}</p>
 
               {type === 'levelUp' && newTier && (
                 <div className={`mb-4 p-4 rounded-xl ${tierBg} flex items-center justify-center gap-3`}>
                   <div className="text-center">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">
+                    <p className="text-xs text-md-on-surface-variant uppercase tracking-wider mb-0.5">
                       {previousTier ? `De ${previousTier}` : 'Novo nível'}
                     </p>
                     <p className={`text-lg font-black ${tierColor}`}>{newTier.name}</p>
@@ -148,10 +148,10 @@ export default function CelebrationModal({
                     className="w-px h-10 bg-current/30"
                   />
                   <div className="text-center">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">
+                    <p className="text-xs text-md-on-surface-variant uppercase tracking-wider mb-0.5">
                       Para {newTier.name === 'Mestre' ? 'o topo' : 'próximo nível'}
                     </p>
-                    <p className="text-lg font-black text-gray-300">
+                    <p className="text-lg font-black text-md-on-surface">
                       {newTier.name === 'Mestre' ? '∞' : `${newTier.maxPoints?.toLocaleString() || '∞'} pts`}
                     </p>
                   </div>
@@ -162,23 +162,23 @@ export default function CelebrationModal({
                 <motion.div
                   animate={{ scale: [1, 1.05, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
-                  className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-5 py-2 mb-4"
+                  className="inline-flex items-center gap-2 bg-md-tertiary/25 border border-md-tertiary/30 rounded-full px-5 py-2 mb-4"
                 >
-                  <Coins size={20} className="text-emerald-400" />
-                  <span className="text-lg font-black text-emerald-400">+{points} Pontos</span>
+                  <Coins size={20} className="text-md-tertiary" />
+                  <span className="text-lg font-black text-md-tertiary">+{points} Pontos</span>
                 </motion.div>
               )}
 
               {type === 'achievement' && (
-                <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-full px-5 py-2 mb-4">
-                  <Sparkles size={18} className="text-amber-400" />
-                  <span className="text-sm font-bold text-amber-400">Conquista desbloqueada</span>
+                <div className="inline-flex items-center gap-2 bg-md-secondary/25 border border-md-secondary/30 rounded-full px-5 py-2 mb-4">
+                  <Sparkles size={18} className="text-md-secondary" />
+                  <span className="text-sm font-bold text-md-secondary">Conquista desbloqueada</span>
                 </div>
               )}
 
               <button
                 onClick={onComplete}
-                className="mt-2 px-6 py-2.5 rounded-full font-bold text-sm bg-[#1f1f1f] text-white hover:bg-[#2a2a2a] border border-[#2a2a2a] transition-colors"
+                className="mt-2 px-6 py-2.5 rounded-full font-bold text-sm bg-md-surface-container-high text-md-on-surface hover:bg-md-surface-container-highest border border-md-outline transition-colors"
               >
                 Continuar
               </button>
@@ -186,7 +186,7 @@ export default function CelebrationModal({
 
             {/* Subtle progress hint */}
             {newTier && !previousTier && (
-              <p className="text-[10px] text-gray-600 mt-2 uppercase tracking-wider">
+              <p className="text-[10px] text-md-on-surface-muted mt-2 uppercase tracking-wider">
                 Continue evoluindo — cada aula te aproxima do próximo nível
               </p>
             )}

@@ -38,9 +38,9 @@ export default function RewardToggleRow({ catalog }: { catalog: RewardItem[] }) 
   if (items.length === 0) {
     return (
       <div className="md-card-outlined md-elevation-1 p-8 text-center">
-        <Gift size={48} className="mx-auto text-md-on-surface-variant/30 mb-4" />
+        <Gift size={48} className="mx-auto text-md-on-surface-variant mb-4" />
         <p className="text-body-md text-md-on-surface-variant">Nenhuma recompensa cadastrada</p>
-        <p className="text-body-sm text-md-on-surface-variant/60 mt-1">Adicione recompensas via API ou importe do catálogo</p>
+        <p className="text-body-sm text-md-on-surface-variant mt-1">Adicione recompensas via API ou importe do catálogo</p>
       </div>
     );
   }
@@ -101,7 +101,7 @@ export default function RewardToggleRow({ catalog }: { catalog: RewardItem[] }) 
                     aria-pressed={item.active}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                      className={`inline-block h-4 w-4 transform rounded-full bg-md-surface-container-lowest transition-transform shadow-sm ${
                         item.active ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />

@@ -46,18 +46,18 @@ const FILTERS: { key: FilterStatus; label: string }[] = [
 
 const STATUS_CONFIG = {
   completed: {
-    icon: <CheckCircle2 size={16} className="text-emerald-400" />,
-    badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    icon: <CheckCircle2 size={16} className="text-md-tertiary" />,
+    badge: 'bg-md-tertiary-container text-md-on-tertiary-container border-md-tertiary/30',
     label: 'Concluído',
   },
   in_progress: {
-    icon: <PlayCircle size={16} className="text-amber-400" />,
-    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    icon: <PlayCircle size={16} className="text-md-secondary" />,
+    badge: 'bg-md-secondary-container text-md-on-secondary-container border-md-secondary/30',
     label: 'Em andamento',
   },
   available: {
-    icon: <BookOpen size={16} className="text-gray-500" />,
-    badge: 'bg-white/5 text-gray-400 border-white/10',
+    icon: <BookOpen size={16} className="text-md-on-surface-variant" />,
+    badge: 'bg-md-surface-container-low text-md-on-surface-variant border-md-outline-variant',
     label: 'Disponível',
   },
 } as const;
@@ -140,8 +140,8 @@ export default function CoursesClient({ initialCourses, certCourseIds }: Props) 
             aria-pressed={filter === option.key}
             className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
               filter === option.key
-                ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-900/30'
-                : 'bg-[#1f1f1f] text-gray-400 border-[#2a2a2a] hover:border-[#3a3a3a] hover:text-white'
+                ? 'bg-md-tertiary text-white border-md-tertiary shadow-lg shadow-md-tertiary/30'
+                : 'bg-md-surface-container-high text-md-on-surface-variant border-md-outline hover:border-md-outline hover:text-md-on-surface'
             }`}
           >
             {option.label}
@@ -150,7 +150,7 @@ export default function CoursesClient({ initialCourses, certCourseIds }: Props) 
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-24 text-gray-600">
+        <div className="text-center py-24 text-md-on-surface-muted">
           {query ? `Nenhum curso encontrado para "${query}".` : 'Nenhum curso nesta categoria.'}
         </div>
       ) : (
@@ -161,31 +161,31 @@ export default function CoursesClient({ initialCourses, certCourseIds }: Props) 
               <Link
                 key={course.id}
                 href={`/player/${course.id}`}
-                className="bg-[#141414] border border-[#2a2a2a] rounded-xl overflow-hidden hover:border-[#3a3a3a] hover:bg-[#1a1a1a] transition-all duration-200 group block"
+                className="flex flex-col bg-md-surface-container-lowest border border-md-outline-variant rounded-2xl overflow-hidden hover:border-md-primary/30 hover:shadow-lg md-elevation-1 transition-all duration-200 group block"
               >
-                <div className="h-1 bg-[#1f1f1f]">
+                <div className="h-1 bg-md-surface-container-high">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
+                    className="h-full bg-md-tertiary transition-all duration-500"
                     style={{ width: `${course.progress}%` }}
                   />
                 </div>
 
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <h3 className="font-bold text-white text-base leading-tight group-hover:text-emerald-400 transition-colors">
+                    <h3 className="font-bold text-md-on-surface text-base leading-tight group-hover:text-md-tertiary transition-colors">
                       {course.title}
                     </h3>
                     {config.icon}
                   </div>
 
                   {course.description && (
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+                    <p className="text-xs text-md-on-surface-variant line-clamp-2 mb-4 leading-relaxed">
                       {course.description}
                     </p>
                   )}
 
                   <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <div className="flex items-center gap-1.5 text-xs text-md-on-surface-muted">
                       <Clock size={12} />
                       <span>
                         {course.completedLessons}/{course.totalLessons} aulas
@@ -193,7 +193,7 @@ export default function CoursesClient({ initialCourses, certCourseIds }: Props) 
                     </div>
                     <div className="flex items-center gap-1.5">
                       {certs.has(course.id) && (
-                        <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20">
+                        <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full border bg-md-secondary/25 text-md-secondary border-md-secondary/20">
                           <Award size={11} /> Certificado
                         </span>
                       )}

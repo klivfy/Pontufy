@@ -21,6 +21,7 @@ import {
   CreditCard,
   Building2,
 } from 'lucide-react';
+import Wordmark from '@/components/brand/Wordmark';
 
 interface AdminLayoutContextType {
   navOpen: boolean;
@@ -157,7 +158,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <div className={`flex items-center justify-between p-4 border-b border-md-outline ${navCollapsed ? 'justify-center' : ''}`}>
             {!navCollapsed && (
               <Link href="/admin" className="flex items-center gap-2 text-xl font-black tracking-tighter text-md-on-surface">
-                <span className="text-md-primary">Pontu</span>fy
+                <Wordmark />
                 <span className="text-md-primary">Admin</span>
               </Link>
             )}
@@ -188,7 +189,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
               </div>
               <div className="mt-2 flex items-center gap-1.5">
                 <CreditCard size={14} className="text-md-tertiary" />
-                <span className="text-label-sm font-semibold text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">
+                <span className="text-label-sm font-semibold text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">
                   {aiCredits} créditos IA
                 </span>
               </div>
@@ -199,7 +200,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <nav className="flex-1 overflow-y-auto p-2" aria-label="Menu principal">
             {NAV_SECTIONS.map((section) => (
               <div key={section.label} className={navCollapsed ? 'hidden' : 'block'}>
-                <h3 className="px-3 py-1 text-label-sm text-md-on-surface-variant/60 uppercase tracking-widest">
+                <h3 className="px-3 py-1 text-label-sm text-md-on-surface-variant uppercase tracking-widest">
                   {section.label}
                 </h3>
                 <div className="space-y-1">
@@ -315,7 +316,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                     <span className="hidden sm:block text-body-md font-medium text-md-on-surface truncate max-w-[140px]">
                       {tenant?.name || 'Administrador'}
                     </span>
-                    <span className="hidden sm:block text-label-sm text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">
+                    <span className="hidden sm:block text-label-sm text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">
                       admin_rh
                     </span>
                     <ChevronDown size={16} className={`text-md-on-surface-variant transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
@@ -326,7 +327,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                       <div className="px-4 py-3 border-b border-md-outline">
                         <p className="text-body-md font-semibold text-md-on-surface">{tenant?.name || 'Administrador'}</p>
                         <p className="text-body-sm text-md-on-surface-variant">admin@empresa.com</p>
-                        <span className="inline-block mt-1 text-label-sm text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">admin_rh</span>
+                        <span className="inline-block mt-1 text-label-sm text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">admin_rh</span>
                       </div>
                       <Link
                         href="/profile"

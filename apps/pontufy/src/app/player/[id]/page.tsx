@@ -107,8 +107,8 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   if (!course) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-md-surface-dim gap-4">
-        <BookOpen size={48} className="text-gray-700" />
-        <p className="text-white text-lg font-bold">Curso não encontrado.</p>
+        <BookOpen size={48} className="text-md-on-surface-muted" />
+        <p className="text-md-on-surface text-lg font-bold">Curso não encontrado.</p>
         <Link href="/dashboard" className="text-md-primary-container font-bold hover:text-md-secondary transition-colors">
           ← Voltar ao Início
         </Link>
@@ -141,7 +141,7 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   if (!activeLesson) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-md-surface-dim gap-4">
-        <p className="text-white text-lg font-bold">Este curso não possui aulas.</p>
+        <p className="text-md-on-surface text-lg font-bold">Este curso não possui aulas.</p>
         <Link href="/dashboard" className="text-md-primary-container font-bold hover:text-md-secondary transition-colors">
           ← Voltar ao Início
         </Link>
@@ -172,10 +172,10 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
         previousTier: previousTier.name,
         newTier: {
           name: newTier.name,
-          color: newTier.name === 'Mestre' ? 'text-purple-400' :
-            newTier.name === 'Especialista' ? 'text-amber-400' :
-            newTier.name === 'Analista Sénior' ? 'text-blue-400' :
-            newTier.name === 'Analista' ? 'text-emerald-400' : 'text-gray-400',
+          color: newTier.name === 'Mestre' ? 'text-md-on-highlight' :
+            newTier.name === 'Especialista' ? 'text-md-secondary' :
+            newTier.name === 'Analista Sénior' ? 'text-md-primary' :
+            newTier.name === 'Analista' ? 'text-md-tertiary' : 'text-md-on-surface-variant',
           icon: TierIcon,
         },
         points: newPoints,
@@ -289,14 +289,14 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
       <div className="h-14 flex-shrink-0 bg-md-surface border-b border-md-outline flex items-center px-4 gap-4 z-40">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm font-medium"
+          className="flex items-center gap-2 text-md-on-surface-variant hover:text-md-on-surface transition-colors text-sm font-medium"
         >
           <ArrowLeft size={18} />
           <span className="hidden sm:inline">Voltar</span>
         </Link>
         <div className="h-5 w-px bg-md-outline" />
-        <h1 className="text-sm font-bold text-white truncate flex-1">{course.title}</h1>
-        <div className="text-xs text-gray-500 hidden sm:block">
+        <h1 className="text-sm font-bold text-md-on-surface truncate flex-1">{course.title}</h1>
+        <div className="text-xs text-md-on-surface-variant hidden sm:block">
           {completedCount}/{lessons.length} aulas
         </div>
       </div>
@@ -328,8 +328,8 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
                       <Trophy size={18} className="text-md-tertiary" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-white">Quiz final disponível!</p>
-                      <p className="text-xs text-gray-500">Nota mínima: 70% · Bônus de +50 pts</p>
+                      <p className="text-sm font-bold text-md-on-surface">Quiz final disponível!</p>
+                      <p className="text-xs text-md-on-surface-variant">Nota mínima: 70% · Bônus de +50 pts</p>
                     </div>
                   </div>
                   <button
@@ -346,14 +346,14 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
                       <Award size={18} className="text-md-tertiary" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-white">Curso concluído!</p>
-                      <p className="text-xs text-gray-500">Seu certificado com código de verificação está pronto.</p>
+                      <p className="text-sm font-bold text-md-on-surface">Curso concluído!</p>
+                      <p className="text-xs text-md-on-surface-variant">Seu certificado com código de verificação está pronto.</p>
                     </div>
                   </div>
                   <button
                     onClick={handleDownloadCertificate}
                     disabled={isDownloading}
-                    className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm bg-md-surface-container text-white hover:bg-md-surface-container-high border border-md-outline disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm bg-md-surface-container text-md-on-surface hover:bg-md-surface-container-high border border-md-outline disabled:opacity-50 transition-colors"
                   >
                     {isDownloading ? (
                       <>

@@ -1,113 +1,211 @@
 @import "tailwindcss";
 
 /*
- * Design system: Google Material Design 3 (M3) sobre a paleta dark da Pontufy.
- * - Tipografia: "Google Sans Flex" (padrão corporativo Mestry's). Sem arquivos
- *   licenciados publicados, a fonte renderizada é Roboto (carregada via
- *   next/font em layout.tsx → --font-roboto), com fallback preparado para
- *   quando "Google Sans Flex"/"Google Sans" estiverem disponíveis.
- * - Shape scale M3: xs 4dp · sm 8dp · md/lg 12dp · xl 16dp · 2xl/3xl 28dp · full (pill)
- * - Elevação M3: níveis 0–5 (0dp = shadow-none) mapeados nos tokens shadow-* do Tailwind
- * - Cores: paleta MD3 (tokens md-*) + dark surfaces; white-label via --brand-*
+ * ═════════════════════════════════════════════════════════════════════════════
+ * PONTUFY · DESIGN SYSTEM M3 (Material Design 3)
+ * ═════════════════════════════════════════════════════════════════════════════
+ *
+ * Tipografia
+ *   Google Sans Flex (variável, carregada por `next/font/google` em layout.tsx
+ *   → --font-google-sans-flex). É a família padrão de produto do Google e está
+ *   publicada no Google Fonts desde a v26, então é self-hosted no build.
+ *   Pesos 500/600/700 são os que a escala M3 usa (label/title); o eixo wght
+ *   cobre 1–1000 caso alguém precise de display 200 ou black 800.
+ *
+ * Esquema de cor — derivado APENAS das 10 cores da marca
+ *   #f5c8bf  blush        → container de erro / destaque quente
+ *   #e0d2c5  areia        → secondary-container
+ *   #cad9ca  sálvia       → primary-container
+ *   #a7e3c1  menta        → tertiary-container (pontos, sucesso)
+ *   #495453  verde-chumbo → primary (ação principal)
+ *   #d4d4d4  cinza 200    → outline (traço de cards/campos)
+ *   #acacac  cinza 400    → disabled / trilhas de progresso
+ *   #848484  cinza 500    → ícones discretos, placeholder
+ *   #5c5c5c  cinza 600    → on-surface-variant (texto secundário)
+ *   #343434  cinza 800    → inverse-surface (tooltips/snackbars)
+ *
+ *   As cores `on-*` e os tons extremos (surface-container, error, etc.) são
+ *   derivados dessas 10 por interpolação tonal — nenhuma cor nova de matiz
+ *   entra no produto. Tema claro: as superfícies são claras e o texto escuro,
+ *   que é a leitura natural de uma paleta com 6 cores claras.
+ *
+ * Shape (M3): xs 4 · sm 8 · md 12 · lg 16 · xl 28 · full (pill)
+ * Elevação (M3): níveis 0–5, sombras quentes e de baixa opacidade (tema claro)
+ * Movimento: easing standard + emphasized
+ * ═════════════════════════════════════════════════════════════════════════════
  */
 
 @theme {
-  --font-sans: "Google Sans Flex", "Google Sans", var(--font-roboto), "Roboto", sans-serif;
+  /* ── Tipografia ──────────────────────────────────────────────────────────── */
+  --font-sans: var(--font-google-sans-flex), "Google Sans Flex", "Google Sans",
+    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* White-Label dinâmico: valores padrão injetados em runtime pelo
-     DynamicThemeProvider (nunca aceitar input do tenant sem sanitização). */
-  --brand-primary: #10b981;
-  --brand-accent: #8b5cf6;
+  /* ── White-label (runtime, DynamicThemeProvider) ─────────────────────────── */
+  --brand-primary: #495453;
+  --brand-accent: #a7e3c1;
 
-  /* ── MD3 palette Pontufy (tokens semânticos) ────────────────────────────────
-     Primary #5c4152 · Primary Container/Hover #b4585d · Secondary #d97f76
-     Tertiary (gamificação/pontos) #a1c0ae · Highlight/Autopilot #f7d0a9
-     on-* garantem contraste WCAG AA (texto em superfícies tonais). */
-  --color-md-primary: #5c4152;
+  /* ── Papéis M3 · Primary (verde-chumbo #495453) ──────────────────────────── */
+  --color-md-primary: #495453;
   --color-md-on-primary: #ffffff;
-  --color-md-primary-container: #b4585d;
-  --color-md-on-primary-container: #ffffff;
-  --color-md-secondary: #d97f76;
-  --color-md-on-secondary: #241011;
-  --color-md-tertiary: #a1c0ae;
-  --color-md-on-tertiary: #0d1f16;
-  --color-md-highlight: #f7d0a9;
-  --color-md-on-highlight: #3a2410;
-  --color-md-surface: #141414;
-  --color-md-surface-dim: #0a0a0a;
-  --color-md-surface-container: #1f1f1f;
-  --color-md-surface-container-high: #2a2a2a;
-  --color-md-surface-variant: #2a2a2a;
-  --color-md-on-surface: #e5e5e5;
-  --color-md-on-surface-variant: #a3a3a3;
-  --color-md-outline: #2a2a2a;
-  --color-md-outline-variant: #3a3a3a;
-  --color-md-error: #f87171;
-  --color-md-on-error: #1c0a0a;
+  --color-md-primary-container: #cad9ca;
+  --color-md-on-primary-container: #1f2a29;
+  --color-md-primary-fixed: #cad9ca;
+  --color-md-primary-fixed-dim: #aed0b7;
+  --color-md-on-primary-fixed: #101a18;
+  --color-md-on-primary-fixed-variant: #34413f;
+  --color-md-inverse-primary: #a7e3c1;
 
-  /* M3 elevation levels 1–5 (tokens canônicos solicitados; mapeiam as
-     sombras shadow-xs..2xl acima — 0dp = shadow-none/--shadow-2xs). */
-  --md-elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --md-elevation-2: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 2px 6px 2px rgb(0 0 0 / 0.15);
-  --md-elevation-3: 0 1px 3px 0 rgb(0 0 0 / 0.30), 0 4px 8px 3px rgb(0 0 0 / 0.15);
-  --md-elevation-4: 0 2px 3px 0 rgb(0 0 0 / 0.30), 0 6px 10px 4px rgb(0 0 0 / 0.15);
-  --md-elevation-5: 0 4px 4px 0 rgb(0 0 0 / 0.30), 0 8px 12px 6px rgb(0 0 0 / 0.15);
+  /* ── Papéis M3 · Secondary (areia #e0d2c5) ───────────────────────────────── */
+  --color-md-secondary: #6d5f52;
+  --color-md-on-secondary: #ffffff;
+  --color-md-secondary-container: #e0d2c5;
+  --color-md-on-secondary-container: #2f281f;
+  --color-md-secondary-fixed: #e0d2c5;
+  --color-md-secondary-fixed-dim: #cbbcae;
+  --color-md-on-secondary-fixed: #221c15;
 
-  --color-brand-bg: #0a0a0a;
-  --color-brand-surface: #141414;
-  --color-brand-raised: #1f1f1f;
-  --color-brand-border: #2a2a2a;
-  --color-brand-gray: #0a0a0a;
-  --color-brand-slate: #f1f5f9;
-  --color-brand-text: #737373;
-  --color-brand-muted: #525252;
-  --color-brand-accent: #10b981;
-  --color-brand-lavender: #10b981;
-  --color-brand-mint: #34d399;
+  /* ── Papéis M3 · Tertiary (menta #a7e3c1 — pontos/sucesso) ───────────────── */
+  --color-md-tertiary: #356a4c;
+  --color-md-on-tertiary: #ffffff;
+  --color-md-tertiary-container: #a7e3c1;
+  --color-md-on-tertiary-container: #0a2a1a;
+  --color-md-tertiary-fixed: #a7e3c1;
+  --color-md-tertiary-fixed-dim: #8bcfac;
+  --color-md-on-tertiary-fixed: #04170d;
 
-  /* M3 shape scale (corner radius) */
-  --radius: 0.5rem;
+  /* ── Papéis M3 · Highlight (blush #f5c8bf — atenção/autopilot) ───────────── */
+  --color-md-highlight: #f5c8bf;
+  --color-md-on-highlight: #55261d;
+  --color-md-highlight-container: #f5c8bf;
+  --color-md-on-highlight-container: #4a1f17;
+
+  /* ── Papéis M3 · Error (blush aprofundado — mesma família) ───────────────── */
+  --color-md-error: #a8433a;
+  --color-md-on-error: #ffffff;
+  --color-md-error-container: #f5c8bf;
+  --color-md-on-error-container: #4e1712;
+
+  /* ── Papéis M3 · Superfícies (claras, com tinta quente) ──────────────────── */
+  --color-md-surface: #fdfcfa;
+  --color-md-surface-dim: #e7e3dc;
+  --color-md-surface-bright: #fdfcfa;
+  --color-md-surface-container-lowest: #ffffff;
+  --color-md-surface-container-low: #f7f4ef;
+  --color-md-surface-container: #f1eee8;
+  --color-md-surface-container-high: #ebe7e0;
+  --color-md-surface-container-highest: #e5e1d9;
+  --color-md-surface-variant: #dbd7cf;
+  --color-md-on-surface: #2b2f2e;
+  --color-md-on-surface-variant: #5c5c5c;
+  --color-md-on-surface-muted: #616161;
+  --color-md-surface-tint: #495453;
+
+  /* ── Papéis M3 · Contornos ───────────────────────────────────────────────── */
+  --color-md-outline: #cac4bd;
+  --color-md-outline-variant: #e2ded7;
+  --color-md-inverse-surface: #343434;
+  --color-md-inverse-on-surface: #f5f3f0;
+
+  /* ── M3 shape scale (radius) ─────────────────────────────────────────────── */
+  --radius: 0.75rem;
   --radius-xs: 0.25rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.75rem;
   --radius-2xl: 1.75rem;
   --radius-3xl: 1.75rem;
   --radius-4xl: 2rem;
 
-  /* M3 elevation levels 0–5 (umbra + penumbra); 0dp = `shadow-none` (MD3) */
-  --shadow-2xs: none;
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow-md: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 2px 6px 2px rgb(0 0 0 / 0.15);
-  --shadow-lg: 0 1px 3px 0 rgb(0 0 0 / 0.30), 0 4px 8px 3px rgb(0 0 0 / 0.15);
-  --shadow-xl: 0 2px 3px 0 rgb(0 0 0 / 0.30), 0 6px 10px 4px rgb(0 0 0 / 0.15);
-  --shadow-2xl: 0 4px 4px 0 rgb(0 0 0 / 0.30), 0 8px 12px 6px rgb(0 0 0 / 0.15);
+  /* ── M3 elevation 0–5 (sombras quentes para tema claro) ──────────────────── */
+  --md-elevation-1: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 1px 3px 1px rgb(52 52 52 / 0.06);
+  --md-elevation-2: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 2px 6px 2px rgb(52 52 52 / 0.06);
+  --md-elevation-3: 0 1px 3px 0 rgb(52 52 52 / 0.10), 0 4px 8px 3px rgb(52 52 52 / 0.07);
+  --md-elevation-4: 0 2px 3px 0 rgb(52 52 52 / 0.10), 0 6px 10px 4px rgb(52 52 52 / 0.08);
+  --md-elevation-5: 0 4px 4px 0 rgb(52 52 52 / 0.10), 0 8px 12px 6px rgb(52 52 52 / 0.09);
 
-  /* M3 motion: easing padrão (emphasized/standard) */
+  --shadow-2xs: none;
+  --shadow-xs: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 1px 3px 1px rgb(52 52 52 / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 1px 3px 1px rgb(52 52 52 / 0.06);
+  --shadow: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 1px 3px 1px rgb(52 52 52 / 0.06);
+  --shadow-md: 0 1px 2px 0 rgb(52 52 52 / 0.10), 0 2px 6px 2px rgb(52 52 52 / 0.06);
+  --shadow-lg: 0 1px 3px 0 rgb(52 52 52 / 0.10), 0 4px 8px 3px rgb(52 52 52 / 0.07);
+  --shadow-xl: 0 2px 3px 0 rgb(52 52 52 / 0.10), 0 6px 10px 4px rgb(52 52 52 / 0.08);
+  --shadow-2xl: 0 4px 4px 0 rgb(52 52 52 / 0.10), 0 8px 12px 6px rgb(52 52 52 / 0.09);
+
+  /* ── M3 motion ───────────────────────────────────────────────────────────── */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
 }
 
 @layer base {
-  *, *::before, *::after {
-    border-color: #2a2a2a;
+  :root {
+    /* Controles nativos (select, date picker, scrollbar) seguem o tema claro. */
+    color-scheme: light;
   }
+
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-md-outline-variant);
+  }
+
   body {
-    background-color: #0a0a0a;
-    color: #e5e5e5;
+    background-color: var(--color-md-surface-container-low);
+    color: var(--color-md-on-surface);
     @apply font-sans antialiased;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    text-rendering: optimizeLegibility;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-md-on-surface);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
   ::selection {
-    background: #10b981;
-    color: #fff;
+    background: var(--color-md-tertiary-container);
+    color: var(--color-md-on-tertiary-container);
+  }
+
+  /* Foco visível M3: anel de 2dp na cor primária, sempre por teclado. */
+  :focus-visible {
+    outline: 2px solid var(--color-md-primary);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar discreta, tingida pela paleta. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-md-outline) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-md-outline);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-md-on-surface-muted);
+    background-clip: content-box;
   }
 }
 
 @layer components {
-  /* Botões M3: base comum (pill, 40dp, label-large) + state layer via ::after */
+  /* ── Botões M3 ─────────────────────────────────────────────────────────────
+     Altura 40dp, pill, label-large. O state layer é um ::after com `currentColor`
+     em 8% (hover) / 12% (pressed) — o mesmo comportamento do MD3. */
   .md-btn {
     position: relative;
     isolation: isolate;
@@ -123,7 +221,12 @@
     line-height: 1.25rem;
     letter-spacing: 0.00714em;
     font-weight: 600;
-    transition: box-shadow 0.2s var(--ease-standard), background-color 0.2s var(--ease-standard);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.2s var(--ease-standard),
+      box-shadow 0.2s var(--ease-standard),
+      color 0.2s var(--ease-standard);
   }
   .md-btn::after {
     content: "";
@@ -136,33 +239,118 @@
   }
   .md-btn:hover::after { opacity: 0.08; }
   .md-btn:active::after { opacity: 0.12; }
-  .md-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .md-btn:disabled,
+  .md-btn[aria-disabled="true"] {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+  .md-btn:disabled::after,
+  .md-btn[aria-disabled="true"]::after { opacity: 0; }
 
-  .md-btn-filled { background-color: #5c4152; color: #fff; }
-  .md-btn-filled:hover { background-color: #b4585d; box-shadow: var(--shadow-sm); }
-  .md-btn-tonal { background-color: rgb(217 127 118 / 0.15); color: #d97f76; }
-  .md-btn-outlined { border: 1px solid #2a2a2a; color: #b4585d; background: transparent; }
-  .md-btn-text { color: #b4585d; background: transparent; padding-inline: 0.75rem; }
+  .md-btn-filled {
+    background-color: var(--color-md-primary);
+    color: var(--color-md-on-primary);
+  }
+  .md-btn-filled:hover { box-shadow: var(--md-elevation-1); }
 
-  /* Cards M3 sobre a paleta atual */
+  .md-btn-tonal {
+    background-color: var(--color-md-primary-container);
+    color: var(--color-md-on-primary-container);
+  }
+
+  .md-btn-outlined {
+    border: 1px solid var(--color-md-outline);
+    color: var(--color-md-primary);
+    background: transparent;
+  }
+  .md-btn-outlined:hover { background-color: color-mix(in srgb, var(--color-md-primary) 8%, transparent); }
+
+  .md-btn-text {
+    color: var(--color-md-primary);
+    background: transparent;
+    padding-inline: 0.75rem;
+  }
+
+  .md-btn-elevated {
+    background-color: var(--color-md-surface-container-lowest);
+    color: var(--color-md-primary);
+    box-shadow: var(--md-elevation-1);
+  }
+  .md-btn-elevated:hover { box-shadow: var(--md-elevation-2); }
+
+  .md-btn-error {
+    background-color: var(--color-md-error);
+    color: var(--color-md-on-error);
+  }
+
+  /* ── Cards M3 ──────────────────────────────────────────────────────────── */
   .md-card-elevated {
-    background-color: #141414;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
+    background-color: var(--color-md-surface-container-lowest);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--md-elevation-1);
   }
   .md-card-outlined {
-    background-color: #141414;
-    border: 1px solid #2a2a2a;
-    border-radius: var(--radius-md);
+    background-color: var(--color-md-surface-container-lowest);
+    border: 1px solid var(--color-md-outline-variant);
+    border-radius: var(--radius-lg);
   }
   .md-card-filled {
-    background-color: #1f1f1f;
-    border-radius: var(--radius-md);
+    background-color: var(--color-md-surface-container);
+    border-radius: var(--radius-lg);
   }
+
+  /* ── Chips M3 (pill, 32dp, label-large) ────────────────────────────────── */
+  .md-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding-inline: 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    letter-spacing: 0.033333em;
+    font-weight: 600;
+    border: 1px solid var(--color-md-outline);
+    background-color: transparent;
+    color: var(--color-md-on-surface-variant);
+    transition: background-color 0.2s var(--ease-standard), color 0.2s var(--ease-standard);
+  }
+  .md-chip-selected {
+    background-color: var(--color-md-primary-container);
+    border-color: transparent;
+    color: var(--color-md-on-primary-container);
+  }
+
+  /* ── Divisor M3 ────────────────────────────────────────────────────────── */
+  .md-divider {
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-md-outline-variant);
+  }
+
+  /* ── State layer genérica (para itens de lista/menu) ───────────────────── */
+  .md-state-layer {
+    position: relative;
+    isolation: isolate;
+  }
+  .md-state-layer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.15s var(--ease-standard);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .md-state-layer:hover::after { opacity: 0.06; }
+  .md-state-layer:active::after { opacity: 0.1; }
 }
 
 @layer utilities {
-  /* Shimmer para skeletons M3 (tonal #f7d0a9 sobre superfície) */
+  /* Shimmer de skeleton M3 (tinta menta sobre superfície clara) */
   @keyframes shimmer-move {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
@@ -172,21 +360,28 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(247, 208, 169, 0.12), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-md-tertiary-container) 60%, transparent),
+      transparent
+    );
     animation: shimmer-move 1.6s var(--ease-standard) infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     .skeleton-shimmer::after { animation: none; }
   }
 
-  /* M3 type scale (Google Sans Flex / Roboto) */
-  .text-display-lg { font-size: 3.5625rem; line-height: 4rem; letter-spacing: -0.015625em; }
-  .text-display-md { font-size: 2.8125rem; line-height: 3.25rem; }
-  .text-display-sm { font-size: 2.25rem; line-height: 2.75rem; }
-  .text-headline-lg { font-size: 2rem; line-height: 2.5rem; }
-  .text-headline-md { font-size: 1.75rem; line-height: 2.25rem; }
-  .text-headline-sm { font-size: 1.5rem; line-height: 2rem; }
-  .text-title-lg { font-size: 1.375rem; line-height: 1.75rem; }
+  /* ── Escala tipográfica M3 (Google Sans Flex) ──────────────────────────────
+     As classes de display/title usam tracking negativo porque Google Sans Flex
+     tem largura um pouco maior que Roboto nas fontes grandes. */
+  .text-display-lg { font-size: 3.5625rem; line-height: 4rem; letter-spacing: -0.015625em; font-weight: 500; }
+  .text-display-md { font-size: 2.8125rem; line-height: 3.25rem; letter-spacing: -0.0125em; font-weight: 500; }
+  .text-display-sm { font-size: 2.25rem; line-height: 2.75rem; letter-spacing: -0.01em; font-weight: 500; }
+  .text-headline-lg { font-size: 2rem; line-height: 2.5rem; letter-spacing: -0.008em; font-weight: 500; }
+  .text-headline-md { font-size: 1.75rem; line-height: 2.25rem; letter-spacing: -0.006em; font-weight: 500; }
+  .text-headline-sm { font-size: 1.5rem; line-height: 2rem; letter-spacing: -0.004em; font-weight: 500; }
+  .text-title-lg { font-size: 1.375rem; line-height: 1.75rem; font-weight: 500; }
   .text-title-md { font-size: 1rem; line-height: 1.5rem; letter-spacing: 0.009375em; font-weight: 600; }
   .text-title-sm { font-size: 0.875rem; line-height: 1.25rem; letter-spacing: 0.00714em; font-weight: 600; }
   .text-body-lg { font-size: 1rem; line-height: 1.5rem; letter-spacing: 0.03125em; }
@@ -196,65 +391,64 @@
   .text-label-md { font-size: 0.75rem; line-height: 1rem; letter-spacing: 0.041666em; font-weight: 600; }
   .text-label-sm { font-size: 0.6875rem; line-height: 1rem; letter-spacing: 0.045454em; font-weight: 600; }
 
+  /* ── Gradientes de marca (white-label) ──────────────────────────────────── */
   .bg-gradient-pontufy {
-    background: linear-gradient(135deg, var(--brand-primary, #10b981) 0%, #059669 100%);
+    background: linear-gradient(
+      135deg,
+      var(--brand-primary, #495453) 0%,
+      color-mix(in srgb, var(--brand-primary, #495453) 55%, var(--brand-accent, #a7e3c1)) 100%
+    );
   }
-  /* Gradiente de marca (white-label). Antes referenciado por
-     SurpriseRewardToast e marketplace/CheckoutDrawer sem definição — agora
-     resolvido; falha silenciosa eliminada. */
   .bg-gradient-brand {
     background: linear-gradient(
       135deg,
-      var(--brand-primary, #10b981) 0%,
-      var(--brand-accent, #8b5cf6) 100%
+      var(--brand-primary, #495453) 0%,
+      var(--brand-accent, #a7e3c1) 100%
     );
   }
   .text-gradient-pontufy {
-    background-image: linear-gradient(135deg, var(--brand-primary, #10b981) 0%, var(--brand-accent, #8b5cf6) 100%);
+    background-image: linear-gradient(
+      135deg,
+      var(--brand-primary, #495453) 0%,
+      color-mix(in srgb, var(--brand-primary, #495453) 45%, var(--brand-accent, #a7e3c1)) 100%
+    );
     @apply bg-clip-text text-transparent;
   }
-  .bg-brand-primary {
-    background-color: var(--brand-primary, #10b981);
-  }
-  .bg-brand-accent {
-    background-color: var(--brand-accent, #8b5cf6);
-  }
-  .text-brand-primary {
-    color: var(--brand-primary, #10b981);
-  }
-  .text-brand-accent {
-    color: var(--brand-accent, #8b5cf6);
-  }
-  .border-brand-primary {
-    border-color: var(--brand-primary, #10b981);
-  }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .bg-brand-primary { background-color: var(--brand-primary, #495453); }
+  .bg-brand-accent { background-color: var(--brand-accent, #a7e3c1); }
+  .text-brand-primary { color: var(--brand-primary, #495453); }
+  .text-brand-accent { color: var(--brand-accent, #a7e3c1); }
+  .border-brand-primary { border-color: var(--brand-primary, #495453); }
 
-  /* Elevações M3 (1–5) como utilitários semânticos */
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Elevações M3 (1–5) ────────────────────────────────────────────────── */
   .md-elevation-1 { box-shadow: var(--md-elevation-1); }
   .md-elevation-2 { box-shadow: var(--md-elevation-2); }
   .md-elevation-3 { box-shadow: var(--md-elevation-3); }
   .md-elevation-4 { box-shadow: var(--md-elevation-4); }
   .md-elevation-5 { box-shadow: var(--md-elevation-5); }
 
-  /* Containers tonais M3 (superfícies semânticas para dark theme) */
+  /* ── Containers tonais M3 ──────────────────────────────────────────────── */
   .surface-container { background-color: var(--color-md-surface-container); }
   .surface-container-high { background-color: var(--color-md-surface-container-high); }
   .surface-dim { background-color: var(--color-md-surface-dim); }
   .surface-variant { background-color: var(--color-md-surface-variant); }
+
+  /* Vidro claro: usado sobre imagens/héros, não sobre superfícies chapadas. */
   .glass-dark {
-    background: rgba(20, 20, 20, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--color-md-surface) 78%, transparent);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  }
+  .glass-light {
+    background: rgb(255 255 255 / 0.72);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
   }
   .card-dark {
-    background: #141414;
-    border: 1px solid #2a2a2a;
+    background: var(--color-md-surface-container-lowest);
+    border: 1px solid var(--color-md-outline-variant);
   }
 }

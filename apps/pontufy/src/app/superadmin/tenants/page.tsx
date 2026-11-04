@@ -42,39 +42,39 @@ export default async function SuperAdminTenantsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
+    <div className="min-h-screen bg-md-surface-container-low px-4 py-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <Link
               href="/superadmin"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors mb-2"
+              className="inline-flex items-center gap-1.5 text-sm text-md-on-surface-variant hover:text-md-on-surface transition-colors mb-2"
             >
               ← Voltar ao console
             </Link>
-            <h1 className="text-2xl font-bold text-white">Locatários & Consumo de IA</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-md-on-surface">Locatários & Consumo de IA</h1>
+            <p className="text-sm text-md-on-surface-variant mt-1">
               Governança global · {session.user.email}
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Empresas</p>
-            <p className="text-2xl font-black text-white mt-1">{totals.tenants}</p>
+          <div className="bg-md-surface-container border border-md-outline rounded-2xl p-5">
+            <p className="text-xs text-md-on-surface-variant uppercase tracking-wide font-semibold">Empresas</p>
+            <p className="text-2xl font-black text-md-on-surface mt-1">{totals.tenants}</p>
           </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Utilizadores</p>
-            <p className="text-2xl font-black text-white mt-1">{totals.users}</p>
+          <div className="bg-md-surface-container border border-md-outline rounded-2xl p-5">
+            <p className="text-xs text-md-on-surface-variant uppercase tracking-wide font-semibold">Utilizadores</p>
+            <p className="text-2xl font-black text-md-on-surface mt-1">{totals.users}</p>
           </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Cursos</p>
-            <p className="text-2xl font-black text-white mt-1">{totals.courses}</p>
+          <div className="bg-md-surface-container border border-md-outline rounded-2xl p-5">
+            <p className="text-xs text-md-on-surface-variant uppercase tracking-wide font-semibold">Cursos</p>
+            <p className="text-2xl font-black text-md-on-surface mt-1">{totals.courses}</p>
           </div>
-          <div className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-5">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Créditos de IA</p>
-            <p className="text-2xl font-black text-white mt-1">{totals.credits}</p>
+          <div className="bg-md-surface-container border border-md-outline rounded-2xl p-5">
+            <p className="text-xs text-md-on-surface-variant uppercase tracking-wide font-semibold">Créditos de IA</p>
+            <p className="text-2xl font-black text-md-on-surface mt-1">{totals.credits}</p>
           </div>
         </div>
 

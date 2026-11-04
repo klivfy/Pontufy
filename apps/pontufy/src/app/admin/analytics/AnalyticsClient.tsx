@@ -18,10 +18,10 @@ function Skeleton() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[130px] rounded-2xl bg-[#141414] border border-[#2a2a2a] animate-pulse" />
+          <div key={i} className="h-[130px] rounded-2xl bg-md-surface-container border border-md-outline animate-pulse" />
         ))}
       </div>
-      <div className="h-96 rounded-2xl bg-[#141414] border border-[#2a2a2a] animate-pulse" />
+      <div className="h-96 rounded-2xl bg-md-surface-container border border-md-outline animate-pulse" />
     </div>
   );
 }
@@ -61,9 +61,9 @@ export default function AnalyticsClient() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
+      <div className="min-h-screen bg-md-surface-container-low px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="h-6 w-64 bg-[#141414] rounded-lg animate-pulse mb-8" />
+          <div className="h-6 w-64 bg-md-surface-container rounded-lg animate-pulse mb-8" />
           <Skeleton />
         </div>
       </div>
@@ -72,8 +72,8 @@ export default function AnalyticsClient() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-lg text-center max-w-md font-medium">
+      <div className="min-h-screen bg-md-surface-container-low flex items-center justify-center px-4">
+        <div className="bg-md-error/25 border border-md-error/20 text-md-error text-sm p-4 rounded-lg text-center max-w-md font-medium">
           {error || 'Dados indisponíveis.'}
         </div>
       </div>
@@ -81,21 +81,21 @@ export default function AnalyticsClient() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
+    <div className="min-h-screen bg-md-surface-container-low px-4 py-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <BarChart3 size={22} className="text-emerald-400" /> Painel de Analytics
+            <h1 className="text-2xl font-bold text-md-on-surface flex items-center gap-2">
+              <BarChart3 size={22} className="text-md-tertiary" /> Painel de Analytics
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-md-on-surface-variant mt-1">
               Desempenho da equipa, engajamento e consumo de pontos nos últimos 30 dias
             </p>
           </div>
 
           <a
             href="/api/admin/payroll/export?period=month"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white bg-md-tertiary hover:bg-md-tertiary transition-colors"
           >
             <Download size={15} /> Exportar Folha (CSV)
           </a>
@@ -103,16 +103,16 @@ export default function AnalyticsClient() {
 
         <MetricsCards summary={data.summary} />
 
-        <section className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wide mb-1 flex items-center gap-2">
-            <TrendingUp size={16} className="text-emerald-400" /> Engajamento Diário
+        <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-1 flex items-center gap-2">
+            <TrendingUp size={16} className="text-md-tertiary" /> Engajamento Diário
           </h2>
-          <p className="text-xs text-gray-500 mb-4">Conclusões de aulas vs. resgates de benefícios</p>
+          <p className="text-xs text-md-on-surface-variant mb-4">Conclusões de aulas vs. resgates de benefícios</p>
           <EngagementChart data={data.engagement} />
         </section>
 
-        <section className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wide mb-4">
+        <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-4">
             Cursos Mais Concluídos
           </h2>
           <TopCoursesTable courses={data.topCourses} />

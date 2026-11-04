@@ -12,24 +12,24 @@ import {
 import type { TooltipContentProps } from 'recharts';
 import type { EngagementPoint } from './types';
 
-const EMERALD = '#10B981';
-const PURPLE = '#8B5CF6';
+const SERIES_1 = '#495453'; // md-primary
+const SERIES_2 = '#6d5f52'; // md-secondary
 
 function ChartTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg px-4 py-3 shadow-xl">
-      <p className="text-xs font-bold text-white mb-2">{label}</p>
+    <div className="bg-md-surface-container-high border border-md-outline rounded-lg px-4 py-3 shadow-xl">
+      <p className="text-xs font-bold text-md-on-surface mb-2">{label}</p>
       <div className="space-y-1.5">
         {payload.map((entry) => (
           <div key={String(entry.dataKey)} className="flex items-center gap-2">
             <span
               className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: entry.color ?? EMERALD }}
+              style={{ backgroundColor: entry.color ?? SERIES_1 }}
             />
-            <span className="text-xs text-gray-400">{entry.name ?? '—'}:</span>
-            <span className="text-xs font-bold text-white">
+            <span className="text-xs text-md-on-surface-variant">{entry.name ?? '—'}:</span>
+            <span className="text-xs font-bold text-md-on-surface">
               {new Intl.NumberFormat('pt-BR').format(Number(entry.value ?? 0))}
             </span>
           </div>
@@ -47,7 +47,7 @@ export default function EngagementChart({ data }: EngagementChartProps) {
   if (!data.length) {
     return (
       <div className="flex h-72 items-center justify-center">
-        <p className="text-sm text-gray-500">Sem dados de engajamento nos últimos 30 dias.</p>
+        <p className="text-sm text-md-on-surface-variant">Sem dados de engajamento nos últimos 30 dias.</p>
       </div>
     );
   }
@@ -59,24 +59,24 @@ export default function EngagementChart({ data }: EngagementChartProps) {
           <AreaChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
             <defs>
               <linearGradient id="gradCompletions" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={EMERALD} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={EMERALD} stopOpacity={0} />
+                <stop offset="0%" stopColor={SERIES_1} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={SERIES_1} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="gradRedemptions" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={PURPLE} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={PURPLE} stopOpacity={0} />
+                <stop offset="0%" stopColor={SERIES_2} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={SERIES_2} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2ded7" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#5c5c5c', fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: '#2a2a2a' }}
+              axisLine={{ stroke: '#e2ded7' }}
               minTickGap={24}
             />
             <YAxis
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#5c5c5c', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               allowDecimals={false}
@@ -84,13 +84,13 @@ export default function EngagementChart({ data }: EngagementChartProps) {
             />
             <Tooltip
               content={(props) => <ChartTooltip {...props} />}
-              cursor={{ stroke: '#3f3f46', strokeDasharray: '4 4' }}
+              cursor={{ stroke: '#cac4bd', strokeDasharray: '4 4' }}
             />
             <Area
               type="monotone"
               dataKey="completions"
               name="Conclusões"
-              stroke={EMERALD}
+              stroke={SERIES_1}
               strokeWidth={2}
               fill="url(#gradCompletions)"
             />
@@ -98,7 +98,7 @@ export default function EngagementChart({ data }: EngagementChartProps) {
               type="monotone"
               dataKey="redemptions"
               name="Resgates"
-              stroke={PURPLE}
+              stroke={SERIES_2}
               strokeWidth={2}
               fill="url(#gradRedemptions)"
             />
@@ -107,12 +107,12 @@ export default function EngagementChart({ data }: EngagementChartProps) {
       </div>
 
       <div className="mt-4 flex items-center gap-6">
-        <span className="flex items-center gap-2 text-xs text-gray-400">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EMERALD }} />
+        <span className="flex items-center gap-2 text-xs text-md-on-surface-variant">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SERIES_1 }} />
           Conclusões de aulas
         </span>
-        <span className="flex items-center gap-2 text-xs text-gray-400">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PURPLE }} />
+        <span className="flex items-center gap-2 text-xs text-md-on-surface-variant">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SERIES_2 }} />
           Resgates de benefícios
         </span>
       </div>

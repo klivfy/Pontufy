@@ -98,7 +98,7 @@ export default function BillingClient() {
       </header>
 
       {status === 'success' && (
-        <p className="text-body-md text-md-primary bg-md-primary-container/20 border border-md-primary/20 rounded-xl px-4 py-3">
+        <p className="text-body-md text-md-on-primary-container bg-md-primary-container/20 border border-md-primary/20 rounded-xl px-4 py-3">
           Assinatura confirmada. Os créditos serão atualizados em instantes.
         </p>
       )}

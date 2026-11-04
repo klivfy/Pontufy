@@ -26,7 +26,7 @@ interface Particle {
   decay: number;
 }
 
-const PALETTE_MD3 = ['#b4585d', '#d97f76', '#a1c0ae', '#f7d0a9', '#5c4152'];
+const PALETTE_MD3 = ['#f5c8bf', '#e0d2c5', '#cad9ca', '#a7e3c1', '#495453'];
 
 // Confete em Canvas (TAREFA 5.1) — sem dependência externa, DPR-aware,
 // respeita prefers-reduced-motion (renderiza sem animação). Chame via ref:

@@ -60,8 +60,8 @@ model Tenant {
   slug            String   @unique
   logoUrl         String?
   faviconUrl      String?
-  primaryColor    String?  @default("#10B981") // Padrão Verde Esmeralda Pontufy
-  accentColor     String?  @default("#8B5CF6") // Padrão Lavanda/Roxo
+  primaryColor    String?  @default("#495453") // Verde-chumbo da paleta Pontufy
+  accentColor     String?  @default("#A7E3C1") // Menta da paleta Pontufy
   customDomain    String?  @unique
   sector          String   // 'tech', 'health', 'retail', 'industry'
   contractStatus  ContractStatus @default(active)

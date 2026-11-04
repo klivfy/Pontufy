@@ -10,7 +10,7 @@ export default function LoginPage() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(92,65,82,0.12) 0%, transparent 70%)',
+            'radial-gradient(ellipse 60% 40% at 50% 0%, color-mix(in srgb, var(--color-md-primary) 10%, transparent) 0%, transparent 70%)',
         }}
       />
 

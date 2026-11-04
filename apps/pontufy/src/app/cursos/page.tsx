@@ -66,11 +66,11 @@ export default async function CoursesPage() {
   const certCourseIds = certificates.map((certificate) => certificate.courseId);
 
   return (
-    <main className="min-h-screen pb-20 pt-24 bg-[#0a0a0a]">
+    <main className="min-h-screen pb-20 pt-24 bg-md-surface-container-low">
       <div className="max-w-[1200px] mx-auto px-6 md:px-16">
         <header className="mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight">Meus Cursos & Trilhas</h1>
-          <p className="text-gray-500 mt-1.5 text-sm">
+          <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Meus Cursos & Trilhas</h1>
+          <p className="text-md-on-surface-variant mt-1.5 text-sm">
             Acompanhe seu progresso em todas as trilhas de aprendizagem.
           </p>
         </header>

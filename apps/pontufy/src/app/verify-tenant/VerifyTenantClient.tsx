@@ -66,7 +66,7 @@ export default function VerifyTenantClient() {
           {state === 'success' ? (
             <CheckCircle2 size={32} />
           ) : state === 'error' ? (
-            <XCircle size={32} className="text-red-500" />
+            <XCircle size={32} className="text-md-error" />
           ) : state === 'loading' ? (
             <Loader2 size={32} className="animate-spin" />
           ) : (

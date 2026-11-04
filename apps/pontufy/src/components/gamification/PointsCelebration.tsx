@@ -69,8 +69,8 @@ export default function PointsCelebration({
               >
                 <Coins size={48} className="text-md-tertiary" />
               </motion.div>
-              <h2 className="text-2xl font-black text-white">Incrível!</h2>
-              <p className="text-gray-400 text-sm">{message}</p>
+              <h2 className="text-2xl font-black text-md-on-surface">Incrível!</h2>
+              <p className="text-md-on-surface-variant text-sm">{message}</p>
               <div className="text-4xl font-black text-md-tertiary">
                 +<CountUp value={points} />
                 <span className="text-lg font-bold"> Pontos</span>

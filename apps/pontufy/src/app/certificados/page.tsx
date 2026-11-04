@@ -56,8 +56,8 @@ export default async function CertificatesPage() {
         <header className="mb-8 flex items-center gap-3">
           <Award size={28} className="text-md-primary" />
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Meus Certificados</h1>
-            <p className="text-gray-500 mt-0.5 text-sm">
+            <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Meus Certificados</h1>
+            <p className="text-md-on-surface-variant mt-0.5 text-sm">
               Certificados emitidos pelos cursos que você concluiu — cada um com raridade única e
               verificação criptográfica.
             </p>
@@ -65,15 +65,15 @@ export default async function CertificatesPage() {
         </header>
 
         {serialized.length === 0 ? (
-          <div className="text-center py-24 bg-black/20 border border-white/10 rounded-2xl">
-            <BookOpen size={40} className="mx-auto text-gray-600 mb-4" />
-            <p className="text-white font-semibold mb-1">Nenhum certificado ainda</p>
-            <p className="text-gray-500 text-sm mb-6">
+          <div className="text-center py-24 bg-md-surface-container border border-md-outline-variant rounded-2xl">
+            <BookOpen size={40} className="mx-auto text-md-on-surface-muted mb-4" />
+            <p className="text-md-on-surface font-semibold mb-1">Nenhum certificado ainda</p>
+            <p className="text-md-on-surface-variant text-sm mb-6">
               Conclua um curso para receber seu certificado com badge de raridade.
             </p>
             <a
               href="/cursos"
-              className="inline-block px-5 py-2.5 rounded-full text-sm font-bold text-black bg-md-primary hover:opacity-90 transition"
+              className="inline-block px-5 py-2.5 rounded-full text-sm font-bold text-md-on-primary bg-md-primary hover:opacity-90 transition"
             >
               Ver cursos disponíveis
             </a>

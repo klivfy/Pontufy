@@ -55,7 +55,7 @@ export function RewardCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         <div className="absolute top-3 right-3">
-          <span className="bg-black/80 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full border border-[#2a2a2a]">
+          <span className="bg-black/80 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full border border-md-outline">
             {partnerIcon} {partnerDisplay}
           </span>
         </div>
@@ -70,7 +70,7 @@ export function RewardCard({
       </div>
 
       <div className="p-4 space-y-3">
-        <h3 className="font-semibold text-white text-base line-clamp-2 group-hover:text-md-primary-container transition-colors">
+        <h3 className="font-semibold text-md-on-surface text-base line-clamp-2 group-hover:text-md-primary-container transition-colors">
           {title}
         </h3>
 
@@ -79,7 +79,7 @@ export function RewardCard({
           <div className="flex items-center gap-2">
             <Gift size={16} className="text-md-tertiary" />
             <span className="font-bold text-md-tertiary text-lg">{pricePoints.toLocaleString('pt-BR')}</span>
-            <span className="text-gray-500 text-sm">pontos</span>
+            <span className="text-md-on-surface-variant text-sm">pontos</span>
           </div>
 
           <button
@@ -88,7 +88,7 @@ export function RewardCard({
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
               canAfford
                 ? 'bg-md-primary text-md-on-primary hover:bg-md-primary-container active:scale-[0.98]'
-                : 'bg-white/5 text-gray-500 border border-white/10 cursor-not-allowed'
+                : 'bg-md-surface-container-low text-md-on-surface-variant border border-md-outline-variant cursor-not-allowed'
             }`}
           >
             {canAfford ? (
@@ -105,8 +105,8 @@ export function RewardCard({
           </button>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>Saldo: <span className="font-medium text-white">{pointsBalance.toLocaleString('pt-BR')}</span> pts</span>
+        <div className="flex items-center justify-between text-xs text-md-on-surface-variant">
+          <span>Saldo: <span className="font-medium text-md-on-surface">{pointsBalance.toLocaleString('pt-BR')}</span> pts</span>
           <span className={canAfford ? 'text-md-tertiary' : 'text-md-error'}>
             {canAfford ? `Novo saldo: ${(pointsBalance - pricePoints).toLocaleString('pt-BR')}` : `Faltam ${missingPoints.toLocaleString('pt-BR')}`}
           </span>

@@ -40,9 +40,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  accepted: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  expired: 'bg-red-500/10 text-red-400 border-red-500/20',
+  pending: 'bg-md-secondary/25 text-md-secondary border-md-secondary/20',
+  accepted: 'bg-md-tertiary/25 text-md-tertiary border-md-tertiary/20',
+  expired: 'bg-md-error/25 text-md-error border-md-error/20',
 };
 
 function statusLabel(status: string): string {
@@ -145,51 +145,51 @@ export default function TeamClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] px-4 py-8">
+    <div className="min-h-screen bg-md-surface-container-low px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <Link
               href="/admin"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors mb-2"
+              className="inline-flex items-center gap-1.5 text-sm text-md-on-surface-variant hover:text-md-on-surface transition-colors mb-2"
             >
               <ArrowLeft size={15} /> Voltar ao painel
             </Link>
-            <h1 className="text-2xl font-bold text-white">Equipe</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-md-on-surface">Equipe</h1>
+            <p className="text-sm text-md-on-surface-variant mt-1">
               Convide colaboradores e gerencie o acesso à plataforma
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg text-center font-medium">
+          <div className="bg-md-error/25 border border-md-error/20 text-md-error text-sm p-3 rounded-lg text-center font-medium">
             {error}
           </div>
         )}
 
         {/* ── Convite ─────────────────────────────────────────────────── */}
-        <section className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wide mb-4 flex items-center gap-2">
-            <UserPlus size={16} className="text-emerald-400" /> Convidar colaborador
+        <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-4 flex items-center gap-2">
+            <UserPlus size={16} className="text-md-tertiary" /> Convidar colaborador
           </h2>
 
           <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleInvite}>
             <div className="flex-1 relative">
-              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
+              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-md-on-surface-muted" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email@empresa.com"
-                className="w-full pl-10 pr-4 py-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-sm transition-colors"
+                className="w-full pl-10 pr-4 py-3 bg-md-surface-container-high border border-md-outline rounded-lg text-md-on-surface placeholder:text-md-on-surface-muted focus:outline-none focus:border-md-tertiary focus:ring-1 focus:ring-md-tertiary/50 text-sm transition-colors"
               />
             </div>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              className="px-4 py-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg text-white focus:outline-none focus:border-emerald-500 text-sm transition-colors"
+              className="px-4 py-3 bg-md-surface-container-high border border-md-outline rounded-lg text-md-on-surface focus:outline-none focus:border-md-tertiary text-sm transition-colors"
             >
               <option value="employee">Colaborador</option>
               <option value="admin_rh">Administrador</option>
@@ -197,7 +197,7 @@ export default function TeamClient() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex justify-center items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex justify-center items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white bg-md-tertiary hover:bg-md-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
               Convidar
@@ -205,14 +205,14 @@ export default function TeamClient() {
           </form>
 
           {lastInviteUrl && (
-            <div className="mt-4 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
-              <p className="text-xs text-emerald-400 font-medium break-all flex-1">
+            <div className="mt-4 flex items-center gap-2 bg-md-tertiary/25 border border-md-tertiary/20 rounded-lg p-3">
+              <p className="text-xs text-md-tertiary font-medium break-all flex-1">
                 Link do convite gerado — envie por WhatsApp ou e-mail
               </p>
               <button
                 type="button"
                 onClick={() => copyLink('last', lastInviteUrl)}
-                className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors shrink-0"
+                className="flex items-center gap-1.5 text-xs font-bold text-md-tertiary hover:text-md-tertiary transition-colors shrink-0"
               >
                 {copiedId === 'last' ? <Check size={14} /> : <Copy size={14} />}
                 {copiedId === 'last' ? 'Copiado' : 'Copiar'}
@@ -222,17 +222,17 @@ export default function TeamClient() {
         </section>
 
         {/* ── Convites pendentes ──────────────────────────────────────── */}
-        <section className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Mail size={16} className="text-emerald-400" /> Convites
+        <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Mail size={16} className="text-md-tertiary" /> Convites
           </h2>
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="animate-spin text-gray-600" size={22} />
+              <Loader2 className="animate-spin text-md-on-surface-muted" size={22} />
             </div>
           ) : invitations.length === 0 ? (
-            <p className="text-sm text-gray-600 text-center py-6">
+            <p className="text-sm text-md-on-surface-muted text-center py-6">
               Nenhum convite enviado ainda.
             </p>
           ) : (
@@ -244,11 +244,11 @@ export default function TeamClient() {
                 return (
                   <div
                     key={invite.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-xl p-4"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 bg-md-surface-container-high border border-md-outline rounded-xl p-4"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{invite.email}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-sm font-semibold text-md-on-surface truncate">{invite.email}</p>
+                      <p className="text-xs text-md-on-surface-variant mt-0.5">
                         {ROLE_LABELS[invite.role] ?? invite.role} · Expira em{' '}
                         {new Date(invite.expiresAt).toLocaleDateString('pt-BR')}
                       </p>
@@ -263,7 +263,7 @@ export default function TeamClient() {
                         <button
                           type="button"
                           onClick={() => copyLink(invite.id, invite.signupUrl)}
-                          className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-bold text-md-tertiary hover:text-md-tertiary transition-colors"
                         >
                           {copiedId === invite.id ? <Check size={14} /> : <Copy size={14} />}
                           {copiedId === invite.id ? 'Copiado' : 'Copiar link'}
@@ -271,7 +271,7 @@ export default function TeamClient() {
                         <button
                           type="button"
                           onClick={() => handleRevoke(invite.id)}
-                          className="flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-bold text-md-error hover:text-md-error transition-colors"
                         >
                           <XCircle size={14} /> Revogar
                         </button>
@@ -285,24 +285,24 @@ export default function TeamClient() {
         </section>
 
         {/* ── Membros ─────────────────────────────────────────────────── */}
-        <section className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Users size={16} className="text-emerald-400" /> Membros da equipe
+        <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-md-on-surface uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Users size={16} className="text-md-tertiary" /> Membros da equipe
           </h2>
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="animate-spin text-gray-600" size={22} />
+              <Loader2 className="animate-spin text-md-on-surface-muted" size={22} />
             </div>
           ) : users.length === 0 ? (
-            <p className="text-sm text-gray-600 text-center py-6">
+            <p className="text-sm text-md-on-surface-muted text-center py-6">
               Nenhum membro cadastrado.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-[#2a2a2a]">
+                  <tr className="text-left text-xs text-md-on-surface-variant uppercase tracking-wide border-b border-md-outline">
                     <th className="pb-3 pr-4 font-semibold">Nome</th>
                     <th className="pb-3 pr-4 font-semibold">Email</th>
                     <th className="pb-3 pr-4 font-semibold">Perfil</th>
@@ -311,17 +311,17 @@ export default function TeamClient() {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-b border-[#1f1f1f] last:border-0">
-                      <td className="py-3 pr-4 text-white font-medium whitespace-nowrap">
+                    <tr key={user.id} className="border-b border-md-outline-variant last:border-0">
+                      <td className="py-3 pr-4 text-md-on-surface font-medium whitespace-nowrap">
                         {user.name}
                       </td>
-                      <td className="py-3 pr-4 text-gray-400">{user.email}</td>
+                      <td className="py-3 pr-4 text-md-on-surface-variant">{user.email}</td>
                       <td className="py-3 pr-4">
-                        <span className="text-xs font-bold px-3 py-1 rounded-full border border-[#2a2a2a] bg-[#1f1f1f] text-gray-300">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full border border-md-outline bg-md-surface-container-high text-md-on-surface">
                           {ROLE_LABELS[user.role] ?? user.role}
                         </span>
                       </td>
-                      <td className="py-3 text-emerald-400 font-bold">{user.pointsBalance}</td>
+                      <td className="py-3 text-md-tertiary font-bold">{user.pointsBalance}</td>
                     </tr>
                   ))}
                 </tbody>

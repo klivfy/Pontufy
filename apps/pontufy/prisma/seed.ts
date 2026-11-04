@@ -27,8 +27,8 @@ const PLATFORM_TENANT = {
   contractStatus: 'active',
   plan: 'enterprise',
   aiCredits: 0,
-  primaryColor: '#10B981',
-  accentColor: '#8B5CF6',
+  primaryColor: '#495453',
+  accentColor: '#A7E3C1',
 } as const;
 
 // ── Tenant principal de homologação ───────────────────────────────────────────
@@ -40,8 +40,8 @@ const ALPHA_TENANT = {
   contractStatus: 'active',
   plan: 'starter',
   aiCredits: 50,
-  primaryColor: '#10B981',
-  accentColor: '#8B5CF6',
+  primaryColor: '#495453',
+  accentColor: '#A7E3C1',
 } as const;
 
 async function main() {
