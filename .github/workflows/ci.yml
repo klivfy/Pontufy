@@ -83,11 +83,6 @@ jobs:
     name: Playwright (integração de API)
     runs-on: ubuntu-latest
     needs: quality
-    # BURN-IN: a infraestrutura está validada (containers, migrations, 65 testes
-    # passando), mas 20 testes ainda falham com 401 no caminho autenticado.
-    # Enquanto a causa não é fechada, o job reporta mas NÃO bloqueia o merge —
-    # job vermelho permanente não protege nada. Remover esta linha ao fechar.
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16-alpine

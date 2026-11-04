@@ -1,7 +1,14 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { verifyPayload } from '@/lib/certificate-generator';
 import { getRawPrisma } from '@/infra/platform-db';
+import { enforceIpRateLimit } from '@/infra/security-controls';
+
+// V9 — janela generosa para uso legítimo (RH conferindo vários certificados),
+// apertada o suficiente para impedir varredura de ids.
+const VERIFY_MAX = 30;
+const VERIFY_WINDOW = 10 * 60;
 
 interface Props {
   params: Promise<{ certificateId: string }>;
@@ -25,6 +32,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VerifyCertificatePage({ params }: Props) {
   const { certificateId } = await params;
+
+  // V9 — a verificação é pública e expõe o nome do colaborador: sem limite,
+  // vira oráculo para enumerar certificados (e custa banco a cada tentativa).
+  // Fail-open (decisão D2): sem Redis a verificação continua funcionando.
+  const headerBag = await headers();
+  const ip = headerBag.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const rate = await enforceIpRateLimit(ip, 'verify-certificate', VERIFY_MAX, VERIFY_WINDOW);
+
+  if (rate === 'blocked') {
+    return (
+      <main className="min-h-screen bg-md-surface-dim flex items-center justify-center p-6">
+        <div className="md-card-outlined p-8 max-w-md text-center">
+          <h1 className="text-headline-sm font-bold text-md-on-surface mb-2">Muitas consultas</h1>
+          <p className="text-body-md text-md-on-surface-variant">
+            Aguarde alguns minutos antes de verificar outro certificado. Se você recebeu este
+            link de uma empresa, tente novamente mais tarde.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   const prisma = getRawPrisma();
 
