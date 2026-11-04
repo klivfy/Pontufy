@@ -6,6 +6,7 @@ import { creditDepartmentStudyHours, awardDepartmentBonusIfGoalMet } from '@/dom
 import { notifyLessonCompleted, notifyStreakMilestone, notifyLevelUp } from '@/lib/notifications';
 import { checkVelocityLimit } from '@/lib/security/velocity';
 import { recordNodeScore } from '@/domain/skills';
+import { quizModulesSchema } from '@/schemas/quiz';
 
 export const QUIZ_BONUS_POINTS = 50;
 export const QUIZ_MIN_PERCENTAGE = 0.7;
@@ -132,16 +133,8 @@ export async function completeLesson(params: { tenantId: string; userId: string;
   };
 }
 
-interface QuizQuestion {
-  question: string;
-  options: { text: string }[];
-  correctIndex: number;
-}
-
-interface QuizModule {
-  module: string;
-  questions: QuizQuestion[];
-}
+// A3 — o formato persistido do quiz vem de `schemas/quiz.ts`; as interfaces
+// locais saíram para não existirem duas verdades sobre a mesma estrutura.
 
 export async function submitQuiz(params: {
   tenantId: string;
@@ -159,12 +152,10 @@ export async function submitQuiz(params: {
   if (!course) throw new DomainError('Curso não encontrado.', 404);
   if (!course.quizJson) throw new DomainError('Este curso não possui quiz de avaliação.', 400);
 
-  let modules: QuizModule[] = [];
-  try {
-    modules = JSON.parse(course.quizJson);
-  } catch {
-    throw new DomainError('Quiz inválido no servidor.', 500);
-  }
+  // A3 — JSON nativo + validação de contrato. Aqui o erro é FATAL (500), não
+  // silencioso: a nota do colaborador não pode ser calculada sobre dado
+  // corrompido, e um `correctIndex` fora do intervalo invalidaria a correção.
+  const modules = quizModulesSchema.parse(course.quizJson);
 
   const questions = modules.flatMap((m) => m.questions ?? []);
   if (questions.length === 0) throw new DomainError('Este curso não possui questões.', 400);

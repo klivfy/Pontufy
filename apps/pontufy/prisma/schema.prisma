@@ -98,7 +98,7 @@ model Course {
   title           String
   description     String?
   aiCreditsSpent  Int      @default(0)
-  quizJson        String?  // JSON array of module quizzes from AI generation
+  quizJson        Json?    // A3: array de módulos (validado por schemas/quiz.ts)
   status          String   @default("draft") // 'draft', 'published'
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -580,7 +580,7 @@ model Battle {
   challengerId       String
   opponentId         String
   status             String   @default("pending") // 'pending' | 'challenger_done' | 'completed'
-  questionsJson      String   @db.Text            // 5 questões com correctIndex (server-side)
+  questionsJson      Json                         // A3: { questions: [...] } validado por schemas/quiz.ts
   challengerScore    Int      @default(0)
   opponentScore      Int      @default(0)
   challengerElapsed  Int?     // segundos totais do turno (anti-trapaça)

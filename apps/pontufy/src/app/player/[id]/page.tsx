@@ -12,6 +12,7 @@ import CelebrationModal from '@/components/gamification/CelebrationModal';
 import { useCourse, triggerLessonCompletion } from '@/hooks/useApi';
 import { useStore } from '@/store/useStore';
 import { getCachedCourses } from '@/lib/local-courses';
+import { parseQuizModules } from '@/schemas/quiz';
 import { downloadCertificate } from '@/lib/download-certificate';
 import { getUserTier } from '@/lib/gamification';
 import { Loader2, BookOpen, ArrowLeft, Award, Trophy, Crown, Medal, LoaderCircle } from 'lucide-react';
@@ -55,10 +56,9 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   const localCourse = useMemo<LocalCourse | null>(() => {
     const cached = getCachedCourses().find((c) => c.id === id);
     if (!cached) return null;
-    let quiz: QuizModuleData[] | null = null;
-    if (cached.quizJson) {
-      try { quiz = JSON.parse(cached.quizJson); } catch {}
-    }
+    // A3 — o cache já guarda o quiz em objeto; nada de `JSON.parse` aqui.
+    // `parseQuizModules` valida o contrato e devolve [] para cache antigo.
+    const quiz = parseQuizModules(cached.quizJson);
     return {
       id: cached.id,
       title: cached.title,

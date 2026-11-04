@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionContext } from '@/backend/session';
 import { getTenantDb } from '@/backend/db';
+import { parseQuizModules } from '@/schemas/quiz';
 
 export async function GET(
   request: Request,
@@ -41,10 +42,9 @@ export async function GET(
       completed: completedIds.has(lesson.id),
     }));
 
-    let quiz = null;
-    if (course.quizJson) {
-      try { quiz = JSON.parse(course.quizJson); } catch {}
-    }
+    // A3 — JSON nativo: o campo já é objeto. `parseQuizModules` valida o
+    // contrato e devolve [] se a linha for antiga/inválida, sem derrubar a tela.
+    const quiz = parseQuizModules(course.quizJson);
 
     // Indica se o usuário já aprovou o quiz final (>= 70%, gravado server-side).
     let quizPassed = false;

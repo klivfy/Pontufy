@@ -11,6 +11,7 @@ import { sanitizeAiHtml, sanitizeAiText } from '@/lib/validations/security';
 import { logAudit } from '@/lib/audit';
 import { logger } from '@/infra/logger';
 import type { GeneratedCourse } from '@/schemas/course-schema';
+import { quizModulesSchema } from '@/schemas/quiz';
 
 export type { GeneratedCourse };
 
@@ -54,7 +55,7 @@ export interface CoursePayload {
   description: string;
   status: string;
   createdAt: string;
-  quizJson: string | null;
+  quizJson: unknown;
   category?: string;
   estimatedDurationMinutes?: number;
   lessons: Array<{
@@ -178,17 +179,20 @@ export async function generateTrainingCourse(
     contentUrl: sanitizeAiHtml(lesson.content),
   }));
 
-  const quizJson = generated.data.quiz && generated.data.quiz.length > 0
-    ? JSON.stringify([{
-        module: 'Avaliação do Curso',
-        questions: generated.data.quiz.map((q) => ({
-          question: sanitizeAiText(q.question).slice(0, 500),
-          options: q.options.map((o) => ({ text: sanitizeAiText(o).slice(0, 200) })),
-          correctIndex: q.correctIndex,
-          explanation: sanitizeAiText(q.explanation ?? '').slice(0, 500),
-        })),
-      }])
-    : null;
+  // A3 — JSON nativo: grava o objeto validado, sem serializar à mão.
+  // `quizModulesSchema` garante `correctIndex` dentro de `options` ANTES de
+  // persistir — antes esse erro só aparecia na hora de corrigir a prova.
+  const quizModules = quizModulesSchema.parse([
+    {
+      module: 'Avaliação do Curso',
+      questions: (generated.data.quiz ?? []).map((q) => ({
+        question: sanitizeAiText(q.question).slice(0, 500),
+        options: q.options.map((o) => ({ text: sanitizeAiText(o).slice(0, 200) })),
+        correctIndex: q.correctIndex,
+        explanation: sanitizeAiText(q.explanation ?? '').slice(0, 500),
+      })),
+    },
+  ]);
 
   let courseId: string;
   let lessonRecords: Array<{ id: string; title: string; type: string; pointsAssigned: number; contentUrl: string | null }>;
@@ -218,7 +222,7 @@ export async function generateTrainingCourse(
           // invertida no quiz) chegaria ao colaborador sem ninguém aprovar.
           status: 'draft',
           aiCreditsSpent: 1,
-          quizJson,
+          quizJson: quizModules,
           lessons: { create: lessonsToCreate },
         },
         include: {
@@ -290,7 +294,7 @@ export async function generateTrainingCourse(
       description: generated.data.description,
       status: 'draft',
       createdAt: now.toISOString(),
-      quizJson,
+      quizJson: quizModules,
       category: generated.data.category,
       estimatedDurationMinutes: generated.data.estimatedDurationMinutes,
       lessons: lessonRecords,
