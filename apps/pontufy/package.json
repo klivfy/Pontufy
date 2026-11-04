@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:unit": "node --import tsx --test tests/unit/*.test.ts",
     "test:ai": "tsx scripts/test-course-engine.mjs",
     "eval:ai": "tsx scripts/eval-courses.mjs",
     "dev": "next dev --webpack -p 3000",

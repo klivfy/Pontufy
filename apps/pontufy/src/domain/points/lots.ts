@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { logger } from '@/infra/logger';
 import { getRawPrisma } from '@/infra/platform-db';
+import { lotExpiryDate } from '@/domain/points/lot-policy';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // A1 — Lotes de pontos
@@ -21,14 +22,7 @@ import { getRawPrisma } from '@/infra/platform-db';
 /** Superfície transacional mínima — igual ao padrão de `domain/points`. */
 export type LotsTx = Pick<PrismaClient, 'pointsLot' | 'pointsLedger' | 'user'>;
 
-/** Validade padrão de um lote, em meses. */
-export const LOT_EXPIRY_MONTHS = Number(process.env.POINTS_EXPIRY_MONTHS ?? 12);
-
-export function lotExpiryDate(from: Date = new Date()): Date {
-  const expiresAt = new Date(from);
-  expiresAt.setMonth(expiresAt.getMonth() + LOT_EXPIRY_MONTHS);
-  return expiresAt;
-}
+export { LOT_EXPIRY_MONTHS, lotExpiryDate } from '@/domain/points/lot-policy';
 
 /**
  * Cria o lote correspondente a um crédito.

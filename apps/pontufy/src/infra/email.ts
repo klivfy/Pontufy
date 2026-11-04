@@ -8,15 +8,13 @@ type EmailPayload = {
  * Escape para conteúdo interpolado em templates de e-mail.
  * Nomes, títulos de curso e nomes de empresa são editáveis por usuário: sem
  * escape, HTML/e-mail injection com remetente legítimo da Pontufy.
+ *
+ * Implementação em `lib/html.ts` (módulo puro): este arquivo é infraestrutura
+ * de e-mail e não deveria ser arrastado por quem só precisa escapar texto.
  */
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { escapeHtml } from '@/lib/html';
+
+export { escapeHtml };
 
 async function sendEmail(payload: EmailPayload): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;

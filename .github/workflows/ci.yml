@@ -59,6 +59,10 @@ jobs:
       - name: Schema Prisma válido
         run: npx prisma validate --schema apps/pontufy/prisma/schema.prisma
 
+      # C3 — domínio puro: sem banco, sem serviço, roda em ~1s.
+      - name: Testes unitários (domínio)
+        run: npm run test:unit -w apps/pontufy
+
       - name: Typecheck
         run: npm run typecheck -w apps/pontufy
 
