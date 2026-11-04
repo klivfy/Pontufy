@@ -96,6 +96,7 @@ model Tenant {
   redemptions        Redemption[]
   emailVerifications EmailVerification[]
   uploadQuotas        UploadQuota[]
+  featureFlags        FeatureFlag[]
 }
 
 model User {
@@ -674,4 +675,25 @@ enum OutboxStatus {
   processing
   done
   failed
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// C4 — Feature flags por tenant
+//
+// Rollout de mudança em pontos/certificados sem deploy e sem afetar todos os
+// clientes ao mesmo tempo. A flag vive no banco (funciona sem Redis) e é
+// lida com cache curto em memória para não virar query por requisição.
+//
+// key é livre mas convencionada: dominio.recurso (ex.: i.review).
+// Ausência de linha = desabilitado, exceto quando o call site declara padrão.
+// ═══════════════════════════════════════════════════════════════════════════
+model FeatureFlag {
+  tenantId  String
+  key       String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, key])
+  @@index([key])
 }

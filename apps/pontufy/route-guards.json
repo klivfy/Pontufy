@@ -4,6 +4,7 @@
   "/api/admin/audit-logs": "inline:admin_rh",
   "/api/admin/branding": "inline:admin_rh",
   "/api/admin/courses/[id]/publish": "requireHrAdmin",
+  "/api/admin/flags": "requireHrAdmin",
   "/api/admin/payroll/export": "inline:admin_rh_or_super_admin",
   "/api/admin/reports/export": "inline:admin_rh",
   "/api/admin/rewards": "requireHrAdmin",

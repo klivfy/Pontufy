@@ -97,6 +97,13 @@ const STRICT_TENANT_MODELS = [
   'UserSkillProgress',
   'Battle',
   'Redemption',
+  // Modelos criados depois do interceptor: sem entrada aqui, getTenantDb
+  // NÃO escopa a query. Descoberto ao ler flag do tenant beta e receber a do
+  // alpha (C4). Regra: todo modelo com coluna tenantId entra nesta lista.
+  'FeatureFlag',
+  'PointsLot',
+  'UploadQuota',
+  'EmailVerification',
 ] as const;
 
 /**
@@ -134,6 +141,20 @@ export function getTenantDb(tenantId: string) {
       ? { ...(where ?? {}), tenantId }
       : { AND: [where ?? {}, { tenantId }] };
 
+  /**
+   * upsert exige um "where" de chave unica. Injetar AND quebra a query
+   * (PrismaClientValidationError); espalhar funciona, EXCETO quando a chave ja
+   * e composta e contem tenantId — ai qualquer campo extra vira argumento
+   * desconhecido.
+   *
+   * Regra: se o "where" ja referencia tenantId, deixamos como esta (a chave
+   * esta escopada); senao espalhamos tenantId, para impedir sequestrar
+   * registro de outro tenant por chave unica global (ex.: upsert por e-mail).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withUpsertWhere = (where: any) =>
+    JSON.stringify(where ?? {}).includes('tenantId') ? where : { ...(where ?? {}), tenantId };
+
   return prisma.$extends({
     query: {
       $allModels: {
@@ -161,7 +182,7 @@ export function getTenantDb(tenantId: string) {
               // `upsert` não estava em nenhuma lista: passava direto, sem
               // tenantId no where nem no create (buraco do "Zero Trust").
               scope({
-                where: withTenant(args.where, operation),
+                where: withUpsertWhere(args.where),
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {
@@ -199,7 +220,7 @@ export function getTenantDb(tenantId: string) {
               scope({ where: withTenant(args.where, operation) });
             } else if (operation === 'upsert') {
               scope({
-                where: withTenant(args.where, operation),
+                where: withUpsertWhere(args.where),
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {
