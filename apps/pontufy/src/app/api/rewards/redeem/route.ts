@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRouteMetrics } from '@/infra/metrics';
 import { getSessionContext } from '@/infra/session';
 import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
@@ -13,7 +14,7 @@ const REDEEM_IP_WINDOW = 60;
 const REDEEM_TENANT_MAX = 200;
 const REDEEM_TENANT_WINDOW = 60;
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const ip = getClientIp(request);
   const ipRate = await ipRateLimit(ip, 'rewards-redeem', REDEEM_IP_MAX, REDEEM_IP_WINDOW);
   if (!ipRate.allowed) {
@@ -56,4 +57,10 @@ export async function POST(request: Request) {
   } finally {
     await releaseLock(lock);
   }
+}
+
+// B4 — SLO: latência e taxa de erro desta rota.
+// O buffer é do processo (somente leitura, sem efeito no fluxo).
+export async function POST(request: Request) {
+  return withRouteMetrics('rewards/redeem', () => handlePost(request));
 }

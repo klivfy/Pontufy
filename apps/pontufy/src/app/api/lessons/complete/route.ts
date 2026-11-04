@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRouteMetrics } from '@/infra/metrics';
 import { getSessionContext } from '@/infra/session';
 import { acquireLock, releaseLock, type LockHandle } from '@/infra/mutex';
 import { jsonError } from '@/domain/auth';
@@ -13,7 +14,7 @@ const LESSON_IP_WINDOW = 60;
 const LESSON_TENANT_MAX = 1200;
 const LESSON_TENANT_WINDOW = 60;
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const ip = getClientIp(request);
   const ipRate = await ipRateLimit(ip, 'lessons-complete', LESSON_IP_MAX, LESSON_IP_WINDOW);
   if (!ipRate.allowed) {
@@ -52,4 +53,10 @@ export async function POST(request: Request) {
   } finally {
     await releaseLock(lock);
   }
+}
+
+// B4 — SLO: latência e taxa de erro desta rota.
+// O buffer é do processo (somente leitura, sem efeito no fluxo).
+export async function POST(request: Request) {
+  return withRouteMetrics('lessons/complete', () => handlePost(request));
 }
