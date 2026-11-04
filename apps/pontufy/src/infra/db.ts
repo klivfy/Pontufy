@@ -140,12 +140,12 @@ export function getTenantDb(tenantId: string) {
               // query em silêncio.
               scope({ where: { AND: [args.where ?? {}, { OR: [{ tenantId: null }, { tenantId }] }] } });
             } else if (WRITE_OPS.includes(operation)) {
-              scope({ where: { ...(args.where ?? {}), tenantId } });
+              scope({ where: { AND: [args.where ?? {}, { tenantId }] } });
             } else if (operation === 'upsert') {
               // `upsert` não estava em nenhuma lista: passava direto, sem
               // tenantId no where nem no create (buraco do "Zero Trust").
               scope({
-                where: { ...(args.where ?? {}), tenantId },
+                where: { AND: [args.where ?? {}, { tenantId }] },
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {
@@ -180,10 +180,10 @@ export function getTenantDb(tenantId: string) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (STRICT_TENANT_MODELS.includes(model as any)) {
             if ([...READ_OPS, ...WRITE_OPS].includes(operation)) {
-              scope({ where: { ...(args.where ?? {}), tenantId } });
+              scope({ where: { AND: [args.where ?? {}, { tenantId }] } });
             } else if (operation === 'upsert') {
               scope({
-                where: { ...(args.where ?? {}), tenantId },
+                where: { AND: [args.where ?? {}, { tenantId }] },
                 create: { ...(args.create ?? {}), tenantId },
               });
             } else if (['create', 'createMany'].includes(operation)) {

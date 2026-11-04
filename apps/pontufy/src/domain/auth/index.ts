@@ -44,7 +44,16 @@ export async function requireHrAdmin() {
  * continua sendo requisito adicional.
  */
 export async function requireSuperAdmin() {
-  const ctx = await getSessionContext();
+  // 403 opaco também para quem não tem sessão: a decisão registrada no
+  // CLAUDE.md é não revelar a existência da rota. Antes, `getSessionContext`
+  // lançava 'Não autenticado.' e o `jsonError` respondia 401 — a diferença
+  // entre 401 e 403 já contava ao anônimo que a rota existe.
+  let ctx: Awaited<ReturnType<typeof getSessionContext>>;
+  try {
+    ctx = await getSessionContext();
+  } catch {
+    throw new DomainError('Acesso restrito.', 403, 'FORBIDDEN');
+  }
 
   if (ctx.role !== 'super_admin' || !ctx.email.endsWith('@pontufy.com')) {
     // 403 opaco: não confirma existência da rota nem motivo da recusa.

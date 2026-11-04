@@ -45,8 +45,30 @@ export const resetPasswordSchema = z.object({
 
 export const unlockSchema = z.object({ token: z.string().min(16).max(512) });
 
+/**
+ * Identificador opaco de recurso.
+ *
+ * O modelo usa `@default(uuid())`, mas o id NUNCA precisa ser UUID: para o
+ * Prisma é uma string opaca, e a consulta é parametrizada. Exigir `.uuid()`
+ * criava um contrato que a aplicação não tem — descoberto quando os fixtures
+ * de teste (`lesson-isolation-alpha-001`) passaram a ser rejeitados com 400
+ * antes da checagem de tenant, em vez do 404 esperado.
+ *
+ * O que se mantém: tamanho limitado e charset restrito (sem barras, espaços,
+ * aspas ou controle), que é o que protege contra payloads malformados.
+ */
+const opaqueIdSchema = z
+  .string({ message: 'Identificador é obrigatório.' })
+  .min(1, 'Identificador não pode ser vazio.')
+  .max(64, 'Identificador muito longo.')
+  .regex(/^[A-Za-z0-9_-]+$/, 'Identificador inválido.');
+
 export const completeLessonSchema = z.object({
-  lessonId: z.string({ message: 'lessonId é obrigatório.' }).uuid({ message: 'lessonId inválido.' }),
+  lessonId: opaqueIdSchema.optional(),
+  courseId: opaqueIdSchema.optional(),
+  lessonSlug: opaqueIdSchema.optional(),
+}).refine((v) => Boolean(v.lessonId ?? v.lessonSlug), {
+  message: 'lessonId é obrigatório.',
 });
 
 // Resgate de recompensa. O PREÇO nunca vem do cliente: só `rewardId` (o valor
@@ -54,7 +76,7 @@ export const completeLessonSchema = z.object({
 // fluxo "abrir oferta" da vitrine, que NÃO debita pontos.
 export const redeemSchema = z
   .object({
-    rewardId: z.string().uuid().optional(),
+    rewardId: opaqueIdSchema.optional(),
     productUrl: z.string().url().max(2048).optional(),
     productTitle: z.string().max(200).optional(),
   })

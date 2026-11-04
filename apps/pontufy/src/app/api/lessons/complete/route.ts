@@ -32,12 +32,18 @@ export async function POST(request: Request) {
     const { data: body, error: validationError } = parseBody(completeLessonSchema, raw);
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
-    lock = await acquireLock(`lock:lesson:${tenantId}:${userId}:${body.lessonId}`, 10);
+    // O schema garante via `refine` que pelo menos um dos identificadores veio.
+    const lessonId = body.lessonId ?? body.lessonSlug;
+    if (!lessonId) {
+      return NextResponse.json({ error: 'lessonId é obrigatório.' }, { status: 400 });
+    }
+
+    lock = await acquireLock(`lock:lesson:${tenantId}:${userId}:${lessonId}`, 10);
     if (!lock) {
       return NextResponse.json({ error: 'Transação já em andamento. Aguarde.' }, { status: 429 });
     }
 
-    const result = await completeLesson({ tenantId, userId, lessonId: body.lessonId });
+    const result = await completeLesson({ tenantId, userId, lessonId });
     return NextResponse.json(result);
   } catch (error) {
     const mapped = jsonError(error);
