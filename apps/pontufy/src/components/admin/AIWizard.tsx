@@ -636,6 +636,51 @@ export default function AIWizard() {
           </div>
         )}
 
+        {/*
+          O que o motor entregou em cada formato. Sem este painel, o RH não tem
+          como saber se a aula tem roteiro de vídeo e slides de verdade ou se o
+          enriquecimento caiu na derivação local — que é funcional, mas é o piso.
+        */}
+        {result.kit && (
+          <div className="bg-md-surface-container border border-md-outline rounded-xl p-6 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-title-lg font-bold text-md-on-surface">Formatos gerados</h3>
+              <span className="text-label-sm text-md-on-surface-variant">
+                prompt {result.kit.promptVersion} · {Math.round(result.kit.durationMs / 1000)}s
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Slides', value: result.kit.slides, hint: 'prontos para projetar' },
+                { label: 'Cenas de vídeo', value: result.kit.scenes, hint: 'narração + texto em tela' },
+                {
+                  label: 'Minutos de vídeo',
+                  value: Math.max(1, Math.round(result.kit.videoSeconds / 60)),
+                  hint: 'estimados pela narração',
+                },
+                {
+                  label: 'Leitura fácil',
+                  value: `${Math.round(result.kit.fleschAvg)}/100`,
+                  hint: 'Flesch pt-BR (maior = mais fácil)',
+                },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl bg-md-surface-container-high p-3">
+                  <p className="text-label-sm text-md-on-surface-variant uppercase tracking-wide">{item.label}</p>
+                  <p className="text-title-lg font-bold text-md-on-surface">{item.value}</p>
+                  <p className="text-label-sm text-md-on-surface-muted">{item.hint}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 text-body-sm text-md-on-surface-variant">
+              {result.kit.generated} de {result.kit.lessons} aulas com kit gerado por IA
+              {result.kit.derived > 0 && ` · ${result.kit.derived} derivada(s) do próprio texto`}
+              {result.kit.checkpointQuestions > 0 && ` · ${result.kit.checkpointQuestions} questões de fixação`}
+            </p>
+          </div>
+        )}
+
         <div className="flex justify-end">
           <button
             onClick={() => {

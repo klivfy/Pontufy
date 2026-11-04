@@ -18,6 +18,12 @@ interface LessonContentProps {
   onComplete: () => void;
   onPrevious: (() => void) | null;
   onNext: (() => void) | null;
+  /**
+   * Substitui o corpo markdown. É por aqui que o player injeta o kit
+   * multi-formato (texto / vídeo / slides / leitura fácil) mantendo o cabeçalho
+   * e a barra de navegação — que são iguais em qualquer formato.
+   */
+  children?: ReactNode;
 }
 
 function formatInline(text: string): ReactNode[] {
@@ -33,7 +39,7 @@ function formatInline(text: string): ReactNode[] {
   });
 }
 
-function MarkdownContent({ content }: { content: string }) {
+export function MarkdownContent({ content }: { content: string }) {
   const lines = content.split('\n');
   const elements: ReactNode[] = [];
   let currentParagraph: string[] = [];
@@ -129,6 +135,7 @@ export default function LessonContent({
   onComplete,
   onPrevious,
   onNext,
+  children,
 }: LessonContentProps) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -142,9 +149,11 @@ export default function LessonContent({
           <h2 className="text-xl sm:text-2xl font-black text-md-on-surface">{lessonTitle}</h2>
         </div>
 
-        {/* Conteúdo markdown DA AULA ATIVA */}
-        <div className="px-6 sm:px-10 py-8 max-w-4xl">
-          {content ? (
+        {/* Kit multi-formato (quando presente) ou conteúdo markdown DA AULA ATIVA */}
+        <div className="px-6 sm:px-10 py-8 max-w-5xl">
+          {children ? (
+            children
+          ) : content ? (
             <MarkdownContent content={content} />
           ) : (
             <div className="text-center py-16">

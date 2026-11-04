@@ -40,6 +40,10 @@ export async function GET(
       contentUrl: lesson.contentUrl,
       points: lesson.pointsAssigned,
       completed: completedIds.has(lesson.id),
+      // Kit multi-formato (vídeo, slides, leitura fácil, checkpoint). Curso
+      // anterior a este motor tem `blocks` NULL — o player deriva do markdown,
+      // então a tela nunca fica sem os formatos.
+      blocks: lesson.blocks ?? null,
     }));
 
     // A3 — JSON nativo: o campo já é objeto. `parseQuizModules` valida o

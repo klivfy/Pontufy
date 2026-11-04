@@ -36,6 +36,67 @@ export async function checkAIProviders(): Promise<{
  */
 import { generateCourseWithFallback } from '@/domain/ai/course-engine';
 import { reviewCourseAgainstMaterial } from '@/domain/ai/course-review';
+import { enrichLessonsWithKits } from '@/domain/ai/lesson-kit-engine';
+import { kitMetrics } from '@/domain/learning/lesson-kit';
+import type { LessonKit } from '@/schemas/lesson-kit';
+
+/**
+ * Sanitiza o kit antes de gravar.
+ *
+ * O kit é consumido como texto pelo React (não como HTML), então não há
+ * execução possível — mas normalizar aqui mantém o padrão do arquivo: todo
+ * campo vindo de modelo passa por `sanitizeAiText` antes de tocar o banco.
+ */
+function sanitizeKit(kit: LessonKit): LessonKit {
+  const text = (value: string, max: number) => sanitizeAiText(value).slice(0, max);
+  return {
+    video: {
+      title: text(kit.video.title, 120),
+      scenes: kit.video.scenes.map((scene) => ({
+        narration: text(scene.narration, 900),
+        onScreen: text(scene.onScreen, 120),
+        visual: text(scene.visual, 240),
+        seconds: scene.seconds,
+      })),
+    },
+    slides: kit.slides.map((slide) => ({
+      title: text(slide.title, 120),
+      bullets: slide.bullets.map((bullet) => text(bullet, 200)),
+      notes: slide.notes ? text(slide.notes, 900) : undefined,
+      visual: slide.visual ? text(slide.visual, 200) : undefined,
+    })),
+    plain: {
+      summary: text(kit.plain.summary, 1200),
+      bullets: kit.plain.bullets.map((bullet) => text(bullet, 200)),
+      glossary: kit.plain.glossary?.map((entry) => ({
+        term: text(entry.term, 80),
+        definition: text(entry.definition, 300),
+      })),
+    },
+    checkpoint: kit.checkpoint.map((question) => ({
+      question: text(question.question, 500),
+      options: question.options.map((option) => text(option, 200)),
+      correctIndex: question.correctIndex,
+      explanation: question.explanation ? text(question.explanation, 500) : undefined,
+      difficulty: question.difficulty,
+    })),
+  };
+}
+
+/** Resumo do que o motor produziu em cada formato — exibido no admin. */
+export interface KitSummary {
+  lessons: number;
+  generated: number;
+  derived: number;
+  slides: number;
+  scenes: number;
+  videoSeconds: number;
+  checkpointQuestions: number;
+  /** Flesch médio dos resumos em linguagem simples (maior = mais fácil). */
+  fleschAvg: number;
+  promptVersion: string;
+  durationMs: number;
+}
 
 // ═══════════════════════ Validação de entrada ═══════════════════════
 
@@ -65,6 +126,7 @@ export interface CoursePayload {
     type: string;
     pointsAssigned: number;
     contentUrl: string | null;
+    blocks?: unknown;
   }>;
 }
 
@@ -76,12 +138,30 @@ export type GenerateTrainingResult =
       provider: string;
       creditsRemaining: number;
       persisted: boolean;
-  requiresReview?: boolean;
-  review?: Awaited<ReturnType<typeof reviewCourseAgainstMaterial>>;
+      requiresReview?: boolean;
+      review?: Awaited<ReturnType<typeof reviewCourseAgainstMaterial>>;
+      /** O que cada formato entregou: vídeo, slides, leitura fácil, checkpoint. */
+      kit?: KitSummary;
       course: CoursePayload;
       aiErrors?: string[];
     }
   | { success: false; error: string };
+
+/** Agrega as métricas dos kits para exibir no admin logo após a geração. */
+function summarizeKits(kits: LessonKit[]): Omit<KitSummary, 'generated' | 'derived' | 'promptVersion' | 'durationMs'> & {
+  fleschAvg: number;
+} {
+  const metrics = kits.map(kitMetrics);
+  const total = metrics.length || 1;
+  return {
+    lessons: metrics.length,
+    slides: metrics.reduce((sum, m) => sum + m.slides, 0),
+    scenes: metrics.reduce((sum, m) => sum + m.scenes, 0),
+    videoSeconds: metrics.reduce((sum, m) => sum + m.videoSeconds, 0),
+    checkpointQuestions: metrics.reduce((sum, m) => sum + m.checkpointQuestions, 0),
+    fleschAvg: Number((metrics.reduce((sum, m) => sum + m.flesch, 0) / total).toFixed(1)),
+  };
+}
 
 // ═══════════════════════ Motor central (débito atômico) ═════════════
 
@@ -173,12 +253,36 @@ export async function generateTrainingCourse(
   const orderedLessons = [...generated.data.lessons].sort((a, b) => a.order - b.order);
   // 8.2 — Sanitização de conteúdo gerado por IA antes da persistência:
   // títulos/aulas/quiz não podem carregar HTML perigoso para os colaboradores.
-  const lessonsToCreate = orderedLessons.map((lesson) => ({
+  const baseLessons = orderedLessons.map((lesson) => ({
     title: sanitizeAiText(lesson.title).slice(0, 160),
     type: 'text' as const,
     pointsAssigned: Math.max(10, Math.min(100, Math.round(lesson.pointsAwarded))),
     contentUrl: sanitizeAiHtml(lesson.content),
   }));
+
+  // ── Fase 2: kit multi-formato por aula ───────────────────────────────────
+  //
+  // Roda DEPOIS do curso existir em memória e ANTES da transação: se esta fase
+  // falhar inteira, o curso ainda é gravado (a derivação do markdown garante
+  // slides e roteiro). Nunca lança, então não pode derrubar a geração.
+  const kitResult = await enrichLessonsWithKits({
+    lessons: baseLessons.map((lesson) => ({ title: lesson.title, content: lesson.contentUrl })),
+    preferredProvider: generated.provider,
+  });
+
+  const lessonsToCreate = baseLessons.map((lesson, index) => {
+    const kit = kitResult.kits[index];
+    return {
+      ...lesson,
+      blocks: kit ? (sanitizeKit(kit) as Prisma.InputJsonValue) : Prisma.DbNull,
+    };
+  });
+
+  const kitSummary = summarizeKits(kitResult.kits);
+  logger.info('Kit multi-formato gerado', {
+    ...kitResult.meta,
+    leituras: kitSummary,
+  }, 'ai');
 
   // A3 — JSON nativo, com validação que NÃO derruba a geração.
   //
@@ -186,13 +290,19 @@ export async function generateTrainingCourse(
   // intervalo, menos de 2 opções, texto vazio) em vez de lançar. Antes, um quiz
   // vazio ou malformado fazia o `parse` estourar e a geração inteira virava
   // "An error occurred in the Server Components render" em produção.
+  //
+  // O `id` estável é o que permite o quiz dinâmico: a cada tentativa o servidor
+  // sorteia um subconjunto do banco e recompõe a prova para corrigir.
   const quizBuild = buildQuizModules(
     (generated.data.quiz ?? []).map((question) => ({
       question: sanitizeAiText(question.question).slice(0, 500),
       options: question.options.map((option) => sanitizeAiText(option).slice(0, 200)),
       correctIndex: question.correctIndex,
       explanation: sanitizeAiText(question.explanation ?? '').slice(0, 500),
+      difficulty: question.difficulty,
     })),
+    'Avaliação do Curso',
+    (index) => `q${index + 1}`,
   );
   const quizModules = quizBuild.modules;
 
@@ -205,8 +315,7 @@ export async function generateTrainingCourse(
   }
 
   let courseId: string;
-  let lessonRecords: Array<{ id: string; title: string; type: string; pointsAssigned: number; contentUrl: string | null }>;
-  let creditsRemaining: number;
+  let lessonRecords: Array<{ id: string; title: string; type: string; pointsAssigned: number; contentUrl: string | null }>;  let creditsRemaining: number;
   let persisted = false;
 
   try {
@@ -277,7 +386,13 @@ export async function generateTrainingCourse(
     }
     console.error('[course-generator] Persistência falhou, retornando dados gerados:', err);
     courseId = randomUUID();
-    lessonRecords = lessonsToCreate.map((l) => ({ ...l, id: randomUUID() }));
+    lessonRecords = lessonsToCreate.map((lesson) => ({
+      id: randomUUID(),
+      title: lesson.title,
+      type: lesson.type,
+      pointsAssigned: lesson.pointsAssigned,
+      contentUrl: lesson.contentUrl,
+    }));
     creditsRemaining = Math.max(0, (tenant.aiCredits ?? 1) - 1);
   }
 
@@ -299,13 +414,20 @@ export async function generateTrainingCourse(
     // IA-5 / A9 — o curso é rascunho e a revisão diz o que o RH precisa olhar.
     requiresReview: true,
     review,
+    kit: {
+      ...kitSummary,
+      generated: kitResult.meta.generated,
+      derived: kitResult.meta.derived,
+      promptVersion: kitResult.meta.promptVersion,
+      durationMs: kitResult.meta.durationMs,
+    },
     course: {
       id: courseId,
       title: generated.data.title,
       description: generated.data.description,
       status: 'draft',
       createdAt: now.toISOString(),
-          quizJson: quizModules === null ? Prisma.DbNull : (quizModules as Prisma.InputJsonValue),
+      quizJson: quizModules === null ? Prisma.DbNull : (quizModules as Prisma.InputJsonValue),
       category: generated.data.category,
       estimatedDurationMinutes: generated.data.estimatedDurationMinutes,
       lessons: lessonRecords,

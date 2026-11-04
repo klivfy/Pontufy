@@ -5,14 +5,16 @@ import { AnimatePresence } from 'framer-motion';
 
 import VideoPlayer from '@/components/player/VideoPlayer';
 import LessonContent from '@/components/player/LessonContent';
+import LessonKitView from '@/components/player/LessonKitView';
 import CourseSidebar from '@/components/player/CourseSidebar';
-import QuizModal, { type QuizModuleData } from '@/components/player/QuizModal';
+import DynamicQuiz from '@/components/player/DynamicQuiz';
 import PointsCelebration from '@/components/gamification/PointsCelebration';
 import CelebrationModal from '@/components/gamification/CelebrationModal';
 import { useCourse, triggerLessonCompletion } from '@/hooks/useApi';
 import { useStore } from '@/store/useStore';
 import { getCachedCourses } from '@/lib/local-courses';
-import { parseQuizModules } from '@/schemas/quiz';
+import { readLessonKit } from '@/schemas/lesson-kit';
+import { deriveKitFromMarkdown } from '@/domain/learning/lesson-kit';
 import { downloadCertificate } from '@/lib/download-certificate';
 import { getUserTier } from '@/lib/gamification';
 import { Loader2, BookOpen, ArrowLeft, Award, Trophy, Crown, Medal, LoaderCircle } from 'lucide-react';
@@ -25,6 +27,8 @@ interface LessonItem {
   completed: boolean;
   content: string; // markdown da aula ativa (nunca a descrição do curso)
   contentUrl?: string | null;
+  /** Kit multi-formato persistido; null em curso anterior a este motor. */
+  blocks?: unknown;
 }
 
 interface ApiLesson {
@@ -35,6 +39,7 @@ interface ApiLesson {
   pointsAssigned?: number;
   completed?: boolean;
   contentUrl?: string | null;
+  blocks?: unknown;
 }
 
 interface LocalCourse {
@@ -42,7 +47,6 @@ interface LocalCourse {
   title: string;
   description: string | null;
   lessons: LessonItem[];
-  quiz: QuizModuleData[] | null;
 }
 
 export default function CoursePlayerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -56,9 +60,6 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   const localCourse = useMemo<LocalCourse | null>(() => {
     const cached = getCachedCourses().find((c) => c.id === id);
     if (!cached) return null;
-    // A3 — o cache já guarda o quiz em objeto; nada de `JSON.parse` aqui.
-    // `parseQuizModules` valida o contrato e devolve [] para cache antigo.
-    const quiz = parseQuizModules(cached.quizJson);
     return {
       id: cached.id,
       title: cached.title,
@@ -72,7 +73,6 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
         points: l.pointsAssigned,
         completed: false,
       })),
-      quiz,
     };
   }, [id]);
 
@@ -124,6 +124,7 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
     completed: !!l.completed,
     content: l.contentUrl ?? '',
     contentUrl: l.contentUrl,
+    blocks: l.blocks ?? null,
   }));
 
   const completedMap = new Set<string>([
@@ -135,7 +136,6 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? firstIncomplete ?? lessons[0];
   const completedCount = lessons.filter((l) => completedMap.has(l.id)).length;
   const allCompleted = lessons.length > 0 && completedCount === lessons.length;
-  const modules: QuizModuleData[] = course.quiz ?? [];
   const passed = quizPassed || !!course.quizPassed;
 
   if (!activeLesson) {
@@ -152,7 +152,15 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
   const currentIndex = lessons.findIndex((l) => l.id === activeLesson.id);
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
-  const isVideoLesson = activeLesson.type === 'video';
+
+  // Videoaula "de verdade" (URL de mídia) continua no player antigo. O kit é
+  // para o roteiro gerado — curso antigo não tem `blocks`, então o kit é
+  // derivado do próprio markdown e a aula ganha vídeo/slides de qualquer jeito.
+  const isLegacyVideo =
+    activeLesson.type === 'video' && /^https?:\/\//i.test(activeLesson.content ?? '');
+  const activeKit =
+    readLessonKit(activeLesson.blocks) ??
+    deriveKitFromMarkdown(activeLesson.content, activeLesson.title);
 
   const celebrate = (points: number, message: string) => {
     setCelebrationPoints(points);
@@ -305,17 +313,21 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-1 overflow-hidden">
         {/* Content area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {isVideoLesson ? (
+          {isLegacyVideo ? (
             <>
               <div className="aspect-video lg:aspect-auto lg:flex-none lg:h-[52%] bg-black flex-shrink-0">
                 <VideoPlayer lesson={{ id: activeLesson.id, title: activeLesson.title, videoUrl: activeLesson.contentUrl ?? undefined }} />
               </div>
               <div className="flex-1 min-h-0 flex flex-col">
-                <LessonContent content={activeLesson.content} {...lessonNavProps} />
+                <LessonContent content={activeLesson.content} {...lessonNavProps}>
+                  {activeKit && <LessonKitView kit={activeKit} markdown={activeLesson.content} />}
+                </LessonContent>
               </div>
             </>
           ) : (
-            <LessonContent content={activeLesson.content} {...lessonNavProps} />
+            <LessonContent content={activeLesson.content} {...lessonNavProps}>
+              {activeKit && <LessonKitView kit={activeKit} markdown={activeLesson.content} />}
+            </LessonContent>
           )}
 
           {/* CTA do Quiz / Certificado (rodapé do conteúdo) */}
@@ -418,13 +430,12 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
         />
       </div>
 
-      {/* Quiz Modal (remontado a cada abertura → estado sempre limpo) */}
+      {/* Quiz dinâmico (remontado a cada abertura → sorteio novo, estado limpo) */}
       <AnimatePresence>
         {quizOpen && (
-          <QuizModal
+          <DynamicQuiz
             courseId={course.id}
             courseTitle={course.title}
-            modules={modules}
             alreadyPassed={passed}
             onClose={() => setQuizOpen(false)}
             onQuizPassed={handleQuizPassed}

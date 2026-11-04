@@ -27,10 +27,21 @@ export const quizOptionSchema = z.union([
 
 /** Questão de quiz de curso (persistida em `Course.quizJson`). */
 export const quizQuestionSchema = z.object({
+  /**
+   * Identidade estável da questão dentro do banco.
+   *
+   * O quiz deixou de ser uma lista fixa: cada tentativa sorteia um subconjunto
+   * (domain/learning/quiz-selection.ts). Sem id, "a questão 3" só existe como
+   * posição — e a posição muda a cada sorteio. Opcional para dados gravados
+   * antes deste campo; a seleção ignora questões sem id.
+   */
+  id: z.string().min(1).optional(),
   question: z.string().min(1),
   options: z.array(quizOptionSchema).min(2),
   correctIndex: z.number().int().min(0),
   explanation: z.string().optional(),
+  /** Usada para montar uma prova equilibrada e progressiva. */
+  difficulty: z.enum(['facil', 'medio', 'dificil']).optional(),
 });
 
 export const quizModuleSchema = z.object({
@@ -54,6 +65,7 @@ export interface GeneratedQuizQuestion {
   options: string[];
   correctIndex: number;
   explanation?: string;
+  difficulty?: 'facil' | 'medio' | 'dificil';
 }
 
 /**
@@ -73,16 +85,19 @@ export interface GeneratedQuizQuestion {
 export function buildQuizModules(
   questions: GeneratedQuizQuestion[] | undefined,
   moduleName = 'Avaliação do Curso',
+  makeId: (index: number) => string = (index) => `q${index + 1}`,
 ): { modules: QuizModule[] | null; discarded: string[] } {
   const discarded: string[] = [];
   const valid: QuizModule['questions'] = [];
 
   for (const [index, question] of (questions ?? []).entries()) {
     const candidate = {
+      id: makeId(index),
       question: question.question,
       options: question.options.map((text) => ({ text })),
       correctIndex: question.correctIndex,
       ...(question.explanation ? { explanation: question.explanation } : {}),
+      ...(question.difficulty ? { difficulty: question.difficulty } : {}),
     };
 
     const parsed = quizQuestionSchema.safeParse(candidate);

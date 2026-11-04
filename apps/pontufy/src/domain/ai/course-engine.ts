@@ -25,7 +25,7 @@ const MAX_OUTPUT_TOKENS = Number(process.env.COURSE_MAX_OUTPUT_TOKENS || 8192);
  *
  * Sobe a versão SEMPRE que `COURSE_SYSTEM_PROMPT` mudar de forma relevante.
  */
-export const COURSE_PROMPT_VERSION = process.env.COURSE_PROMPT_VERSION?.trim() || 'v1';
+export const COURSE_PROMPT_VERSION = process.env.COURSE_PROMPT_VERSION?.trim() || 'v2';
 
 export const COURSE_SYSTEM_PROMPT = `Você é o motor de IA da Pontufy, uma plataforma B2B de educação corporativa gamificada.
 Gere um curso de treinamento COMPLETO, prático e adaptado ao setor/vertical informado.
@@ -41,12 +41,14 @@ Regras OBRIGATÓRIAS:
    - Use formatação Markdown: ## para subtítulos, **negrito** para termos-chave, - para listas.
    - NUNCA use resumos curtos: o conteúdo deve ser completo e autossuficiente.
 4. PONTUAÇÃO — "pointsAwarded" é um inteiro entre 10 e 100: aulas introdutórias valem menos, avançadas valem mais.
-5. QUIZ — Gere de 2 a 8 perguntas de múltipla escolha cobrindo TODO o conteúdo do curso:
+5. QUIZ — Gere de 6 a 12 perguntas de múltipla escolha cobrindo TODO o conteúdo do curso:
    - Cada pergunta deve ter de 3 a 5 opções ("options") e o índice da correta em "correctIndex" (base 0).
    - Perguntas devem testar compreensão real, não memorização superficial.
-   - Varie a dificuldade: fáceis, médias e difíceis.
+   - Preencha "difficulty" ("facil", "medio" ou "dificil") e VARIE: cerca de 30% fáceis, 45% médias e 25% difíceis.
+   - Cada pergunta precisa funcionar sozinha — o quiz é sorteado, então a pergunta não pode depender da anterior.
+   - Em "explanation", explique o raciocínio em uma frase.
 6. META — Informe "category" (categoria do curso) e "estimatedDurationMinutes" (tempo estimado em minutos).
-7. Se material de referência for fornecido, BASEIE o conteúdo nele.
+7. Se material de referência for fornecido, BASEIE o conteúdo nele. Não invente lei, prazo ou número ausente da fonte.
 8. Responda exclusivamente no schema estruturado solicitado.`;
 
 // ═══════════════════════ Fallback local determinístico ═══════════════
@@ -213,7 +215,7 @@ export interface CourseGenerationMeta {
  * `response_format: json_schema` — o Ollama Cloud devolve o JSON dentro de um
  * bloco ```json mesmo quando instruído a responder só com o objeto.
  */
-function extractJsonObject(text: string): unknown {
+export function extractJsonObject(text: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
   const candidate = (fenced ? fenced[1] : text).trim();
 
