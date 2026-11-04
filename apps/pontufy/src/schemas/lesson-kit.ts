@@ -35,6 +35,16 @@ export const videoSceneSchema = z.object({
 export const lessonVideoSchema = z.object({
   title: z.string().min(3),
   scenes: z.array(videoSceneSchema).min(2).max(10),
+  /**
+   * MP4 renderizado por um provedor de vídeo (Wan/LTX/CogVideoX).
+   *
+   * Fica FORA do schema de geração: o modelo nunca inventa uma URL. Quem
+   * preenche é o `video-engine`, depois do render; quando ausente, o player
+   * executa o roteiro narrado. É o mesmo kit, com ou sem mídia.
+   */
+  videoUrl: z.string().url().optional(),
+  /** Provedor que renderizou — usado só para telemetria/custo. */
+  videoProvider: z.string().optional(),
 });
 
 export const glossaryEntrySchema = z.object({

@@ -72,6 +72,27 @@ de uma aula não derruba o curso, e o paralelismo reduz o tempo total.
 4. **Curso antigo não fica de fora.** `Lesson.blocks` nulo → o player deriva o
    kit do markdown. Nenhum backfill foi necessário.
 
+## Vídeo renderizado (opcional)
+
+O kit nasce com **roteiro** (cenas + narração). Se houver um provedor de vídeo
+configurado, o mesmo roteiro pode virar MP4 e o player passa a usar `<video>`.
+
+- Seleção de modelos, licenças e custo: [`VIDEO-IA.md`](VIDEO-IA.md).
+- Transporte: `domain/ai/video-providers.ts` (fal / replicate / generic) e
+  `domain/ai/video-engine.ts` (`submitRender` → `pollRender` → `renderVideo`).
+- **Nunca lança**: sem provedor ou em timeout, devolve `not-configured` e a aula
+  continua com o roteiro narrado. Vídeo é enriquecimento, não pré-requisito.
+- Configuração por slots `VIDEO_n_*` (mesmo padrão do `AI_n_*`).
+
+```bash
+VIDEO_1_PROVIDER=wan-2.2          # wan-2.2 | ltx-2.3 | cogvideox-2b | hunyuan-1.5
+VIDEO_1_TRANSPORT=fal             # fal | replicate | generic
+VIDEO_1_BASE_URL=https://queue.fal.run
+VIDEO_1_MODEL=fal-ai/wan-22/text-to-video
+VIDEO_1_API_KEY=...
+VIDEO_1_MAX_SECONDS=10
+```
+
 ## Custos e limites
 
 | Variável | Padrão | Efeito |

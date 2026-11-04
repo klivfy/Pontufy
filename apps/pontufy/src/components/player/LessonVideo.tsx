@@ -23,6 +23,36 @@ import type { LessonVideo as LessonVideoData } from '@/schemas/lesson-kit';
  */
 export default function LessonVideo({ video }: { video: LessonVideoData }) {
   const scenes = video.scenes;
+
+  // Vídeo renderizado por provedor (Wan/LTX/CogVideoX) tem prioridade sobre o
+  // roteiro: é o mesmo conteúdo, com imagem em movimento. Quando não há URL
+  // (padrão hoje), cai no player de cenas narradas abaixo.
+  if (video.videoUrl) {
+    return (
+      <div className="rounded-3xl overflow-hidden bg-md-inverse-surface md-elevation-3">
+        <video
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full aspect-video bg-black"
+          aria-label={`Videoaula: ${video.title}`}
+          data-provider={video.videoProvider ?? 'unknown'}
+        >
+          <source src={video.videoUrl} type="video/mp4" />
+          Seu navegador não reproduz este vídeo. Os slides e o texto completo continuam disponíveis.
+        </video>
+        <div className="px-4 sm:px-6 py-3 text-[11px] text-white/40">
+          {video.title} · vídeo gerado por IA
+        </div>
+      </div>
+    );
+  }
+
+  return <ScenePlayer video={video} scenes={scenes} />;
+}
+
+/** Player de roteiro: executa cena a cena, com narração opcional. */
+function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: LessonVideoData['scenes'] }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
