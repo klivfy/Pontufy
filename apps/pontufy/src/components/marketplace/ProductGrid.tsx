@@ -1,6 +1,6 @@
 import ProductCard from './ProductCard';
 
-interface Product {
+export interface Product {
   id: string;
   title: string;
   imageUrl?: string;

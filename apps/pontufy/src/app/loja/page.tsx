@@ -1,44 +1,37 @@
-'use client';
-import { useState } from 'react';
+import { Gift } from 'lucide-react';
 
-import CategoryFilter from '@/components/marketplace/CategoryFilter';
-import ProductGrid from '@/components/marketplace/ProductGrid';
-import CheckoutDrawer from '@/components/marketplace/CheckoutDrawer';
-import { useStore } from '@/store/useStore';
-import { useRewards } from '@/hooks/useApi';
-import { Loader2, Gift } from 'lucide-react';
+import { getSessionContext } from '@/infra/session';
+import { getTenantDb } from '@/infra/db';
+import { listRewards } from '@/domain/rewards';
+import MarketplaceClient from './MarketplaceClient';
 
-const categories = [
-  { id: 'all', name: 'Todos' },
-  { id: 'coupons', name: 'Cupons de Desconto' },
-  { id: 'offers', name: 'Ofertas' },
-  { id: 'tech', name: 'Tecnologia' },
-  { id: 'health', name: 'Saúde' },
-  { id: 'home', name: 'Utilidades' },
-];
+// ═══════════════════════════════════════════════════════════════════════════
+// C5 — Fronteira RSC: a vitrine.
+//
+// Antes: página 100% client, catálogo e saldo chegavam por SWR depois da
+// hidratação — o colaborador via spinner com a loja vazia.
+//
+// Agora o servidor entrega a primeira página do catálogo e o saldo real na
+// resposta inicial. O cliente cuida só do que é interativo (filtro, drawer de
+// resgate, saldo reativo).
+// ═══════════════════════════════════════════════════════════════════════════
 
-export default function MarketplacePage() {
-  const userPoints = useStore((s) => s.currentPointsBalance);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+export const dynamic = 'force-dynamic';
 
-  const apiCategory = activeCategory === 'all' ? undefined : activeCategory;
-  const { data: rewardsResponse, isLoading, mutate: refreshRewards } = useRewards(1, 50, apiCategory);
-  const products = rewardsResponse?.data || [];
+export default async function MarketplacePage() {
+  const { userId, tenantId } = await getSessionContext();
 
-  const handleRedeem = (product: any) => {
-    const price = product.pricePoints ?? product.pointsRequired ?? 0;
-    if (userPoints >= price) {
-      setSelectedProduct(product);
-      setIsCheckoutOpen(true);
-    }
-  };
+  // Catálogo inicial em paralelo com o saldo: duas leituras independentes.
+  const [catalog, user] = await Promise.all([
+    listRewards(tenantId, { page: 1, limit: 50 }),
+    getTenantDb(tenantId).user.findFirst({
+      where: { id: userId },
+      select: { pointsBalance: true },
+    }),
+  ]);
 
-  const handleRedeemSuccess = (newBalance: number) => {
-    useStore.getState().setPointsBalance(newBalance);
-    refreshRewards();
-  };
+  const initialRewards = (catalog as { data?: unknown[] }).data ?? [];
+  const initialBalance = user?.pointsBalance ?? 0;
 
   return (
     <main className="min-h-screen pb-20 pt-24 bg-md-surface-dim">
@@ -51,32 +44,11 @@ export default function MarketplacePage() {
           <p className="text-gray-500 text-sm">Troque seu esforço por recompensas reais.</p>
         </div>
 
-        <CategoryFilter
-          categories={categories}
-          activeCategory={activeCategory}
-          onSelect={setActiveCategory}
+        <MarketplaceClient
+          initialRewards={initialRewards as never}
+          initialBalance={initialBalance}
         />
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="animate-spin text-md-primary" size={36} />
-          </div>
-        ) : (
-          <ProductGrid
-            products={products}
-            userPoints={userPoints}
-            onRedeem={handleRedeem}
-          />
-        )}
       </div>
-
-      <CheckoutDrawer
-        reward={selectedProduct}
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        userBalance={userPoints}
-        onSuccess={handleRedeemSuccess}
-      />
     </main>
   );
 }
