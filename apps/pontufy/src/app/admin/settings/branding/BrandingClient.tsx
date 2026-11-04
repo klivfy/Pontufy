@@ -12,7 +12,7 @@ interface Branding {
   accentColor: string;
 }
 
-const PRESETS = ['#10B981', '#8B5CF6', '#3B82F6', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6', '#F97316'];
+const PRESETS = ['#495453', '#A7E3C1', '#CAD9CA', '#E0D2C5', '#F5C8BF', '#343434', '#6D5F52', '#848484'];
 
 export default function BrandingClient() {
   const [branding, setBranding] = useState<Branding | null>(null);
@@ -156,7 +156,7 @@ export default function BrandingClient() {
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
                 placeholder="https://suaempresa.com/logo.png"
-                className="w-full px-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+                className="w-full px-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
               />
             </div>
 
@@ -169,7 +169,7 @@ export default function BrandingClient() {
                 value={faviconUrl}
                 onChange={(e) => setFaviconUrl(e.target.value)}
                 placeholder="https://suaempresa.com/favicon.ico"
-                className="w-full px-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant/50 focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
+                className="w-full px-4 py-3.5 bg-md-surface-container border border-md-outline rounded-xl text-md-on-surface placeholder:text-md-on-surface-variant focus:outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 text-body-md transition-colors"
               />
             </div>
 
@@ -183,7 +183,7 @@ export default function BrandingClient() {
                     (e.target as HTMLImageElement).style.opacity = '0.3';
                   }}
                 />
-                <p className="text-body-sm text-md-on-surface-variant/60">Prévia do logo</p>
+                <p className="text-body-sm text-md-on-surface-variant">Prévia do logo</p>
               </div>
             )}
           </div>
@@ -250,12 +250,12 @@ export default function BrandingClient() {
           </div>
 
           <div className="p-5 bg-md-surface-container-high border border-md-outline rounded-xl">
-            <p className="text-body-sm text-md-on-surface-variant/60 mb-4">Prévia do gradiente da marca:</p>
+            <p className="text-body-sm text-md-on-surface-variant mb-4">Prévia do gradiente da marca:</p>
             <div className="flex items-center gap-4 flex-wrap">
               <button
                 type="button"
                 className="md-btn md-btn-filled text-body-md"
-                style={{ background: `linear-gradient(135deg, ${primaryHex} 0%, #059669 100%)` }}
+                style={{ background: `linear-gradient(135deg, ${primaryHex} 0%, #A7E3C1 100%)` }}
               >
                 CTA principal
               </button>

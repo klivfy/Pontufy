@@ -60,7 +60,7 @@ export function MD3SearchBar({ compact = false }: { compact?: boolean }) {
             aria-label="Buscar cursos"
             className={`${
               compact ? 'w-full' : 'absolute right-10'
-            } pl-4 pr-9 py-1.5 rounded-full text-sm bg-md-surface-container border border-md-outline-variant text-white placeholder-gray-600 focus:outline-none focus:border-md-primary transition-colors`}
+            } pl-4 pr-9 py-1.5 rounded-full text-sm bg-md-surface-container border border-md-outline-variant text-md-on-surface placeholder:text-md-on-surface-muted focus:outline-none focus:border-md-primary transition-colors`}
           />
         )}
       </AnimatePresence>
@@ -69,7 +69,7 @@ export function MD3SearchBar({ compact = false }: { compact?: boolean }) {
         type="button"
         onClick={() => (isOpen ? close() : setIsOpen(true))}
         aria-label={isOpen ? 'Fechar busca' : 'Abrir busca'}
-        className={`p-2 text-gray-400 hover:text-white transition-colors rounded-full ${
+        className={`p-2 text-md-on-surface-variant hover:text-md-on-surface transition-colors rounded-full ${
           compact && isOpen ? 'absolute right-1 z-10' : ''
         }`}
       >

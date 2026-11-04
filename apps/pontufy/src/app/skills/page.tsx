@@ -31,17 +31,17 @@ export default function SkillsPage() {
     <main className="min-h-screen pb-20 pt-24 bg-md-surface-dim">
       <div className="max-w-5xl mx-auto px-6 md:px-8">
         <header className="mb-6">
-          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-black text-md-on-surface tracking-tight flex items-center gap-3">
             <TreePine className="text-md-primary" size={28} />
             Trilhas de Competência
           </h1>
-          <p className="text-gray-500 mt-1.5 text-sm">
+          <p className="text-md-on-surface-variant mt-1.5 text-sm">
             Desbloqueie nós concluindo os cursos com nota mínima — cada trilha eleva sua proficiência corporativa.
           </p>
         </header>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg text-center font-medium mb-4">
+          <div className="bg-md-error/25 border border-md-error/20 text-md-error text-sm p-3 rounded-lg text-center font-medium mb-4">
             {error}
           </div>
         )}

@@ -7,6 +7,7 @@ import { LayoutDashboard, LogOut, ShieldCheck, User, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { signOutAll } from '@/components/auth/signOutAll';
 import { MD3SearchBar } from '@/components/ui/MD3SearchBar';
+import Wordmark from '@/components/brand/Wordmark';
 
 export interface MD3DrawerLink {
   href: string;
@@ -86,14 +87,14 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
           >
             {/* Header do drawer */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-md-outline flex-shrink-0">
-              <Link href="/dashboard" onClick={onClose} className="text-lg font-black tracking-tight text-white">
-                <span className="text-md-primary-container">Pontu</span>fy
+              <Link href="/dashboard" onClick={onClose} className="text-lg font-black tracking-tight text-md-on-surface">
+                <Wordmark />
               </Link>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Fechar menu"
-                className="p-2 text-gray-400 hover:text-white transition-colors rounded-full"
+                className="p-2 text-md-on-surface-variant hover:text-md-on-surface transition-colors rounded-full"
               >
                 <X size={20} />
               </button>
@@ -113,8 +114,8 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
                   onClick={onClose}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                     isActive(link.href)
-                      ? 'bg-md-primary/20 text-white font-bold'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                      ? 'bg-md-primary/20 text-md-on-surface font-bold'
+                      : 'text-md-on-surface-variant hover:bg-md-surface-container-low hover:text-md-on-surface'
                   }`}
                 >
                   {link.label}
@@ -135,7 +136,7 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
                 <Link
                   href="/superadmin"
                   onClick={onClose}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-violet-400 mt-1 transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-md-on-highlight mt-1 transition-colors"
                 >
                   <ShieldCheck size={16} />
                   Console
@@ -153,20 +154,20 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
                     </div>
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-md-surface ${
-                        isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                        isOnline ? 'bg-md-tertiary' : 'bg-md-error'
                       }`}
                       title={isOnline ? 'Conectado' : 'Offline'}
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{session?.user?.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
+                    <p className="text-sm font-semibold text-md-on-surface truncate">{session?.user?.name}</p>
+                    <p className="text-xs text-md-on-surface-variant truncate">{session?.user?.email}</p>
                   </div>
                 </div>
                 <Link
                   href="/profile"
                   onClick={onClose}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-md-on-surface hover:bg-md-surface-container-low hover:text-md-on-surface transition-colors"
                 >
                   <User size={15} />
                   Meu Perfil
@@ -174,7 +175,7 @@ export function MD3NavigationDrawer({ open, onClose, links, activeHref }: MD3Nav
                 <button
                   type="button"
                   onClick={() => signOutAll('/login')}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-md-error bg-md-error/25 hover:bg-md-error/50 transition-colors"
                 >
                   <LogOut size={15} />
                   Sair da conta

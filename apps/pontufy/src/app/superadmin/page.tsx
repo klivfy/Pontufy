@@ -72,7 +72,7 @@ export default async function SuperAdminPage() {
             <Link
               key={card.title}
               href={card.href}
-              className="group md-card-outlined md-elevation-1 p-6 hover:md-elevation-3 hover:border-md-primary/40 transition-all duration-300"
+              className="group md-card-outlined md-elevation-1 p-6 hover:shadow-xl hover:border-md-primary/40 transition-all duration-300"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">

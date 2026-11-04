@@ -7,6 +7,8 @@ import { notifyLessonCompleted, notifyStreakMilestone, notifyLevelUp } from '@/l
 import { checkVelocityLimit } from '@/lib/security/velocity';
 import { recordNodeScore } from '@/domain/skills';
 import { quizModulesSchema } from '@/schemas/quiz';
+import { buildQuizSelection, gradeSelection } from './quiz-selection';
+import { randomUUID } from 'node:crypto';
 
 export const QUIZ_BONUS_POINTS = 50;
 export const QUIZ_MIN_PERCENTAGE = 0.7;
@@ -136,13 +138,46 @@ export async function completeLesson(params: { tenantId: string; userId: string;
 // A3 — o formato persistido do quiz vem de `schemas/quiz.ts`; as interfaces
 // locais saíram para não existirem duas verdades sobre a mesma estrutura.
 
+/**
+ * Prepara uma tentativa de quiz (quiz dinâmico).
+ *
+ * Cada tentativa recebe um subconjunto do banco, sorteado a partir de uma
+ * semente, com mistura de dificuldade que depende do número da tentativa.
+ * A resposta NÃO leva gabarito: a correção acontece no servidor, recompondo o
+ * mesmo sorteio a partir da semente.
+ */
+export async function prepareQuiz(params: {
+  tenantId: string;
+  userId: string;
+  courseId: string;
+  /** Semente opcional — ausente, o servidor gera uma. */
+  seed?: string;
+}) {
+  const db = getTenantDb(params.tenantId);
+
+  const course = await db.course.findFirst({
+    where: { id: params.courseId, status: 'published' },
+    select: { id: true, quizJson: true },
+  });
+  if (!course) throw new DomainError('Curso não encontrado.', 404);
+  if (!course.quizJson) throw new DomainError('Este curso não possui quiz de avaliação.', 400);
+
+  const attemptNumber =
+    (await db.quizAttempt.count({ where: { userId: params.userId, courseId: params.courseId } })) + 1;
+
+  const seed = params.seed?.trim() || randomUUID();
+  return buildQuizSelection(course.quizJson, seed, attemptNumber);
+}
+
 export async function submitQuiz(params: {
   tenantId: string;
   userId: string;
   courseId: string;
   answers: unknown;
+  /** Quando presente, correção por id sobre o sorteio (quiz dinâmico). */
+  seed?: string;
 }) {
-  const { tenantId, userId, courseId, answers } = params;
+  const { tenantId, userId, courseId, answers, seed } = params;
   const db = getTenantDb(tenantId);
 
   const course = await db.course.findFirst({
@@ -160,23 +195,47 @@ export async function submitQuiz(params: {
   const questions = modules.flatMap((m) => m.questions ?? []);
   if (questions.length === 0) throw new DomainError('Este curso não possui questões.', 400);
 
-  const selected = Array.isArray(answers) ? answers : [];
   let score = 0;
-  for (let i = 0; i < questions.length; i++) {
-    const chosen = selected[i];
-    const optionsCount = questions[i].options?.length ?? 0;
-    if (
-      Number.isInteger(chosen) &&
-      typeof chosen === 'number' &&
-      chosen >= 0 &&
-      chosen < optionsCount &&
-      chosen === questions[i].correctIndex
-    ) {
-      score++;
+  let total = questions.length;
+  let perQuestion: Array<{ id: string; correct: boolean; correctIndex: number; explanation?: string }> = [];
+
+  if (seed && typeof seed === 'string' && seed.trim()) {
+    // Quiz dinâmico: o servidor recomputa o sorteio a partir da semente. O
+    // cliente não escolhe as perguntas — se não bater com o sorteio, a
+    // tentativa é rejeitada em vez de corrigida sobre um recorte inventado.
+    const attemptNumber =
+      (await db.quizAttempt.count({ where: { userId, courseId } })) + 1;
+    const byId = (answers && typeof answers === 'object' && !Array.isArray(answers)
+      ? answers
+      : {}) as Record<string, unknown>;
+    const graded = gradeSelection(course.quizJson, seed, attemptNumber, byId, QUIZ_MIN_PERCENTAGE);
+
+    if (graded.total === 0) {
+      throw new DomainError('Tentativa de quiz expirada. Recarregue a página e tente de novo.', 409);
+    }
+
+    score = graded.score;
+    total = graded.total;
+    perQuestion = graded.perQuestion;
+  } else {
+    // Caminho legado (posicional sobre o banco inteiro) — mantido para clientes
+    // em cache que ainda enviam um array de respostas.
+    const selected = Array.isArray(answers) ? answers : [];
+    for (let i = 0; i < questions.length; i++) {
+      const chosen = selected[i];
+      const optionsCount = questions[i].options?.length ?? 0;
+      if (
+        Number.isInteger(chosen) &&
+        typeof chosen === 'number' &&
+        chosen >= 0 &&
+        chosen < optionsCount &&
+        chosen === questions[i].correctIndex
+      ) {
+        score++;
+      }
     }
   }
 
-  const total = questions.length;
   const passed = score / total >= QUIZ_MIN_PERCENTAGE;
 
   let bonusAwarded = false;
@@ -242,5 +301,11 @@ export async function submitQuiz(params: {
     percentage: Math.round((score / total) * 100),
     bonusAwarded,
     newBalance,
+    /**
+     * Gabarito por questão. Só no caminho dinâmico: o cliente recebeu as
+     * perguntas sem resposta certa, então precisa disto para mostrar o que
+     * acertou e por quê. No caminho legado o cliente já tinha o banco inteiro.
+     */
+    ...(perQuestion.length > 0 ? { perQuestion } : {}),
   };
 }

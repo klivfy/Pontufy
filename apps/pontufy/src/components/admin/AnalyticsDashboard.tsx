@@ -28,15 +28,15 @@ interface SummaryData {
 }
 
 const CHART_COLORS = {
-  primary: '#5c4152',
-  secondary: '#d97f76',
-  tertiary: '#a1c0ae',
-  highlight: '#f7d0a9',
+  primary: '#495453',
+  secondary: '#6d5f52',
+  tertiary: '#356a4c',
+  highlight: '#a8433a',
 };
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="md-card-outlined md-elevation-1 p-5 hover:md-elevation-2 transition-all duration-200">
+    <div className="md-card-outlined md-elevation-1 p-5 hover:shadow-lg transition-all duration-200">
       <p className="text-label-lg text-md-on-surface-variant mb-1">{label}</p>
       <p className="text-display-sm font-bold text-md-on-surface">{value.toLocaleString('pt-BR')}</p>
     </div>

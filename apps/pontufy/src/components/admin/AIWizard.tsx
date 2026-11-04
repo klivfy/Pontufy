@@ -275,13 +275,13 @@ export default function AIWizard() {
                   <li><code className="bg-md-highlight/20 px-1 rounded text-xs">OPENAI_API_KEY</code> — platform.openai.com</li>
                   <li><code className="bg-md-highlight/20 px-1 rounded text-xs">ANTHROPIC_API_KEY</code> — console.anthropic.com</li>
                 </ul>
-                <p className="text-xs mt-3 text-md-on-highlight/70 font-medium">
+                <p className="text-xs mt-3 text-md-on-highlight font-medium">
                   Importante: Configure a variável para TODOS os ambientes (Production, Preview e Development) no Vercel.
                 </p>
                 {providerStatus.diagnostics && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-medium text-md-on-highlight/70">Diagnóstico do servidor</summary>
-                    <ul className="mt-1 space-y-0.5 text-xs text-md-on-highlight/60">
+                    <summary className="cursor-pointer text-xs font-medium text-md-on-highlight">Diagnóstico do servidor</summary>
+                    <ul className="mt-1 space-y-0.5 text-xs text-md-on-highlight">
                       {Object.entries(providerStatus.diagnostics).map(([k, v]) => (
                         <li key={k}><strong>{k}:</strong> {v}</li>
                       ))}
@@ -338,14 +338,14 @@ export default function AIWizard() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full h-32 bg-md-surface-container border border-md-outline text-md-on-surface rounded-xl p-3 outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 transition-all resize-none text-body-md placeholder:text-md-on-surface-variant/50"
+              className="w-full h-32 bg-md-surface-container border border-md-outline text-md-on-surface rounded-xl p-3 outline-none focus:border-md-primary focus:ring-2 focus:ring-md-primary/20 transition-all resize-none text-body-md placeholder:text-md-on-surface-variant"
               placeholder="Ex: Crie um treinamento de LGPD focado na equipe de atendimento ao cliente, com foco prático em proteção de dados e cenários de call center..."
             />
           </div>
 
           <div>
             <label className="text-label-lg text-md-on-surface-variant mb-2 block">
-              Material de Referência <span className="text-md-on-surface-variant/60 font-normal">(opcional)</span>
+              Material de Referência <span className="text-md-on-surface-variant font-normal">(opcional)</span>
             </label>
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -370,11 +370,11 @@ export default function AIWizard() {
                 onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }}
                 className="hidden"
               />
-              <Upload size={24} className="mx-auto mb-2 text-md-on-surface-variant/50" />
+              <Upload size={24} className="mx-auto mb-2 text-md-on-surface-variant" />
               <p className="text-body-sm text-md-on-surface-variant">
                 Arraste arquivos aqui ou <span className="text-md-primary font-semibold">clique para selecionar</span>
               </p>
-              <p className="text-xs text-md-on-surface-variant/50 mt-1">
+              <p className="text-xs text-md-on-surface-variant mt-1">
                 PDF, Word, TXT, PowerPoint, Excel, MD, MP4, MP3 — até {MAX_FILES} arquivos, 10MB cada
               </p>
             </div>
@@ -385,13 +385,13 @@ export default function AIWizard() {
                   <div key={i} className="flex items-center gap-3 bg-md-surface-container-high rounded-lg px-3 py-2 group">
                     <FileText size={16} className="text-md-primary flex-shrink-0" />
                     <span className="text-body-sm text-md-on-surface truncate flex-1">{f.name}</span>
-                    <span className="text-xs text-md-on-surface-variant/60">{formatFileSize(f.size)}</span>
+                    <span className="text-xs text-md-on-surface-variant">{formatFileSize(f.size)}</span>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                       className="p-1 rounded hover:bg-md-outline transition-colors opacity-0 group-hover:opacity-100"
                     >
-                      <X size={14} className="text-md-on-surface-variant/50" />
+                      <X size={14} className="text-md-on-surface-variant" />
                     </button>
                   </div>
                 ))}
@@ -402,7 +402,7 @@ export default function AIWizard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-md-outline">
             <div className="flex items-center gap-2 text-body-sm">
               <span className="text-md-on-surface-variant">Custo da operação:</span>
-              <span className="font-bold text-md-primary bg-md-primary-container px-2 py-0.5 rounded-full">
+              <span className="font-bold text-md-on-primary-container bg-md-primary-container px-2 py-0.5 rounded-full">
                 1 Crédito de IA
               </span>
             </div>
@@ -450,7 +450,7 @@ export default function AIWizard() {
               <div
                 key={index}
                 className={`flex items-center gap-3 transition-all duration-500 ${
-                  isCompleted ? 'text-md-tertiary' : isActive ? 'text-md-on-surface font-semibold' : 'text-md-on-surface-variant/60'
+                  isCompleted ? 'text-md-tertiary' : isActive ? 'text-md-on-surface font-semibold' : 'text-md-on-surface-variant'
                 }`}
               >
                 {isCompleted ? (
@@ -539,8 +539,8 @@ export default function AIWizard() {
               </p>
               {result.aiErrors && result.aiErrors.length > 0 && (
                 <details className="mt-2">
-                  <summary className="cursor-pointer font-medium text-md-on-highlight/70">Ver erros dos provedores</summary>
-                  <ul className="mt-1 space-y-1 ml-4 list-disc text-xs text-md-on-highlight/60">
+                  <summary className="cursor-pointer font-medium text-md-on-highlight">Ver erros dos provedores</summary>
+                  <ul className="mt-1 space-y-1 ml-4 list-disc text-xs text-md-on-highlight">
                     {result.aiErrors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
                 </details>
@@ -627,11 +627,80 @@ export default function AIWizard() {
               {lessons.map((lesson, i) => (
                 <div key={i} className="px-4 py-3 flex justify-between items-center">
                   <span className="text-body-md font-medium text-md-on-surface">{lesson.title}</span>
-                  <span className="text-label-sm font-bold text-md-primary bg-md-primary-container px-2 py-1 rounded-full">
+                  <span className="text-label-sm font-bold text-md-on-primary-container bg-md-primary-container px-2 py-1 rounded-full">
                     +{lesson.pointsAssigned} pts
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/*
+          O que o motor entregou em cada formato. Sem este painel, o RH não tem
+          como saber se a aula tem roteiro de vídeo e slides de verdade ou se o
+          enriquecimento caiu na derivação local — que é funcional, mas é o piso.
+        */}
+        {result.kit && (
+          <div className="bg-md-surface-container border border-md-outline rounded-xl p-6 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-title-lg font-bold text-md-on-surface">Formatos gerados</h3>
+              <span className="text-label-sm text-md-on-surface-variant">
+                prompt {result.kit.promptVersion} · {Math.round(result.kit.durationMs / 1000)}s
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Slides', value: result.kit.slides, hint: 'prontos para projetar' },
+                { label: 'Cenas de vídeo', value: result.kit.scenes, hint: 'narração + texto em tela' },
+                {
+                  label: 'Minutos de vídeo',
+                  value: Math.max(1, Math.round(result.kit.videoSeconds / 60)),
+                  hint: 'estimados pela narração',
+                },
+                {
+                  label: 'Leitura fácil',
+                  value: `${Math.round(result.kit.fleschAvg)}/100`,
+                  hint: 'Flesch pt-BR (maior = mais fácil)',
+                },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl bg-md-surface-container-high p-3">
+                  <p className="text-label-sm text-md-on-surface-variant uppercase tracking-wide">{item.label}</p>
+                  <p className="text-title-lg font-bold text-md-on-surface">{item.value}</p>
+                  <p className="text-label-sm text-md-on-surface-muted">{item.hint}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 text-body-sm text-md-on-surface-variant">
+              {result.kit.generated} de {result.kit.lessons} aulas com kit gerado por IA
+              {result.kit.derived > 0 && ` · ${result.kit.derived} derivada(s) do próprio texto`}
+              {result.kit.checkpointQuestions > 0 && ` · ${result.kit.checkpointQuestions} questões de fixação`}
+            </p>
+
+            {/*
+              Tom de voz é medido, não elogiado: é o número que diz se a narração
+              vai soar como uma pessoa falando ou como um comunicado interno.
+            */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-body-sm">
+              <span className="font-semibold text-md-on-surface">Tom da narração:</span>
+              <span
+                className={`rounded-full px-2.5 py-1 font-bold ${
+                  result.kit.toneAvg >= 75
+                    ? 'bg-md-tertiary-container text-md-on-tertiary-container'
+                    : result.kit.toneAvg >= 55
+                      ? 'bg-md-secondary-container text-md-on-secondary-container'
+                      : 'bg-md-highlight text-md-on-highlight'
+                }`}
+              >
+                {result.kit.toneLevel} · {Math.round(result.kit.toneAvg)}/100
+              </span>
+              <span className="text-md-on-surface-variant">
+                {result.kit.toneAvg >= 75
+                  ? 'pronto para leitura em voz alta'
+                  : 'revise o texto: ainda soa formal'}
+              </span>
             </div>
           </div>
         )}

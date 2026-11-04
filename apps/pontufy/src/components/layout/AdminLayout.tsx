@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext, ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { signOutAll } from '@/components/auth/signOutAll';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
@@ -20,6 +21,7 @@ import {
   CreditCard,
   Building2,
 } from 'lucide-react';
+import Wordmark from '@/components/brand/Wordmark';
 
 interface AdminLayoutContextType {
   navOpen: boolean;
@@ -80,11 +82,29 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
 ];
 
 export function AdminLayoutProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
   const [tenant, setTenant] = useState<{ name: string; aiCredits: number } | null>(null);
+
+  // Título da página derivado da MESMA lista que monta a navegação.
+  //
+  // Antes havia `{children && false} // Placeholder ...` no header: um
+  // comentário `//` solto em JSX não é comentário — vira TEXTO na tela, e era
+  // ele que aparecia como "// Placeholder - actual title comes from page".
+  //
+  // Prefixo mais longo ganha, senão `/admin/settings/branding` casaria com
+  // `/admin` e mostraria "Dashboard".
+  const pageTitle = useMemo(() => {
+    const items = NAV_SECTIONS.flatMap((section) => section.items);
+    const match = items
+      .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+      .sort((a, b) => b.href.length - a.href.length)[0];
+
+    return match?.label ?? 'Administração';
+  }, [pathname]);
 
   // Load tenant info and AI credits
   useEffect(() => {
@@ -138,7 +158,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <div className={`flex items-center justify-between p-4 border-b border-md-outline ${navCollapsed ? 'justify-center' : ''}`}>
             {!navCollapsed && (
               <Link href="/admin" className="flex items-center gap-2 text-xl font-black tracking-tighter text-md-on-surface">
-                <span className="text-md-primary">Pontu</span>fy
+                <Wordmark />
                 <span className="text-md-primary">Admin</span>
               </Link>
             )}
@@ -169,7 +189,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
               </div>
               <div className="mt-2 flex items-center gap-1.5">
                 <CreditCard size={14} className="text-md-tertiary" />
-                <span className="text-label-sm font-semibold text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">
+                <span className="text-label-sm font-semibold text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">
                   {aiCredits} créditos IA
                 </span>
               </div>
@@ -180,7 +200,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <nav className="flex-1 overflow-y-auto p-2" aria-label="Menu principal">
             {NAV_SECTIONS.map((section) => (
               <div key={section.label} className={navCollapsed ? 'hidden' : 'block'}>
-                <h3 className="px-3 py-1 text-label-sm text-md-on-surface-variant/60 uppercase tracking-widest">
+                <h3 className="px-3 py-1 text-label-sm text-md-on-surface-variant uppercase tracking-widest">
                   {section.label}
                 </h3>
                 <div className="space-y-1">
@@ -189,7 +209,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-body-md font-medium transition-all duration-200 ${
-                        item.href === window.location.pathname
+                        item.href === pathname
                           ? 'bg-md-primary-container text-md-on-primary-container'
                           : 'text-md-on-surface-variant hover:bg-md-surface-container-high hover:text-md-on-surface'
                       }`}
@@ -271,8 +291,8 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-30 bg-md-surface-container border-b border-md-outline backdrop-blur-sm bg-opacity-80">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6 md:px-8">
               {/* Page Title */}
-              <div className="flex-1" data-page-title>
-                {children && false} // Placeholder - actual title comes from page
+              <div className="flex-1 min-w-0" data-page-title>
+                <h1 className="text-title-lg font-bold text-md-on-surface truncate">{pageTitle}</h1>
               </div>
 
               {/* Actions */}
@@ -296,7 +316,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                     <span className="hidden sm:block text-body-md font-medium text-md-on-surface truncate max-w-[140px]">
                       {tenant?.name || 'Administrador'}
                     </span>
-                    <span className="hidden sm:block text-label-sm text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">
+                    <span className="hidden sm:block text-label-sm text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">
                       admin_rh
                     </span>
                     <ChevronDown size={16} className={`text-md-on-surface-variant transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
@@ -307,7 +327,7 @@ export function AdminLayoutProvider({ children }: { children: ReactNode }) {
                       <div className="px-4 py-3 border-b border-md-outline">
                         <p className="text-body-md font-semibold text-md-on-surface">{tenant?.name || 'Administrador'}</p>
                         <p className="text-body-sm text-md-on-surface-variant">admin@empresa.com</p>
-                        <span className="inline-block mt-1 text-label-sm text-md-tertiary bg-md-tertiary-container px-2 py-0.5 rounded-full">admin_rh</span>
+                        <span className="inline-block mt-1 text-label-sm text-md-on-tertiary-container bg-md-tertiary-container px-2 py-0.5 rounded-full">admin_rh</span>
                       </div>
                       <Link
                         href="/profile"

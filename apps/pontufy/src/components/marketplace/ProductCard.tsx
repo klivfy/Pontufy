@@ -29,7 +29,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
   return (
     <div className="bg-md-surface border border-md-outline rounded-xl overflow-hidden flex flex-col hover:border-md-primary/40 transition-all duration-200 group">
       {/* Partner Logo / Product Image - Grid Style */}
-      <div className="relative h-44 bg-white flex items-center justify-center p-6">
+      <div className="relative h-44 bg-md-surface-container-lowest flex items-center justify-center p-6">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -38,7 +38,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
             loading="lazy"
           />
         ) : (
-          <div className="flex flex-col items-center gap-2 text-gray-400">
+          <div className="flex flex-col items-center gap-2 text-md-on-surface-variant">
             <Coins size={32} />
             <span className="text-xs font-semibold">{partner}</span>
           </div>
@@ -58,7 +58,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
 
       {/* Product Details */}
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-semibold text-white text-sm leading-snug mb-3 flex-1 line-clamp-2">
+        <h3 className="font-semibold text-md-on-surface text-sm leading-snug mb-3 flex-1 line-clamp-2">
           {product.title}
         </h3>
 
@@ -73,7 +73,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
               href={product.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 text-md-on-surface-variant/60 hover:text-md-primary hover:bg-md-surface-container-high rounded transition-colors"
+              className="p-1.5 text-md-on-surface-variant hover:text-md-primary hover:bg-md-surface-container-high rounded transition-colors"
               title="Ver oferta original"
             >
               <ExternalLink size={14} />
@@ -92,7 +92,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
           <div className="w-full flex flex-col gap-2">
             <button
               disabled
-              className="w-full bg-md-surface-container text-gray-600 font-bold py-2.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 text-sm border border-md-outline"
+              className="w-full bg-md-surface-container text-md-on-surface-muted font-bold py-2.5 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 text-sm border border-md-outline"
             >
               <Lock size={14} /> Resgatar
             </button>
@@ -103,7 +103,7 @@ export default function ProductCard({ product, userPoints, onRedeem }: ProductCa
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="text-[10px] text-gray-600 font-semibold text-center">
+              <div className="text-[10px] text-md-on-surface-muted font-semibold text-center">
                 Faltam {pointsMissing.toLocaleString('pt-BR')} pts
               </div>
             </div>

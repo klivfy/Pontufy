@@ -4,7 +4,7 @@ import Link from 'next/link';
 export default function CourseRow({ title, courses }: { title: string; courses: any[] }) {
   return (
     <div className="px-8 md:px-16 mb-10">
-      <h2 className="text-base sm:text-lg font-bold text-white mb-4 tracking-tight">{title}</h2>
+      <h2 className="text-base sm:text-lg font-bold text-md-on-surface mb-4 tracking-tight">{title}</h2>
 
       <div className="flex gap-2 sm:gap-3 overflow-x-auto hide-scrollbar pb-6 -mx-4 px-4">
         {courses.map((course) => (
@@ -22,13 +22,13 @@ export default function CourseRow({ title, courses }: { title: string; courses: 
               />
               {/* Hover overlay */}
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-lg">
+                <div className="w-11 h-11 rounded-full bg-md-surface-container-lowest flex items-center justify-center shadow-lg">
                   <Play size={18} fill="black" strokeWidth={0} className="ml-0.5" />
                 </div>
               </div>
               {/* Progress bar (terciária — gamificação) */}
               {course.progress !== undefined && course.progress > 0 && (
-                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-700">
+                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-md-outline">
                   <div
                     className="h-full bg-md-tertiary"
                     style={{ width: `${course.progress}%` }}
@@ -38,7 +38,7 @@ export default function CourseRow({ title, courses }: { title: string; courses: 
             </div>
 
             <div className="mt-2 px-0.5">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-300 line-clamp-1 group-hover:text-white transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-md-on-surface line-clamp-1 group-hover:text-md-on-surface transition-colors">
                 {course.title}
               </h3>
               <div className="flex items-center gap-1 mt-0.5 text-[11px] text-md-tertiary font-bold">

@@ -13,6 +13,8 @@ export const quizSchema = z.object({
   options: z.array(z.string().min(1)).min(3, 'Mínimo de 3 opções').max(5, 'Máximo de 5 opções'),
   correctIndex: z.number().int().min(0).max(4),
   explanation: z.string().optional(),
+  /** Habilita prova equilibrada e sorteio adaptativo (quiz dinâmico). */
+  difficulty: z.enum(['facil', 'medio', 'dificil']).optional(),
 });
 
 export const lessonSchema = z.object({
@@ -57,6 +59,9 @@ export const strictQuizSchema = z.object({
   options: z.array(z.string().min(1)).min(3, 'Mínimo de 3 opções').max(5, 'Máximo de 5 opções'),
   correctIndex: z.number().int().min(0).max(4),
   explanation: z.string().describe('Por que a alternativa correta está correta'),
+  difficulty: z
+    .enum(['facil', 'medio', 'dificil'])
+    .describe('Dificuldade da questão; varie dentro do mesmo quiz'),
 });
 
 export const strictLessonSchema = z.object({

@@ -97,7 +97,7 @@ export default function CheckoutDrawer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={step === "loading" ? undefined : onClose}
-          className="absolute inset-0 bg-brand-slate/20 backdrop-blur-sm"
+          className="absolute inset-0 bg-md-inverse-surface/40 backdrop-blur-sm"
         />
 
         {/* Drawer Panel */}
@@ -116,7 +116,7 @@ export default function CheckoutDrawer({
             <button
               onClick={onClose}
               disabled={step === "loading"}
-              className="p-2 text-gray-400 hover:text-md-on-surface transition-colors disabled:opacity-50"
+              className="p-2 text-md-on-surface-variant hover:text-md-on-surface transition-colors disabled:opacity-50"
             >
               <X size={24} />
             </button>
@@ -141,7 +141,7 @@ export default function CheckoutDrawer({
               )}
               
               <div className="flex-1">
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                <div className="text-[10px] font-bold text-md-on-surface-variant uppercase tracking-wider mb-1">
                   Na {partner}
                 </div>
                 <h3 className="font-bold text-md-on-surface leading-tight text-sm">
@@ -159,11 +159,11 @@ export default function CheckoutDrawer({
               >
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-3 border-b border-md-outline">
-                    <span className="text-gray-500">Seu Saldo Atual</span>
+                    <span className="text-md-on-surface-variant">Seu Saldo Atual</span>
                     <span className="font-bold text-md-tertiary">{userBalance} pts</span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-md-outline">
-                    <span className="text-gray-500">Valor do Resgate</span>
+                    <span className="text-md-on-surface-variant">Valor do Resgate</span>
                     <span className="font-bold text-md-error">- {price} pts</span>
                   </div>
                   <div className="flex justify-between items-center py-3">
@@ -203,7 +203,7 @@ export default function CheckoutDrawer({
                   <h3 className="font-bold text-md-on-surface text-lg">
                     Processando transação...
                   </h3>
-                  <p className="text-gray-500 text-sm animate-pulse">
+                  <p className="text-md-on-surface-variant text-sm animate-pulse">
                     Comunicação segura com a API
                   </p>
                 </div>
@@ -225,14 +225,14 @@ export default function CheckoutDrawer({
                   <h3 className="text-2xl font-black text-md-on-surface mb-2">
                     Tudo Certo!
                   </h3>
-                  <p className="text-gray-500">
+                  <p className="text-md-on-surface-variant">
                     O resgate de <strong className="text-md-tertiary">{price} pts</strong> foi concluído.
                   </p>
                 </div>
 
                 <div className="bg-md-surface-container border border-md-outline border-dashed rounded-xl p-6 text-center mb-8 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-md-primary to-md-primary-container"></div>
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-3">
+                  <p className="text-xs text-md-on-surface-variant font-bold uppercase tracking-wider mb-3">
                     Seu Código de Resgate
                   </p>
                   <div className="font-mono text-2xl font-black text-md-primary tracking-widest mb-4">

@@ -30,13 +30,13 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         <div className="flex-1 flex items-center justify-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-md-surface-dim flex items-center justify-center">
             <div className="text-center">
-              <h3 className="text-white text-2xl font-bold mb-2">{lesson.title}</h3>
-              <p className="text-gray-500 text-sm">Área do Player de Vídeo</p>
+              <h3 className="text-md-on-surface text-2xl font-bold mb-2">{lesson.title}</h3>
+              <p className="text-md-on-surface-variant text-sm">Área do Player de Vídeo</p>
             </div>
           </div>
 
           <div className="absolute bottom-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-between items-center">
-            <div className="text-white text-sm">00:00 / {lesson.duration ?? '--:--'}</div>
+            <div className="text-md-on-surface text-sm">00:00 / {lesson.duration ?? '--:--'}</div>
             <button
               onClick={onComplete}
               className="bg-md-primary hover:bg-md-primary-container text-white font-bold py-1.5 px-4 rounded text-sm transition-colors"

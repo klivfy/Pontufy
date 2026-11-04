@@ -23,33 +23,33 @@ function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-28">
-      <h2 className="text-headline-sm font-bold text-white">{title}</h2>
-      <div className="mt-4 space-y-4 text-body-md text-gray-400">{children}</div>
+      <h2 className="text-headline-sm font-bold text-md-on-surface">{title}</h2>
+      <div className="mt-4 space-y-4 text-body-md text-md-on-surface-variant">{children}</div>
     </section>
   );
 }
 
 export default function PrivacidadePage() {
   return (
-    <main className="min-h-screen bg-[#0a0a0a] py-20 px-6">
+    <main className="min-h-screen bg-md-surface-container-low py-20 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400">
+          <div className="flex size-12 items-center justify-center rounded-md bg-md-tertiary/38 text-md-tertiary">
             <ShieldCheck className="size-6" aria-hidden="true" />
           </div>
-          <span className="rounded-full border border-[#2a2a2a] bg-[#141414] px-3 py-1 text-label-sm text-gray-400">
+          <span className="rounded-full border border-md-outline bg-md-surface-container px-3 py-1 text-label-sm text-md-on-surface-variant">
             Privacidade, LGPD & GDPR
           </span>
         </div>
 
-        <h1 className="mt-6 text-display-sm font-black text-white">
-          Política de <span className="text-emerald-400">Privacidade</span>
+        <h1 className="mt-6 text-display-sm font-black text-md-on-surface">
+          Política de <span className="text-md-tertiary">Privacidade</span>
         </h1>
-        <p className="mt-4 text-body-sm text-gray-500">Última atualização: {LAST_UPDATED}</p>
+        <p className="mt-4 text-body-sm text-md-on-surface-variant">Última atualização: {LAST_UPDATED}</p>
 
-        <div className="mt-8 md-card-elevated p-5 text-body-sm text-gray-400 border border-[#2a2a2a]">
+        <div className="mt-8 md-card-elevated p-5 text-body-sm text-md-on-surface-variant border border-md-outline">
           Este documento é mantido pela{' '}
-          <strong className="text-white">Mestry&apos;s Tecnologia e Consultoria em TI LTDA</strong>,
+          <strong className="text-md-on-surface">Mestry&apos;s Tecnologia e Consultoria em TI LTDA</strong>,
           operadora da plataforma Pontufy, e descreve como coletamos, usamos, armazenamos e
           protegemos dados pessoais em conformidade com a Lei nº 13.709/2018 (LGPD) e, para
           titulares localizados no Espaço Econômico Europeu, no Reino Unido ou em jurisdição
@@ -76,17 +76,17 @@ export default function PrivacidadePage() {
 
           <Section id="controlador" title="2. Controlador, Operador e Encarregado (DPO)">
             <p>
-              <strong className="text-white">Controlador:</strong> a empresa contratante
+              <strong className="text-md-on-surface">Controlador:</strong> a empresa contratante
               (tenant) da qual você é colaborador é, em regra, a controladora dos seus dados
-              pessoais tratados na plataforma. <strong className="text-white">Operadora:</strong>{' '}
+              pessoais tratados na plataforma. <strong className="text-md-on-surface">Operadora:</strong>{' '}
               a Mestry&apos;s Tecnologia e Consultoria em TI LTDA, São Paulo/SP, Brasil, atua como
               operadora dos dados no processamento técnico da plataforma Pontufy. Para fins do
               GDPR, aplicam-se os papéis equivalentes de "controller" e "processor".
             </p>
             <p>
-              <strong className="text-white">Encarregado (DPO):</strong> em cumprimento ao art.
+              <strong className="text-md-on-surface">Encarregado (DPO):</strong> em cumprimento ao art.
               41 da LGPD e, no que aplicável, ao art. 37 do GDPR, disponibilizamos o canal{' '}
-              <a href={`mailto:${DPO_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${DPO_EMAIL}`} className="text-md-tertiary hover:underline">
                 {DPO_EMAIL}
               </a>{' '}
               para tratar de qualquer assunto relacionado a dados pessoais.
@@ -97,19 +97,19 @@ export default function PrivacidadePage() {
             <p>Podemos coletar as seguintes categorias de dados:</p>
             <ul className="ml-5 list-disc space-y-2">
               <li>
-                <strong className="text-white">Dados de cadastro:</strong> nome e e-mail
+                <strong className="text-md-on-surface">Dados de cadastro:</strong> nome e e-mail
                 corporativo fornecidos pela sua empresa contratante no momento do convite.
               </li>
               <li>
-                <strong className="text-white">Dados de engajamento:</strong> aulas assistidas,
+                <strong className="text-md-on-surface">Dados de engajamento:</strong> aulas assistidas,
                 tempo de permanência, trilhas concluídas e resultados de quizzes.
               </li>
               <li>
-                <strong className="text-white">Dados de gamificação:</strong> histórico de
+                <strong className="text-md-on-surface">Dados de gamificação:</strong> histórico de
                 pontuação, conquistas e resgates realizados na vitrine de recompensas.
               </li>
               <li>
-                <strong className="text-white">Dados de navegação:</strong> endereço IP, tipo de
+                <strong className="text-md-on-surface">Dados de navegação:</strong> endereço IP, tipo de
                 dispositivo e páginas visitadas, coletados via cookies e ferramentas de
                 analytics.
               </li>
@@ -120,20 +120,20 @@ export default function PrivacidadePage() {
             <p>Realizamos o tratamento de dados com base em:</p>
             <ul className="ml-5 list-disc space-y-2">
               <li>
-                <strong className="text-white">Execução de contrato</strong> firmado entre a
+                <strong className="text-md-on-surface">Execução de contrato</strong> firmado entre a
                 Pontufy e a empresa contratante, do qual você é beneficiário;
               </li>
               <li>
-                <strong className="text-white">Legítimo interesse</strong> para análise de
+                <strong className="text-md-on-surface">Legítimo interesse</strong> para análise de
                 engajamento, segurança e melhoria dos nossos serviços, sempre respeitando os
                 direitos e liberdades do titular;
               </li>
               <li>
-                <strong className="text-white">Consentimento</strong> do titular quando aplicável
+                <strong className="text-md-on-surface">Consentimento</strong> do titular quando aplicável
                 a funcionalidades opcionais;
               </li>
               <li>
-                <strong className="text-white">Cumprimento de obrigação legal ou regulatória</strong>{' '}
+                <strong className="text-md-on-surface">Cumprimento de obrigação legal ou regulatória</strong>{' '}
                 quando aplicável.
               </li>
             </ul>
@@ -285,14 +285,14 @@ export default function PrivacidadePage() {
             <p>
               Dúvidas, solicitações ou reclamações relacionadas a dados pessoais podem ser
               enviadas para{' '}
-              <a href={`mailto:${DPO_EMAIL}`} className="text-emerald-400 hover:underline">
+              <a href={`mailto:${DPO_EMAIL}`} className="text-md-tertiary hover:underline">
                 {DPO_EMAIL}
               </a>
               . Caso não fique satisfeito com nossa resposta, você também pode apresentar
               reclamação à Autoridade Nacional de Proteção de Dados (ANPD) ou, se aplicável, à
               autoridade de proteção de dados de seu país de residência habitual, local de
               trabalho ou local da suposta infração no âmbito do GDPR. Veja também nossos{' '}
-              <Link href="/termos" className="text-emerald-400 hover:underline">
+              <Link href="/termos" className="text-md-tertiary hover:underline">
                 Termos de Uso
               </Link>
               .

@@ -31,15 +31,15 @@ interface NotificationDrawerProps {
 }
 
 const TYPE_STYLES: Record<NotificationType, { icon: typeof Coins; badge: string; iconColor: string }> = {
-  POINTS_EARNED: { icon: Coins, badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', iconColor: 'text-emerald-400' },
-  REWARD_REDEEMED: { icon: Gift, badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30', iconColor: 'text-purple-400' },
-  COURSE_ASSIGNED: { icon: GraduationCap, badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30', iconColor: 'text-blue-400' },
-  LEVEL_UP: { icon: TrendingUp, badge: 'bg-violet-500/20 text-violet-400 border-violet-500/30', iconColor: 'text-violet-400' },
-  SYSTEM: { icon: Megaphone, badge: 'bg-gray-500/20 text-gray-400 border-gray-500/30', iconColor: 'text-gray-400' },
-  BATTLE_CHALLENGE: { icon: Swords, badge: 'bg-orange-500/20 text-orange-400 border-orange-500/30', iconColor: 'text-orange-400' },
-  BATTLE_RESULT: { icon: Trophy, badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', iconColor: 'text-amber-400' },
+  POINTS_EARNED: { icon: Coins, badge: 'bg-md-tertiary/50 text-md-tertiary border-md-tertiary/30', iconColor: 'text-md-tertiary' },
+  REWARD_REDEEMED: { icon: Gift, badge: 'bg-md-highlight/50 text-md-on-highlight border-md-highlight/30', iconColor: 'text-md-on-highlight' },
+  COURSE_ASSIGNED: { icon: GraduationCap, badge: 'bg-md-primary/50 text-md-primary border-md-primary/30', iconColor: 'text-md-primary' },
+  LEVEL_UP: { icon: TrendingUp, badge: 'bg-md-highlight/50 text-md-on-highlight border-md-highlight/30', iconColor: 'text-md-on-highlight' },
+  SYSTEM: { icon: Megaphone, badge: 'bg-md-surface-container-high text-md-on-surface-variant border-md-outline', iconColor: 'text-md-on-surface-variant' },
+  BATTLE_CHALLENGE: { icon: Swords, badge: 'bg-md-secondary/50 text-md-secondary border-md-secondary/30', iconColor: 'text-md-secondary' },
+  BATTLE_RESULT: { icon: Trophy, badge: 'bg-md-secondary/50 text-md-secondary border-md-secondary/30', iconColor: 'text-md-secondary' },
   CERTIFICATE_READY: { icon: Award, badge: 'bg-md-primary/20 text-md-primary border-md-primary/30', iconColor: 'text-md-primary' },
-  DEPT_BONUS_AWARDED: { icon: Gift, badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', iconColor: 'text-emerald-400' },
+  DEPT_BONUS_AWARDED: { icon: Gift, badge: 'bg-md-tertiary/50 text-md-tertiary border-md-tertiary/30', iconColor: 'text-md-tertiary' },
 };
 
 function timeAgo(iso: string): string {
@@ -121,14 +121,14 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-[#141414] border-l border-[#2a2a2a] shadow-2xl z-50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-md-surface-container border-l border-md-outline shadow-2xl z-50 flex flex-col"
           >
-            <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Bell size={18} className="text-emerald-400" />
+            <div className="flex items-center justify-between p-4 border-b border-md-outline">
+              <h2 className="text-lg font-bold text-md-on-surface flex items-center gap-2">
+                <Bell size={18} className="text-md-tertiary" />
                 Notificações
                 {unreadNotifications > 0 && (
-                  <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-md-tertiary/50 text-md-tertiary text-xs font-bold px-2 py-0.5 rounded-full">
                     {unreadNotifications} novas
                   </span>
                 )}
@@ -138,7 +138,7 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
                   type="button"
                   onClick={markAllRead}
                   disabled={unreadNotifications === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-emerald-400 hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-md-on-surface-variant hover:text-md-tertiary hover:bg-md-surface-container-low transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <CheckCheck size={14} />
                   Marcar todas
@@ -146,7 +146,7 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
                 <button
                   type="button"
                   onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                  className="p-2 text-md-on-surface-variant hover:text-md-on-surface hover:bg-md-surface-container rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -157,9 +157,9 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
               {isLoading && (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-4 animate-pulse space-y-2">
-                      <div className="h-3 bg-[#2a2a2a] rounded w-1/2" />
-                      <div className="h-2 bg-[#2a2a2a] rounded w-3/4" />
+                    <div key={i} className="bg-md-surface-container-low border border-md-outline rounded-xl p-4 animate-pulse space-y-2">
+                      <div className="h-3 bg-md-surface-container-highest rounded w-1/2" />
+                      <div className="h-2 bg-md-surface-container-highest rounded w-3/4" />
                     </div>
                   ))}
                 </div>
@@ -167,9 +167,9 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
 
               {!isLoading && items.length === 0 && (
                 <div className="text-center py-16">
-                  <Bell size={48} className="mx-auto text-gray-600 mb-3" />
-                  <p className="text-gray-400">Nenhuma notificação por aqui.</p>
-                  <p className="text-sm text-gray-600 mt-1">Conclua aulas e resgate recompensas para receber avisos.</p>
+                  <Bell size={48} className="mx-auto text-md-on-surface-muted mb-3" />
+                  <p className="text-md-on-surface-variant">Nenhuma notificação por aqui.</p>
+                  <p className="text-sm text-md-on-surface-muted mt-1">Conclua aulas e resgate recompensas para receber avisos.</p>
                 </div>
               )}
 
@@ -186,10 +186,10 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
                       onClick={() => {
                         if (!item.read) markRead(item.id);
                       }}
-                      className={`w-full text-left bg-[#0a0a0a] border rounded-xl p-4 transition-colors ${
+                      className={`w-full text-left bg-md-surface-container-low border rounded-xl p-4 transition-colors ${
                         item.read
-                          ? 'border-[#2a2a2a] hover:border-[#3a3a3a]'
-                          : 'border-emerald-500/25 hover:border-emerald-500/40'
+                          ? 'border-md-outline hover:border-md-outline'
+                          : 'border-md-tertiary/25 hover:border-md-tertiary/40'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -198,16 +198,16 @@ export function NotificationDrawer({ isOpen, onClose }: NotificationDrawerProps)
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <p className={`text-sm font-semibold ${item.read ? 'text-gray-300' : 'text-white'}`}>
+                            <p className={`text-sm font-semibold ${item.read ? 'text-md-on-surface' : 'text-md-on-surface'}`}>
                               {item.title}
                             </p>
-                            <span className="text-[10px] text-gray-600 flex-shrink-0">
+                            <span className="text-[10px] text-md-on-surface-muted flex-shrink-0">
                               {timeAgo(item.createdAt)}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-400 mt-0.5">{item.message}</p>
+                          <p className="text-sm text-md-on-surface-variant mt-0.5">{item.message}</p>
                         </div>
-                        {!item.read && <span className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />}
+                        {!item.read && <span className="w-2 h-2 rounded-full bg-md-tertiary mt-2 flex-shrink-0" />}
                       </div>
                     </motion.button>
                   );

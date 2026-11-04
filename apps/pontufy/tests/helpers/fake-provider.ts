@@ -59,12 +59,16 @@ export function makeValidCourse(overrides: Record<string, unknown> = {}): Record
         options: ['24 horas', '7 dias', '30 dias'],
         correctIndex: 0,
         explanation: 'A política interna exige comunicação em até 24 horas.',
+        // Obrigatório desde o quiz dinâmico: a seleção usa a dificuldade para
+        // montar uma prova equilibrada e progressiva.
+        difficulty: 'facil',
       },
       {
         question: 'O que é um dado pessoal sensível?',
         options: ['Nome completo', 'Dado biométrico', 'Endereço comercial'],
         correctIndex: 1,
         explanation: 'Biometria é dado sensível segundo a LGPD.',
+        difficulty: 'medio',
       },
     ],
     ...overrides,

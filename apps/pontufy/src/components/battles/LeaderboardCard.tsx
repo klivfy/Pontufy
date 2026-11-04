@@ -36,22 +36,22 @@ export default function LeaderboardCard() {
     return () => clearInterval(interval);
   }, []);
 
-  const medals = ['bg-amber-400 text-black', 'bg-gray-300 text-black', 'bg-orange-700 text-white'];
+  const medals = ['bg-md-secondary text-md-on-secondary', 'bg-md-surface-container-high text-md-on-surface', 'bg-md-secondary text-white'];
 
   return (
-    <section className="bg-black/20 border border-white/10 rounded-2xl p-5">
+    <section className="bg-md-surface-container border border-md-outline-variant rounded-2xl p-5">
       <header className="flex items-center gap-2 mb-4">
         <Trophy className="text-md-primary" size={20} />
-        <h2 className="text-lg font-black text-white tracking-tight">
+        <h2 className="text-lg font-black text-md-on-surface tracking-tight">
           Ranking Interdepartamental
         </h2>
-        <span className="ml-auto text-[10px] uppercase tracking-wider text-gray-500 bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
+        <span className="ml-auto text-[10px] uppercase tracking-wider text-md-on-surface-variant bg-md-surface-container-low border border-md-outline-variant rounded-full px-2.5 py-1">
           Semana atual
         </span>
       </header>
 
       {error && (
-        <p className="text-red-400 text-sm text-center py-6">{error}</p>
+        <p className="text-md-error text-sm text-center py-6">{error}</p>
       )}
       {!ranking && !error && (
         <div className="flex justify-center py-10">
@@ -61,8 +61,8 @@ export default function LeaderboardCard() {
 
       {ranking && ranking.length === 0 && (
         <div className="text-center py-10">
-          <Users className="mx-auto text-gray-600 mb-3" size={36} />
-          <p className="text-gray-400 text-sm">
+          <Users className="mx-auto text-md-on-surface-muted mb-3" size={36} />
+          <p className="text-md-on-surface-variant text-sm">
             Nenhum departamento definido ainda. Defina o seu departamento no perfil para entrar no ranking.
           </p>
         </div>
@@ -75,19 +75,19 @@ export default function LeaderboardCard() {
             return (
               <div
                 key={entry.department}
-                className="rounded-xl border border-white/10 bg-white/5 p-4"
+                className="rounded-xl border border-md-outline-variant bg-md-surface-container-low p-4"
               >
                 <div className="flex items-center gap-3">
                   <span
                     className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-black shrink-0 ${
-                      medals[i] ?? 'bg-black/40 text-gray-400'
+                      medals[i] ?? 'bg-md-surface-container-high text-md-on-surface-variant'
                     }`}
                   >
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-white text-sm truncate">{entry.department}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-bold text-md-on-surface text-sm truncate">{entry.department}</p>
+                    <p className="text-xs text-md-on-surface-variant">
                       {entry.members} {entry.members === 1 ? 'membro' : 'membros'}
                     </p>
                   </div>
@@ -95,26 +95,26 @@ export default function LeaderboardCard() {
                     <p className="font-black text-md-primary text-lg leading-none">
                       {entry.points.toLocaleString('pt-BR')}
                     </p>
-                    <p className="text-[10px] text-gray-500 mt-1">pontos</p>
+                    <p className="text-[10px] text-md-on-surface-variant mt-1">pontos</p>
                   </div>
                 </div>
 
                 {/* 13.5 — Progresso da meta semanal de horas */}
                 <div className="mt-3 flex items-center gap-2">
-                  <Timer size={14} className="text-gray-500 shrink-0" />
-                  <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden">
+                  <Timer size={14} className="text-md-on-surface-variant shrink-0" />
+                  <div className="flex-1 h-2 bg-md-surface-container-high rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all ${entry.goalMet ? 'bg-emerald-400' : 'bg-md-primary'}`}
+                      className={`h-full transition-all ${entry.goalMet ? 'bg-md-tertiary' : 'bg-md-primary'}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-gray-500 whitespace-nowrap">
+                  <span className="text-[10px] text-md-on-surface-variant whitespace-nowrap">
                     {entry.hours.toFixed(1)}h / {entry.goalHours}h
                   </span>
                 </div>
 
                 {entry.goalMet && (
-                  <p className="mt-2 text-[11px] font-semibold text-emerald-300 flex items-center gap-1.5">
+                  <p className="mt-2 text-[11px] font-semibold text-md-tertiary flex items-center gap-1.5">
                     <Gift size={13} />
                     {entry.bonusAwarded
                       ? 'Bônus coletivo de 25 pts concedido esta semana!'

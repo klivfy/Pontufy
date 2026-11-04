@@ -11,7 +11,7 @@ export default function ResetPasswordPage() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(92,65,82,0.12) 0%, transparent 70%)',
+                'radial-gradient(ellipse 60% 40% at 50% 0%, color-mix(in srgb, var(--color-md-primary) 10%, transparent) 0%, transparent 70%)',
             }}
           />
           <div className="md-card-outlined md-elevation-3 p-8 w-full max-w-md mx-auto">

@@ -68,9 +68,44 @@ Isolamento multi-tenant: **nunca** `prisma` direto para dado de tenant. Sempre `
 
 `/admin/*` exige `admin_rh`. `/superadmin/*` exige `super_admin` + email `@pontufy.com` (403 opaco).
 
+## Motor de cursos (IA)
+
+Pipeline em duas fases — referência completa em [`MOTOR-CURSOS.md`](../../MOTOR-CURSOS.md).
+
+- **Fase 1** (`domain/ai/course-engine.ts`): curso em markdown + banco de 6–12
+  questões com `difficulty`. Uma chamada; fallback = template local.
+- **Fase 2** (`domain/ai/lesson-kit-engine.ts`): uma chamada **por aula** para
+  gerar o kit (roteiro de vídeo, slides, leitura fácil, checkpoint). Falha de uma
+  aula não derruba o curso; sem provedor, `deriveKitFromMarkdown` gera o kit do
+  próprio texto.
+- Persistência: `Lesson.blocks` (kit) e `Course.quizJson` (banco com `id`).
+  `blocks` nulo em curso antigo → o player deriva. **Não** faça backfill em massa.
+- Legibilidade é medida, não prometida: `domain/learning/readability.ts`
+  (Flesch pt-BR) roda sobre todo resumo.
+- Quiz final é sorteado por semente e **corrigido no servidor**
+  (`domain/learning/quiz-selection.ts`). Nunca envie `correctIndex` antes da
+  correção; nunca aceite a seleção de questões vinda do cliente.
+- Bancada: `npx tsx scripts/test-lesson-kit.mjs` (`--off` testa só a derivação).
+
+
+
 ## Tema visual
 
-MD3 no produto: `bg-md-surface`, `text-md-on-surface`, accent `md-primary` / emerald. Superadmin usa violeta.
+Material Design 3 **claro**, fonte **Google Sans Flex**, paleta quente de 10 cores
+(verde-chumbo, sálvia, areia, menta, blush, 5 neutros). Todos os tokens vivem no
+`@theme` de `src/app/globals.css` — a referência completa está em
+[`DESIGN-SYSTEM.md`](../../DESIGN-SYSTEM.md).
+
+Regras curtas:
+
+- Cor sempre por token `md-*` (`bg-md-surface`, `text-md-on-surface`). Paleta crua
+  do Tailwind (`gray-*`, `emerald-*`, `bg-[#141414]`) não existe mais no produto.
+- Texto sobre container tonal usa `text-md-on-*-container`, nunca a cor base do
+  papel (4,3:1 reprova AA).
+- Sem alfa em token de **texto** (`text-md-*/60` some no fundo claro). Hierarquia
+  vem de `on-surface` → `on-surface-variant` → `on-surface-muted`.
+- Superadmin usa a mesma paleta (não tem mais violeta próprio).
+
 
 ## Seeds
 

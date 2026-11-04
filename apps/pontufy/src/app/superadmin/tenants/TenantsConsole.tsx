@@ -75,7 +75,7 @@ export default function TenantsConsole({ initialTenants }: { initialTenants: Ten
       <div className="overflow-x-auto">
         <table className="w-full text-body-sm">
           <thead>
-            <tr className="text-left text-label-sm text-md-on-surface-variant/60 uppercase tracking-wider border-b border-md-outline">
+            <tr className="text-left text-label-sm text-md-on-surface-variant uppercase tracking-wider border-b border-md-outline">
               <th className="pb-3 pr-4 font-semibold">Empresa</th>
               <th className="pb-3 pr-4 font-semibold">Plano</th>
               <th className="pb-3 pr-4 font-semibold">Assinatura</th>
@@ -99,17 +99,17 @@ export default function TenantsConsole({ initialTenants }: { initialTenants: Ten
                 <tr key={tenant.id} className="align-top transition-colors hover:bg-md-surface-container-high/50">
                   <td className="py-4 pr-4">
                     <p className="text-md-on-surface font-medium">{tenant.name}</p>
-                    <p className="text-body-sm text-md-on-surface-variant/60 font-mono">{tenant.slug}</p>
+                    <p className="text-body-sm text-md-on-surface-variant font-mono">{tenant.slug}</p>
                   </td>
                   <td className="py-4 pr-4">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-label-sm font-semibold ${config.bg} ${config.text} ${config.border}`}>
                       {config.label}
                     </span>
                   </td>
-                  <td className="py-4 pr-4 text-md-on-surface-variant/60">{tenant.subscriptionStatus ?? '—'}</td>
-                  <td className="py-4 pr-4 text-center text-md-on-surface-variant/60">{tenant._count.users}</td>
-                  <td className="py-4 pr-4 text-center text-md-on-surface-variant/60">{tenant._count.courses}</td>
-                  <td className="py-4 pr-4 text-center text-md-on-surface-variant/60 whitespace-nowrap">
+                  <td className="py-4 pr-4 text-md-on-surface-variant">{tenant.subscriptionStatus ?? '—'}</td>
+                  <td className="py-4 pr-4 text-center text-md-on-surface-variant">{tenant._count.users}</td>
+                  <td className="py-4 pr-4 text-center text-md-on-surface-variant">{tenant._count.courses}</td>
+                  <td className="py-4 pr-4 text-center text-md-on-surface-variant whitespace-nowrap">
                     {tenant.trialEndsAt
                       ? new Date(tenant.trialEndsAt).toLocaleDateString('pt-BR')
                       : '—'}

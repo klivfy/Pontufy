@@ -42,10 +42,10 @@ export default function AchievementsCard() {
 
   return (
     <section className="bg-md-surface border border-md-outline rounded-xl p-6">
-      <h3 className="font-bold text-white mb-1 flex items-center gap-2">
+      <h3 className="font-bold text-md-on-surface mb-1 flex items-center gap-2">
         <Trophy size={17} className="text-md-tertiary" /> Conquistas
       </h3>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-md-on-surface-variant mb-4">
         Desbloqueie marcos de aprendizado e mantenha seu streak de dias.
       </p>
 
@@ -68,11 +68,11 @@ export default function AchievementsCard() {
                 title={a.description}
               >
                 <div className={`text-2xl mb-1 ${isUnlocked ? '' : 'grayscale'}`}>{a.emoji}</div>
-                <p className={`text-xs font-bold leading-tight ${isUnlocked ? 'text-white' : 'text-gray-500'}`}>
+                <p className={`text-xs font-bold leading-tight ${isUnlocked ? 'text-md-on-surface' : 'text-md-on-surface-variant'}`}>
                   {a.title}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{a.description}</p>
-                {!isUnlocked && <Lock size={10} className="inline mt-1 text-gray-600" />}
+                <p className="text-[10px] text-md-on-surface-variant mt-0.5 leading-tight">{a.description}</p>
+                {!isUnlocked && <Lock size={10} className="inline mt-1 text-md-on-surface-muted" />}
               </div>
             );
           })}

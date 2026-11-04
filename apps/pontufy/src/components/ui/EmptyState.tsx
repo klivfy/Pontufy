@@ -17,8 +17,8 @@ export function EmptyState({ icon: Icon, title, description, actionLabel, onActi
       <div className="w-16 h-16 rounded-full bg-md-tertiary/15 flex items-center justify-center">
         <Icon size={28} className="text-md-tertiary" />
       </div>
-      <h3 className="text-title-lg text-white font-bold">{title}</h3>
-      <p className="text-sm text-gray-500 max-w-sm">{description}</p>
+      <h3 className="text-title-lg text-md-on-surface font-bold">{title}</h3>
+      <p className="text-sm text-md-on-surface-variant max-w-sm">{description}</p>
       {actionLabel && onAction && (
         <Button variant="tonal" onClick={onAction} className="mt-2">
           {actionLabel}

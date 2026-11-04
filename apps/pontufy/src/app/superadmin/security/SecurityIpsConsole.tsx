@@ -81,7 +81,7 @@ export default function SecurityIpsConsole() {
       <div className="overflow-x-auto">
         <table className="w-full text-body-sm">
           <thead>
-            <tr className="text-left text-label-sm text-md-on-surface-variant/60 uppercase tracking-wider border-b border-md-outline bg-md-surface-container-high/50">
+            <tr className="text-left text-label-sm text-md-on-surface-variant uppercase tracking-wider border-b border-md-outline bg-md-surface-container-high/50">
               <th className="px-4 py-3 font-semibold">IP</th>
               <th className="px-4 py-3 font-semibold">Motivo</th>
               <th className="px-4 py-3 font-semibold">Bloqueado em</th>
@@ -94,10 +94,10 @@ export default function SecurityIpsConsole() {
               <tr key={entry.ip} className="transition-colors hover:bg-md-surface-container-high/50">
                 <td className="px-4 py-3 font-mono text-md-on-surface">{entry.ip}</td>
                 <td className="px-4 py-3 text-md-on-surface-variant">{entry.reason}</td>
-                <td className="px-4 py-3 text-md-on-surface-variant/60">
+                <td className="px-4 py-3 text-md-on-surface-variant">
                   {entry.blockedAt ? new Date(entry.blockedAt).toLocaleString('pt-BR') : '—'}
                 </td>
-                <td className="px-4 py-3 text-md-on-surface-variant/60">
+                <td className="px-4 py-3 text-md-on-surface-variant">
                   {entry.expiresAt ? new Date(entry.expiresAt).toLocaleString('pt-BR') : '—'}
                 </td>
                 <td className="px-4 py-3 text-right">

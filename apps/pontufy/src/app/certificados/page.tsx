@@ -1,54 +1,54 @@
-'use client';
+import { Award, BookOpen } from 'lucide-react';
 
-import { useState, useEffect } from 'react';
-import { Award, Loader2, BookOpen } from 'lucide-react';
-import { downloadCertificate } from '@/lib/download-certificate';
-import CertificateBadgeMural from '@/components/certificates/CertificateBadgeMural';
+import { getSessionContext } from '@/infra/session';
+import { getTenantDb } from '@/infra/db';
+import CertificateBadgeMural, {
+  type CertificateWithMeta,
+} from '@/components/certificates/CertificateBadgeMural';
 
-interface Certificate {
-  id: string;
-  courseId: string;
-  courseName: string;
-  issuedAt: string;
-  verificationHash: string;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// C5 — Fronteira RSC: esta página era 100% client e buscava em
+// `/api/certificates` no `useEffect`, mostrando spinner antes de qualquer
+// conteúdo.
+//
+// Agora o dado é lido no servidor, com a mesma sessão e o mesmo escopo de
+// tenant, e chega no primeiro paint. O cliente continua dono do que é
+// interativo (mural, raridade, compartilhar) — o `CertificateBadgeMural`
+// segue como client component.
+//
+// Ganho concreto: uma ida ao servidor a menos, sem spinner, e o erro de sessão
+// deixa de ser uma tela vazia em silêncio.
+// ═══════════════════════════════════════════════════════════════════════════
 
-export default function CertificatesPage() {
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [downloading, setDownloading] = useState<string | null>(null);
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    fetch('/api/certificates')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setCertificates(data);
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
+export default async function CertificatesPage() {
+  const { userId, tenantId } = await getSessionContext();
+  const db = getTenantDb(tenantId);
 
-  const handleDownload = async (cert: Certificate) => {
-    setDownloading(cert.id);
-    try {
-      await downloadCertificate(cert.courseId, cert.courseName);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao baixar certificado.');
-    } finally {
-      setDownloading(null);
-    }
-  };
+  const certificates = await db.issuedCertificate.findMany({
+    where: { userId },
+    orderBy: { issuedAt: 'desc' },
+    select: {
+      id: true,
+      courseId: true,
+      courseName: true,
+      issuedAt: true,
+      verificationHash: true,
+    },
+  });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[70vh] bg-md-surface-dim">
-        <Loader2 className="animate-spin text-md-primary" size={36} />
-      </div>
-    );
-  }
-
-  const userName = typeof window !== 'undefined' ? (document.querySelector('[data-user-name]')?.getAttribute('data-user-name') || '') : '';
-  const tenantName = typeof window !== 'undefined' ? (document.querySelector('[data-tenant-name]')?.getAttribute('data-tenant-name') || '') : '';
+  // Serialização explícita: Date não atravessa a fronteira RSC sem conversão.
+  // `verificationHash` é nullable no banco (certificado legado); o mural espera
+  // string. Certificado sem hash não é verificável e não deve aparecer como se
+  // fosse — fica com string vazia e o mural trata como "sem verificação".
+  const serialized: CertificateWithMeta[] = certificates.map((certificate) => ({
+    id: certificate.id,
+    courseId: certificate.courseId,
+    courseName: certificate.courseName,
+    issuedAt: certificate.issuedAt.toISOString(),
+    verificationHash: certificate.verificationHash ?? '',
+  }));
 
   return (
     <main className="min-h-screen pb-20 pt-24 bg-md-surface-dim">
@@ -56,27 +56,30 @@ export default function CertificatesPage() {
         <header className="mb-8 flex items-center gap-3">
           <Award size={28} className="text-md-primary" />
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Meus Certificados</h1>
-            <p className="text-gray-500 mt-0.5 text-sm">Certificados emitidos pelos cursos que você concluiu — cada um com raridade única e verificação criptográfica.</p>
+            <h1 className="text-3xl font-black text-md-on-surface tracking-tight">Meus Certificados</h1>
+            <p className="text-md-on-surface-variant mt-0.5 text-sm">
+              Certificados emitidos pelos cursos que você concluiu — cada um com raridade única e
+              verificação criptográfica.
+            </p>
           </div>
         </header>
 
-        {certificates.length === 0 ? (
-          <div className="text-center py-24 bg-black/20 border border-white/10 rounded-2xl">
-            <BookOpen size={40} className="mx-auto text-gray-600 mb-4" />
-            <p className="text-white font-semibold mb-1">Nenhum certificado ainda</p>
-            <p className="text-gray-500 text-sm mb-6">Conclua um curso para receber seu certificado com badge de raridade.</p>
+        {serialized.length === 0 ? (
+          <div className="text-center py-24 bg-md-surface-container border border-md-outline-variant rounded-2xl">
+            <BookOpen size={40} className="mx-auto text-md-on-surface-muted mb-4" />
+            <p className="text-md-on-surface font-semibold mb-1">Nenhum certificado ainda</p>
+            <p className="text-md-on-surface-variant text-sm mb-6">
+              Conclua um curso para receber seu certificado com badge de raridade.
+            </p>
             <a
               href="/cursos"
-              className="inline-block px-5 py-2.5 rounded-full text-sm font-bold text-black bg-md-primary hover:opacity-90 transition"
+              className="inline-block px-5 py-2.5 rounded-full text-sm font-bold text-md-on-primary bg-md-primary hover:opacity-90 transition"
             >
               Ver cursos disponíveis
             </a>
           </div>
         ) : (
-          <CertificateBadgeMural
-            certificates={certificates}
-          />
+          <CertificateBadgeMural certificates={serialized} />
         )}
       </div>
     </main>
