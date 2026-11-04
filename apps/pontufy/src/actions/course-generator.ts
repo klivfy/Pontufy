@@ -33,6 +33,7 @@ export async function checkAIProviders(): Promise<{
  * (NUNCA `maxTokens` — removido/quebrado no v6).
  */
 import { generateCourseWithFallback } from '@/domain/ai/course-engine';
+import { reviewCourseAgainstMaterial } from '@/domain/ai/course-review';
 
 // ═══════════════════════ Validação de entrada ═══════════════════════
 
@@ -73,6 +74,8 @@ export type GenerateTrainingResult =
       provider: string;
       creditsRemaining: number;
       persisted: boolean;
+  requiresReview?: boolean;
+  review?: Awaited<ReturnType<typeof reviewCourseAgainstMaterial>>;
       course: CoursePayload;
       aiErrors?: string[];
     }
@@ -153,6 +156,16 @@ export async function generateTrainingCourse(
     referenceChars: parsed.data.referenceContent?.length ?? 0,
   }, 'ai');
 
+  // A9 — revisão de aderência ao material (LLM-as-judge). Não bloqueia a
+  // geração: se o juiz falhar, o curso continua rascunho e a decisão de
+  // publicar permanece humana.
+  const review = await reviewCourseAgainstMaterial(generated.data, parsed.data.referenceContent);
+  logger.info('Revisão do curso', {
+    status: review.status,
+    conflicts: review.status === 'conflicts' ? review.conflicts.length : 0,
+    provider: review.status === 'clean' || review.status === 'conflicts' ? review.provider : undefined,
+  }, 'ai');
+
   const now = new Date();
   // Ordena pelas aulas pela ordem didática definida pelo gerador.
   const orderedLessons = [...generated.data.lessons].sort((a, b) => a.order - b.order);
@@ -199,7 +212,11 @@ export async function generateTrainingCourse(
           tenantId,
           title: generated.data.title,
           description: generated.data.description,
-          status: 'published',
+          // IA-5 — curso gerado por IA nasce como RASCUNHO. Publicar é ato
+          // humano (PATCH /api/admin/courses/[id]/publish). Antes desta mudança
+          // a IA publicava direto: o caso do IA-3 (política de pen drive
+          // invertida no quiz) chegaria ao colaborador sem ninguém aprovar.
+          status: 'draft',
           aiCreditsSpent: 1,
           quizJson,
           lessons: { create: lessonsToCreate },
@@ -264,11 +281,14 @@ export async function generateTrainingCourse(
     creditsRemaining,
     persisted,
     aiErrors: generated.errors,
+    // IA-5 / A9 — o curso é rascunho e a revisão diz o que o RH precisa olhar.
+    requiresReview: true,
+    review,
     course: {
       id: courseId,
       title: generated.data.title,
       description: generated.data.description,
-      status: 'published',
+      status: 'draft',
       createdAt: now.toISOString(),
       quizJson,
       category: generated.data.category,

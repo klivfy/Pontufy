@@ -37,6 +37,32 @@ export default function AIWizard() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [activeChecklist, setActiveChecklist] = useState(0);
   const [result, setResult] = useState<SuccessResult | null>(null);
+  // IA-5 — publicar é ato humano: o curso nasce rascunho e este é o botão.
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
+
+  async function handlePublish() {
+    if (!result) return;
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const response = await fetch(`/api/admin/courses/${result.courseId}/publish`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'publish' }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `Falha ao publicar (${response.status})`);
+      }
+      setPublished(true);
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : 'Falha ao publicar o curso.');
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   const [providerStatus, setProviderStatus] = useState<{
     available: string[];
@@ -448,6 +474,9 @@ export default function AIWizard() {
   if (step === 3 && result) {
     const lessons = result.course.lessons;
     const isTemplate = result.provider.startsWith('local:');
+    const review = result.review;
+    const conflicts = review?.status === 'conflicts' ? review.conflicts : [];
+    const reviewUnavailable = review?.status === 'unavailable';
 
     return (
       <div className="md-card-outlined md-elevation-1 p-6 sm:p-8 animate-[fadeIn_0.3s_ease-out]">
@@ -456,24 +485,48 @@ export default function AIWizard() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-headline-sm font-bold text-md-on-surface flex items-center gap-2">
-              <CheckCircle className="text-md-tertiary" /> Curso Criado!
+              <CheckCircle className="text-md-tertiary" /> Curso em revisão
             </h2>
             <p className="text-body-md text-md-on-surface-variant mt-1">
-              <strong>{result.course.title}</strong> foi publicado com sucesso.
+              <strong>{result.course.title}</strong> foi salvo como <strong>rascunho</strong>.
+              Revise o conteúdo e publique quando aprovar.
             </p>
           </div>
-          <button
-            onClick={() => {
-              setStep(1);
-              setPrompt('');
-              setFiles([]);
-              setResult(null);
-            }}
-            className="text-body-sm font-semibold text-md-on-surface-variant hover:text-md-primary flex items-center gap-1 transition-colors"
-          >
-            <ArrowLeft size={16} /> Criar outro
-          </button>
+          <div className="flex items-center gap-3">
+            {published ? (
+              <span className="text-body-sm font-semibold text-md-tertiary flex items-center gap-1">
+                <CheckCircle size={16} /> Publicado
+              </span>
+            ) : (
+              <button
+                onClick={handlePublish}
+                disabled={publishing}
+                className="md-btn-filled px-4 py-2 text-body-sm font-semibold disabled:opacity-60"
+              >
+                {publishing ? 'Publicando…' : 'Publicar curso'}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setStep(1);
+                setPrompt('');
+                setFiles([]);
+                setResult(null);
+                setPublished(false);
+                setPublishError(null);
+              }}
+              className="text-body-sm font-semibold text-md-on-surface-variant hover:text-md-primary flex items-center gap-1 transition-colors"
+            >
+              <ArrowLeft size={16} /> Criar outro
+            </button>
+          </div>
         </div>
+
+        {publishError && (
+          <div className="mb-6 p-4 bg-md-error/10 border border-md-error/30 rounded-xl text-body-sm text-md-on-error-container">
+            <strong>Não foi possível publicar:</strong> {publishError}
+          </div>
+        )}
 
         {isTemplate && (
           <div className="mb-6 p-4 bg-md-highlight/10 border border-md-highlight/30 rounded-xl flex items-start gap-3 text-md-on-highlight">
@@ -492,6 +545,58 @@ export default function AIWizard() {
                   </ul>
                 </details>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* A9 — o que a revisão automática encontrou. Publicar com conflito
+            aberto é decisão consciente do RH, não descuido. */}
+        {conflicts.length > 0 && (
+          <div className="mb-6 p-4 bg-md-error/10 border border-md-error/30 rounded-xl flex items-start gap-3 text-md-on-error-container">
+            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+            <div className="text-body-sm">
+              <p className="font-bold">
+                {conflicts.length} possível(is) contradição(ões) com o material de referência
+              </p>
+              <p className="mt-1">
+                A revisão automática comparou o curso com o material enviado. Confirme antes de publicar.
+              </p>
+              <ul className="mt-2 space-y-2 ml-4 list-disc text-xs">
+                {conflicts.map((conflict, index) => (
+                  <li key={index}>
+                    <span className="font-semibold">[{conflict.severity === 'high' ? 'grave' : 'atenção'}]</span>{' '}
+                    {conflict.finding}
+                    <br />
+                    <span className="opacity-80">Regra do material: {conflict.rule}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {reviewUnavailable && (
+          <div className="mb-6 p-4 bg-md-highlight/10 border border-md-highlight/30 rounded-xl flex items-start gap-3 text-md-on-highlight">
+            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" />
+            <div className="text-body-sm">
+              <p className="font-bold">Revisão automática indisponível</p>
+              <p className="mt-1">
+                Nenhum provedor de IA conseguiu comparar o curso com o material. A revisão manual é
+                obrigatória neste caso — o curso permanece como rascunho até você publicar.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {review?.status === 'clean' && (
+          <div className="mb-6 p-4 bg-md-tertiary-container/40 border border-md-tertiary/30 rounded-xl flex items-start gap-3">
+            <CheckCircle size={18} className="flex-shrink-0 mt-0.5 text-md-tertiary" />
+            <div className="text-body-sm">
+              <p className="font-bold text-md-on-surface">Revisão automática sem conflitos</p>
+              <p className="mt-1 text-md-on-surface-variant">
+                O curso foi comparado com o material e não contraria nenhuma regra identificada.
+                Ainda assim, a publicação é sua decisão.
+              </p>
             </div>
           </div>
         )}

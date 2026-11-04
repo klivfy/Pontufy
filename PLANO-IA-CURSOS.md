@@ -152,8 +152,9 @@ Saídas versionadas em `tests/fixtures/ai-golden/` para comparação estrutural 
 | **IA-1.5** ✅ *(feito)* | fallback de structured output: repetir em modo JSON (schema no prompt + extração de cerca markdown + Zod) e guarda de truncamento | Ollama Cloud `gpt-oss:120b` passou de inútil a funcional |
 | **IA-2** ✅ *(feito)* | `meta` na resposta do motor (provider, usedFallback, usedJsonMode, durationMs, attempts[], usage) + log estruturado na action | 11 asserts no spec provam o caminho de cada tentativa |
 | **IA-3** ✅ *(feito)* | rubrica A1–A8 definida ANTES + 9 gerações (3 cenários × 3 provedores) | 9/9 aprovados; 1 contradição semântica encontrada na revisão manual → novo critério A9 proposto |
-| **IA-4** (próximo) | **A9** (contradição com o material) + versionamento de prompt (`COURSE_PROMPT_VERSION`) | contradição do pendrive detectada automaticamente |
-| **IA-5** | aviso de revisão humana obrigatória no `AIWizard` antes de publicar | RH não recebe curso como pronto |
+| **IA-4** ✅ *(feito)* | **A9**: revisão por LLM-as-judge (`course-review.ts`) — regra citada, trecho do curso, severidade; falha fechada (`unavailable` bloqueia) | 7 casos com provedor falso |
+| **IA-5** ✅ *(feito)* | curso nasce `draft`; `PATCH /api/admin/courses/[id]/publish` (`requireHrAdmin` + auditoria); `AIWizard` mostra conflitos do A9 e só publica por ação humana | IA não publica mais sozinha |
+| **IA-6** (próximo) | versionamento de prompt (`COURSE_PROMPT_VERSION`) e comparação A/B | dois prompts avaliados com a mesma golden set |
 
 **Dependência:** IA-1 não depende de nenhuma conta externa. IA-3 depende de você gerar uma chave gratuita (Groq ou Gemini) — é o único passo que só você pode fazer.
 
