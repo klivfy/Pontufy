@@ -50,6 +50,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       userAgent: meta.userAgent,
       oldValue: { aiCredits: tenant.aiCredits },
       newValue: { aiCredits: updated.aiCredits },
+      // B5 — mexe em crédito pago pelo cliente: auditoria obrigatória.
+      critical: true,
     });
 
     return NextResponse.json({ success: true, tenant: updated });

@@ -352,7 +352,9 @@ model UploadQuota {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  tenantId   String
+  /// B5 — nullable: evento de PLATAFORMA (cron, provisionamento, migração)
+  /// não pertence a um tenant de cliente.
+  tenantId   String?
   userId     String?
   action     String   // ex.: "COURSE_CREATED", "USER_ROLE_UPDATED", "POINTS_MANUAL_ADJUST"
   entity     String   // ex.: "Course", "User", "Reward", "Tenant", "Invitation"
@@ -363,7 +365,7 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])

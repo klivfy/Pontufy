@@ -64,6 +64,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
       newValue: { status, action: parsed.data.action },
+      // B5 — publicação é ato de conformidade: registro perdido é falha de
+      // controle, então a auditoria interrompe a operação (não é best-effort).
+      critical: true,
     });
 
     logger.info('Status de curso alterado', { tenantId, courseId: id, status, by: userId }, 'courses');
