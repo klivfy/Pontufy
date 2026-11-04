@@ -48,6 +48,60 @@ export const quizModulesSchema = z
 
 export type QuizModule = z.infer<typeof quizModuleSchema>;
 
+/** Questão como o modelo devolve, antes da validação. */
+export interface GeneratedQuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation?: string;
+}
+
+/**
+ * Converte o quiz do modelo no formato persistível.
+ *
+ * REGRESSÃO QUE ISTO CORRIGE: `quizModulesSchema.parse` era chamado direto na
+ * action. Quando o provedor devolvia quiz vazio — ou uma questão com menos de
+ * 2 opções, ou `correctIndex` fora do intervalo — o `parse` lançava, e a
+ * geração INTEIRA virava erro de Server Component em produção ("An error
+ * occurred in the Server Components render"), sem mensagem útil.
+ *
+ * Regra: a geração já deu certo nesse ponto. Perder o quiz é ruim; perder o
+ * curso é pior. Questão inválida é DESCARTADA (com o motivo no retorno) e, se
+ * nenhuma sobrar, o curso é gravado sem quiz — o mesmo comportamento que
+ * existia antes do A3, agora com validação de verdade.
+ */
+export function buildQuizModules(
+  questions: GeneratedQuizQuestion[] | undefined,
+  moduleName = 'Avaliação do Curso',
+): { modules: QuizModule[] | null; discarded: string[] } {
+  const discarded: string[] = [];
+  const valid: QuizModule['questions'] = [];
+
+  for (const [index, question] of (questions ?? []).entries()) {
+    const candidate = {
+      question: question.question,
+      options: question.options.map((text) => ({ text })),
+      correctIndex: question.correctIndex,
+      ...(question.explanation ? { explanation: question.explanation } : {}),
+    };
+
+    const parsed = quizQuestionSchema.safeParse(candidate);
+    if (!parsed.success) {
+      discarded.push(`questão ${index + 1}: ${parsed.error.issues[0]?.message ?? 'inválida'}`);
+      continue;
+    }
+    if (parsed.data.correctIndex >= parsed.data.options.length) {
+      discarded.push(`questão ${index + 1}: correctIndex fora do intervalo`);
+      continue;
+    }
+    valid.push(parsed.data);
+  }
+
+  if (valid.length === 0) return { modules: null, discarded };
+
+  return { modules: [{ module: moduleName, questions: valid }], discarded };
+}
+
 /** Questão de duelo (persistida em `Battle.questionsJson`). */
 export const battleQuestionSchema = z.object({
   question: z.string().min(1),

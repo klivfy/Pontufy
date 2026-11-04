@@ -10,8 +10,9 @@ import { rateLimitCheck } from '@/lib/redis';
 import { sanitizeAiHtml, sanitizeAiText } from '@/lib/validations/security';
 import { logAudit } from '@/lib/audit';
 import { logger } from '@/infra/logger';
+import { Prisma } from '@prisma/client';
 import type { GeneratedCourse } from '@/schemas/course-schema';
-import { quizModulesSchema } from '@/schemas/quiz';
+import { buildQuizModules } from '@/schemas/quiz';
 
 export type { GeneratedCourse };
 
@@ -179,20 +180,29 @@ export async function generateTrainingCourse(
     contentUrl: sanitizeAiHtml(lesson.content),
   }));
 
-  // A3 — JSON nativo: grava o objeto validado, sem serializar à mão.
-  // `quizModulesSchema` garante `correctIndex` dentro de `options` ANTES de
-  // persistir — antes esse erro só aparecia na hora de corrigir a prova.
-  const quizModules = quizModulesSchema.parse([
-    {
-      module: 'Avaliação do Curso',
-      questions: (generated.data.quiz ?? []).map((q) => ({
-        question: sanitizeAiText(q.question).slice(0, 500),
-        options: q.options.map((o) => ({ text: sanitizeAiText(o).slice(0, 200) })),
-        correctIndex: q.correctIndex,
-        explanation: sanitizeAiText(q.explanation ?? '').slice(0, 500),
-      })),
-    },
-  ]);
+  // A3 — JSON nativo, com validação que NÃO derruba a geração.
+  //
+  // `buildQuizModules` descarta questão inválida (correctIndex fora do
+  // intervalo, menos de 2 opções, texto vazio) em vez de lançar. Antes, um quiz
+  // vazio ou malformado fazia o `parse` estourar e a geração inteira virava
+  // "An error occurred in the Server Components render" em produção.
+  const quizBuild = buildQuizModules(
+    (generated.data.quiz ?? []).map((question) => ({
+      question: sanitizeAiText(question.question).slice(0, 500),
+      options: question.options.map((option) => sanitizeAiText(option).slice(0, 200)),
+      correctIndex: question.correctIndex,
+      explanation: sanitizeAiText(question.explanation ?? '').slice(0, 500),
+    })),
+  );
+  const quizModules = quizBuild.modules;
+
+  if (quizBuild.discarded.length > 0) {
+    logger.warn('Questões de quiz descartadas na geração', {
+      courseTitle: generated.data.title,
+      discarded: quizBuild.discarded,
+      provider: generated.provider,
+    }, 'ai');
+  }
 
   let courseId: string;
   let lessonRecords: Array<{ id: string; title: string; type: string; pointsAssigned: number; contentUrl: string | null }>;
@@ -222,7 +232,8 @@ export async function generateTrainingCourse(
           // invertida no quiz) chegaria ao colaborador sem ninguém aprovar.
           status: 'draft',
           aiCreditsSpent: 1,
-          quizJson: quizModules,
+          // Coluna Json?: NULL de banco exige Prisma.DbNull (null puro é JSON null).
+          quizJson: quizModules === null ? Prisma.DbNull : (quizModules as Prisma.InputJsonValue),
           lessons: { create: lessonsToCreate },
         },
         include: {
@@ -294,7 +305,7 @@ export async function generateTrainingCourse(
       description: generated.data.description,
       status: 'draft',
       createdAt: now.toISOString(),
-      quizJson: quizModules,
+          quizJson: quizModules === null ? Prisma.DbNull : (quizModules as Prisma.InputJsonValue),
       category: generated.data.category,
       estimatedDurationMinutes: generated.data.estimatedDurationMinutes,
       lessons: lessonRecords,
