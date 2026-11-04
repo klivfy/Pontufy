@@ -4,22 +4,24 @@ import { ChevronLeft, ChevronRight, Captions, Pause, Play, Volume2, VolumeX } fr
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LessonVideo as LessonVideoData } from '@/schemas/lesson-kit';
+import { chunkNarration, describeVoice, pauseAfter, pickBestVoice, prosodyFor } from '@/lib/voice';
 
 /**
  * Videoaula narrada.
  *
  * A "videoaula" não é um MP4: é um roteiro de cenas que o player executa —
  * título grande, fala e tempo. A narração usa a voz do próprio navegador
- * (`speechSynthesis`, pt-BR), então funciona sem chave de API, sem TTS pago e
- * sem baixar nada.
+ * (`speechSynthesis`), então funciona sem chave de API, sem TTS pago e sem
+ * baixar nada.
  *
- * Consequência honesta: a qualidade da voz varia por dispositivo, e em
- * navegador sem voz instalada a aula continua legível (o texto na tela e a
- * legenda carregam o conteúdo; a cena avança pelo tempo declarado no roteiro).
- * Por isso legenda é padrão e existe o botão de voz.
+ * O que faz a voz soar humana (ver `lib/voice.ts`): escolher a melhor voz
+ * neural pt-BR disponível em vez da padrão do sistema, ritmo levemente mais
+ * lento, e falar frase por frase com silêncio entre elas. Voz padrão em
+ * utterance única é o que soa a leitor de tela.
  *
- * `videoUrl` no curso real (quando existir) continua sendo tratado pelo
- * `VideoPlayer` antigo — este componente é para o roteiro gerado.
+ * Consequência honesta: a qualidade ainda varia por dispositivo. Em navegador
+ * sem voz instalada a aula continua legível — o texto na tela e a legenda
+ * carregam o conteúdo, e a cena avança pelo tempo do roteiro.
  */
 export default function LessonVideo({ video }: { video: LessonVideoData }) {
   const scenes = video.scenes;
@@ -62,9 +64,26 @@ function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: Lesson
   const [supported] = useState(
     () => typeof window !== 'undefined' && 'speechSynthesis' in window,
   );
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scene = scenes[Math.min(index, scenes.length - 1)];
+
+  // Voz escolhida: a melhor pt-BR disponível, não a padrão do sistema. É a
+  // diferença entre "leitor de tela" e "pessoa falando".
+  const bestVoice = useMemo(() => pickBestVoice(voices), [voices]);
+  const prosody = useMemo(() => prosodyFor(bestVoice), [bestVoice]);
+  const voiceInfo = useMemo(() => describeVoice(voices), [voices]);
+
+  // `getVoices()` vem vazio na primeira chamada em vários navegadores; a lista
+  // chega depois, por `voiceschanged`.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.addEventListener('voiceschanged', load);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', load);
+  }, []);
 
   const totalSeconds = useMemo(
     () => scenes.reduce((sum, item) => sum + item.seconds, 0),
@@ -93,7 +112,8 @@ function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: Lesson
     [clearTimer, scenes.length, stopSpeech],
   );
 
-  // Motor de reprodução: fala a cena e avança.
+  // Motor de reprodução: fala a cena em pedaços curtos, com silêncio entre eles,
+  // e avança quando a última frase termina.
   useEffect(() => {
     if (!playing) {
       clearTimer();
@@ -101,7 +121,10 @@ function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: Lesson
       return;
     }
 
+    let cancelled = false;
     const finishScene = () => {
+      if (cancelled) return;
+      clearTimer();
       if (index + 1 < scenes.length) {
         setIndex((current) => current + 1);
       } else {
@@ -109,35 +132,68 @@ function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: Lesson
       }
     };
 
-    // Rede de segurança: se a síntese de voz não existir (ou não disparar
-    // `onend`), a cena ainda avança no tempo declarado no roteiro.
-    timer.current = setTimeout(finishScene, Math.max(4, scene.seconds) * 1000);
+    const chunks = voiceOn && supported ? chunkNarration(scene.narration) : [];
 
-    if (voiceOn && supported) {
-      const utterance = new SpeechSynthesisUtterance(scene.narration);
-      utterance.lang = 'pt-BR';
-      utterance.rate = 1.02;
-      utterance.pitch = 1;
-      utterance.onend = () => {
+    if (chunks.length === 0) {
+      // Sem voz: a cena avança no tempo declarado no roteiro.
+      timer.current = setTimeout(finishScene, Math.max(4, scene.seconds) * 1000);
+      return () => {
+        cancelled = true;
         clearTimer();
-        finishScene();
+        stopSpeech();
       };
-      utterance.onerror = () => {
-        // Mantém o timer como plano B.
-      };
-      const voices = window.speechSynthesis.getVoices();
-      const ptVoice = voices.find((v) => v.lang?.toLowerCase().startsWith('pt'));
-      if (ptVoice) utterance.voice = ptVoice;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
     }
 
+    // Fala em sequência. O `onend` de cada frase encadeia a próxima, e o
+    // silêncio entre elas é o que dá cadência de fala em vez de leitura.
+    let cursor = 0;
+    const speakNext = () => {
+      if (cancelled) return;
+      if (cursor >= chunks.length) {
+        finishScene();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[cursor]);
+      utterance.lang = bestVoice?.lang ?? 'pt-BR';
+      if (bestVoice) utterance.voice = bestVoice;
+      utterance.rate = prosody.rate;
+      utterance.pitch = prosody.pitch;
+      utterance.volume = prosody.volume;
+
+      const fragment = chunks[cursor];
+      utterance.onend = () => {
+        if (cancelled) return;
+        cursor += 1;
+        setTimeout(speakNext, pauseAfter(fragment));
+      };
+      utterance.onerror = () => {
+        if (cancelled) return;
+        cursor += 1;
+        setTimeout(speakNext, 60);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    speakNext();
+
+    // Rede de segurança: se o navegador não disparar `onend` (voz quebrada), a
+    // cena avança. O teto considera a fala real, não o `seconds` do roteiro.
+    const estimatedMs =
+      chunks.reduce((sum, chunk) => {
+        const words = chunk.split(/\s+/).filter(Boolean).length;
+        return sum + (words / 2.4) * 1000 + pauseAfter(chunk);
+      }, 0) + 5000;
+    timer.current = setTimeout(finishScene, estimatedMs);
+
     return () => {
+      cancelled = true;
       clearTimer();
       stopSpeech();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, index, voiceOn, supported]);
+  }, [playing, index, voiceOn, supported, bestVoice, prosody]);
 
   const progress = scenes.length > 1 ? (index / (scenes.length - 1)) * 100 : 100;
   const elapsed = scenes.slice(0, index).reduce((sum, item) => sum + item.seconds, 0);
@@ -261,8 +317,14 @@ function ScenePlayer({ video, scenes }: { video: LessonVideoData; scenes: Lesson
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 pb-4 text-[11px] text-white/35">
-        Progresso da aula: {Math.round(progress)}%
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 pb-4 text-[11px] text-white/35">
+        <span>Progresso da aula: {Math.round(progress)}%</span>
+        {voiceOn && voiceInfo.chosen && (
+          <span title={voiceInfo.chosenReason ?? undefined}>
+            Narração: {voiceInfo.chosen}
+            {voiceInfo.neural ? ' · neural' : ''}
+          </span>
+        )}
       </div>
     </div>
   );

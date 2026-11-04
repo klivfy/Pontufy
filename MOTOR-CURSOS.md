@@ -72,6 +72,27 @@ de uma aula não derruba o curso, e o paralelismo reduz o tempo total.
 4. **Curso antigo não fica de fora.** `Lesson.blocks` nulo → o player deriva o
    kit do markdown. Nenhum backfill foi necessário.
 
+## Voz humana (tom e síntese)
+
+Treinamento obrigatório é resistência por padrão. Texto de ofício e voz de
+leitor de tela fecham a porta antes da segunda aula. Duas frentes resolvem isso
+sem custo:
+
+**Texto** — `domain/learning/tone.ts` mede o tom (0–100) e reescreve o que dá
+para reescrever com segurança: "cumpre informar" → "é importante dizer",
+"Prezado colaborador" → "Olá", caixa alta → caixa normal (siglas preservadas),
+exclamação → ponto, travessão → vírgula. O número aparece no admin como
+`toneAvg`, junto do Flesch.
+
+**Voz** — `lib/voice.ts` escolhe a melhor voz pt-BR disponível no dispositivo
+(neural > Google > padrão, nunca `espeak`), ajusta prosódia (0,98 de ritmo na
+neural; 0,90 e pitch 0,96 na genérica) e divide a narração em falas curtas com
+silêncio entre elas. Uma utterance única de 40 s é o que soa a metrônomo.
+
+O que o código **não** consegue: instalar voz neural. Se o dispositivo só tiver
+voz sintética antiga, o player desacelera e respira, mas o timbre continua
+limitado — o painel mostra o nome da voz em uso e se ela é neural.
+
 ## Vídeo renderizado (opcional)
 
 O kit nasce com **roteiro** (cenas + narração). Se houver um provedor de vídeo

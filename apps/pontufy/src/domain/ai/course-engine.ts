@@ -25,7 +25,7 @@ const MAX_OUTPUT_TOKENS = Number(process.env.COURSE_MAX_OUTPUT_TOKENS || 8192);
  *
  * Sobe a versão SEMPRE que `COURSE_SYSTEM_PROMPT` mudar de forma relevante.
  */
-export const COURSE_PROMPT_VERSION = process.env.COURSE_PROMPT_VERSION?.trim() || 'v2';
+export const COURSE_PROMPT_VERSION = process.env.COURSE_PROMPT_VERSION?.trim() || 'v3';
 
 export const COURSE_SYSTEM_PROMPT = `Você é o motor de IA da Pontufy, uma plataforma B2B de educação corporativa gamificada.
 Gere um curso de treinamento COMPLETO, prático e adaptado ao setor/vertical informado.
@@ -49,7 +49,14 @@ Regras OBRIGATÓRIAS:
    - Em "explanation", explique o raciocínio em uma frase.
 6. META — Informe "category" (categoria do curso) e "estimatedDurationMinutes" (tempo estimado em minutos).
 7. Se material de referência for fornecido, BASEIE o conteúdo nele. Não invente lei, prazo ou número ausente da fonte.
-8. Responda exclusivamente no schema estruturado solicitado.`;
+8. TOM DE VOZ — o curso é conversa, não comunicado:
+   - Fale com o leitor por "você". Comece a primeira aula com uma acolhida curta ("Bem-vindo(a)", "Vamos começar por...").
+   - Frases curtas, voz ativa. Nada de "cumpre informar", "faz-se necessário", "destarte", "no que tange".
+   - NUNCA use caixa alta em palavras comuns (grita) e no máximo uma exclamação por aula.
+   - Explique o risco sem alarmismo: "isso protege você e a equipe" funciona melhor que "o descumprimento é gravíssimo".
+   - Trate o colaborador como adulto capaz: sem tom de vigilância, sem "você foi instruído a".
+   - Assine com humanidade no fim da última aula, sem formalidade de ofício.
+9. Responda exclusivamente no schema estruturado solicitado.`;
 
 // ═══════════════════════ Fallback local determinístico ═══════════════
 

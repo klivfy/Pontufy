@@ -678,6 +678,30 @@ export default function AIWizard() {
               {result.kit.derived > 0 && ` · ${result.kit.derived} derivada(s) do próprio texto`}
               {result.kit.checkpointQuestions > 0 && ` · ${result.kit.checkpointQuestions} questões de fixação`}
             </p>
+
+            {/*
+              Tom de voz é medido, não elogiado: é o número que diz se a narração
+              vai soar como uma pessoa falando ou como um comunicado interno.
+            */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-body-sm">
+              <span className="font-semibold text-md-on-surface">Tom da narração:</span>
+              <span
+                className={`rounded-full px-2.5 py-1 font-bold ${
+                  result.kit.toneAvg >= 75
+                    ? 'bg-md-tertiary-container text-md-on-tertiary-container'
+                    : result.kit.toneAvg >= 55
+                      ? 'bg-md-secondary-container text-md-on-secondary-container'
+                      : 'bg-md-highlight text-md-on-highlight'
+                }`}
+              >
+                {result.kit.toneLevel} · {Math.round(result.kit.toneAvg)}/100
+              </span>
+              <span className="text-md-on-surface-variant">
+                {result.kit.toneAvg >= 75
+                  ? 'pronto para leitura em voz alta'
+                  : 'revise o texto: ainda soa formal'}
+              </span>
+            </div>
           </div>
         )}
 

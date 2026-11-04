@@ -11,6 +11,7 @@ import {
   videoSceneSchema,
 } from '@/schemas/lesson-kit';
 import { analyzeReadability, makePlainLanguage, splitSentences, stripMarkdown } from './readability';
+import { analyzeTone, humanizeTone } from './tone';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Derivação do kit a partir do markdown
@@ -166,9 +167,13 @@ function glossaryFrom(markdown: string): PlainText['glossary'] {
 }
 
 function sceneFromSection(section: MarkdownSection): VideoScene {
-  const narration = clamp(
-    splitSentences(stripMarkdown(section.body)).slice(0, 4).join(' ') || stripMarkdown(section.body),
-    620,
+  // A narração é FALA. Passa pelo filtro de tom para não sair com "cumpre
+  // informar" nem caixa alta — o que a voz sintética lê em voz alta como grito.
+  const narration = humanizeTone(
+    clamp(
+      splitSentences(stripMarkdown(section.body)).slice(0, 4).join(' ') || stripMarkdown(section.body),
+      620,
+    ),
   );
   return {
     narration: narration.length >= 20 ? narration : `Nesta parte, vamos ver ${section.title}.`,
@@ -250,6 +255,17 @@ export function deriveKitFromMarkdown(markdown: string, lessonTitle: string): Le
 
     const scenes = ensureEnoughScenes(source.map(sceneFromSection), lessonTitle);
 
+    // Abertura acolhedora na primeira cena: o roteiro derivado é o texto da aula
+    // lido em voz alta, e começar direto no conteúdo soa a leitor de tela. Uma
+    // frase de entrada muda a sensação de "isto foi feito para mim".
+    if (scenes.length > 0 && !/^(vamos|ol[áa]|bem-vind|nesta aula)/i.test(scenes[0].narration)) {
+      scenes[0] = {
+        ...scenes[0],
+        narration: `Vamos ver ${lessonTitle}. ${scenes[0].narration}`.slice(0, 620),
+        seconds: Math.min(45, scenes[0].seconds + 2),
+      };
+    }
+
     const summarySource =
       splitSentences(stripMarkdown(source[0]?.body ?? markdown)).slice(0, 4).join(' ') ||
       stripMarkdown(markdown);
@@ -259,11 +275,11 @@ export function deriveKitFromMarkdown(markdown: string, lessonTitle: string): Le
       video: { title: clamp(lessonTitle, 80), scenes },
       slides: slides.length > 0 ? slides : [{ title: lessonTitle, bullets: ['Conteúdo da aula'] }],
       plain: {
-        summary: padSummary(plain.text, lessonTitle),
+        summary: humanizeTone(padSummary(plain.text, lessonTitle)),
         bullets: padBullets(
           source.map((s) => clamp(s.title, 120)),
           lessonTitle,
-        ),
+        ).map((bullet) => humanizeTone(bullet)),
         glossary: glossaryFrom(markdown),
       },
       checkpoint: [],
@@ -286,11 +302,16 @@ export interface KitMetrics {
   flesch: number;
   level: string;
   readingMinutes: number;
+  /** 0–100: quão próximo de uma pessoa falando (domain/learning/tone.ts) */
+  tone: number;
+  toneLevel: string;
 }
 
 /** Métricas exibidas no admin — o "o que a IA produziu" em números. */
 export function kitMetrics(kit: LessonKit): KitMetrics {
   const stats = analyzeReadability(kit.plain.summary);
+  const narration = kit.video.scenes.map((scene) => scene.narration).join(' ');
+  const tone = analyzeTone(`${narration} ${kit.plain.summary}`);
   const videoSeconds = kit.video.scenes.reduce((sum, scene) => sum + scene.seconds, 0);
   return {
     slides: kit.slides.length,
@@ -301,6 +322,8 @@ export function kitMetrics(kit: LessonKit): KitMetrics {
     flesch: stats.flesch,
     level: stats.level,
     readingMinutes: stats.readingMinutes,
+    tone: tone.warmth,
+    toneLevel: tone.level,
   };
 }
 
@@ -349,16 +372,27 @@ export function normalizeKit(raw: unknown, markdown: string, lessonTitle: string
   const candidate = {
     video: {
       title: videoTitle,
-      scenes: ensureEnoughScenes(scenes, lessonTitle),
+      // Tom aplicado DEPOIS do modelo: o prompt pede, o código garante.
+      scenes: ensureEnoughScenes(scenes, lessonTitle).map((scene) => ({
+        ...scene,
+        narration: humanizeTone(scene.narration),
+      })),
     },
-    slides: slides.length > 0 ? slides : fallback.slides,
+    slides: (slides.length > 0 ? slides : fallback.slides).map((slide) => ({
+      ...slide,
+      notes: slide.notes ? humanizeTone(slide.notes) : slide.notes,
+    })),
     plain: {
-      summary: padSummary(plainResult.text, lessonTitle),
-      bullets: padBullets(plain.bullets, lessonTitle),
+      summary: humanizeTone(padSummary(plainResult.text, lessonTitle)),
+      bullets: padBullets(plain.bullets, lessonTitle).map((bullet) => humanizeTone(bullet)),
       glossary:
         plain.glossary && plain.glossary.length > 0 ? plain.glossary : fallback.plain.glossary,
     },
-    checkpoint,
+    checkpoint: checkpoint.map((question) => ({
+      ...question,
+      question: humanizeTone(question.question),
+      explanation: question.explanation ? humanizeTone(question.explanation) : undefined,
+    })),
   };
 
   const parsed = lessonKitSchema.safeParse(candidate);

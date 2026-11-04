@@ -81,8 +81,10 @@ for (const [index, kit] of kits.entries()) {
   console.log(`${index + 1}. ${LESSONS[index].title}`);
   console.log(`   slides: ${m.slides} | cenas: ${m.scenes} | vídeo: ${m.videoSeconds}s | checkpoint: ${m.checkpointQuestions}`);
   console.log(`   leitura fácil: ${m.words} palavras · Flesch ${m.flesch} (${m.level})`);
+  console.log(`   tom de voz: ${m.tone}/100 (${m.toneLevel})`);
   console.log(`   resumo: ${kit.plain.summary.slice(0, 120)}…`);
   console.log(`   cena 1: "${kit.video.scenes[0]?.onScreen}" — ${kit.video.scenes[0]?.seconds}s`);
+  console.log(`   fala 1: "${kit.video.scenes[0]?.narration.slice(0, 110)}…"`);
   console.log('');
 }
 

@@ -94,6 +94,9 @@ export interface KitSummary {
   checkpointQuestions: number;
   /** Flesch médio dos resumos em linguagem simples (maior = mais fácil). */
   fleschAvg: number;
+  /** Tom de voz médio das narrações (0–100; maior = mais humano). */
+  toneAvg: number;
+  toneLevel: string;
   promptVersion: string;
   durationMs: number;
 }
@@ -148,11 +151,10 @@ export type GenerateTrainingResult =
   | { success: false; error: string };
 
 /** Agrega as métricas dos kits para exibir no admin logo após a geração. */
-function summarizeKits(kits: LessonKit[]): Omit<KitSummary, 'generated' | 'derived' | 'promptVersion' | 'durationMs'> & {
-  fleschAvg: number;
-} {
+function summarizeKits(kits: LessonKit[]) {
   const metrics = kits.map(kitMetrics);
   const total = metrics.length || 1;
+  const toneAvg = Number((metrics.reduce((sum, m) => sum + m.tone, 0) / total).toFixed(1));
   return {
     lessons: metrics.length,
     slides: metrics.reduce((sum, m) => sum + m.slides, 0),
@@ -160,6 +162,9 @@ function summarizeKits(kits: LessonKit[]): Omit<KitSummary, 'generated' | 'deriv
     videoSeconds: metrics.reduce((sum, m) => sum + m.videoSeconds, 0),
     checkpointQuestions: metrics.reduce((sum, m) => sum + m.checkpointQuestions, 0),
     fleschAvg: Number((metrics.reduce((sum, m) => sum + m.flesch, 0) / total).toFixed(1)),
+    toneAvg,
+    toneLevel:
+      toneAvg >= 75 ? 'acolhedor' : toneAvg >= 55 ? 'neutro' : toneAvg >= 35 ? 'formal' : 'burocratico',
   };
 }
 
