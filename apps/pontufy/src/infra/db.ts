@@ -104,6 +104,7 @@ const STRICT_TENANT_MODELS = [
   'PointsLot',
   'UploadQuota',
   'EmailVerification',
+  'OutboxEvent',
 ] as const;
 
 /**
