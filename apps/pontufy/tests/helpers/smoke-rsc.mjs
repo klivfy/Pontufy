@@ -42,6 +42,7 @@ console.log(`login: ${login.status}`);
 const pages = [
   { path: '/certificados', expect: 'Meus Certificados' },
   { path: '/loja', expect: 'Clube de Benefícios' },
+  { path: '/cursos', expect: 'Meus Cursos' },
 ];
 
 for (const { path, expect } of pages) {
