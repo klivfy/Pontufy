@@ -10,7 +10,7 @@ import { prisma, USERS } from '../helpers/db';
 test.describe('Analytics e white-label (admin_rh)', () => {
   test.setTimeout(90_000);
 
-  test('admin vê o painel de analytics com tema escuro e gráficos', async ({ page }) => {
+  test('admin vê o painel de analytics com o tema claro M3 e gráficos', async ({ page }) => {
     await page.goto('/login');
     await page.getByPlaceholder('voce@empresa.com').fill(USERS.alphaAdmin);
     await page.getByPlaceholder('••••••••').fill('123456');
@@ -21,7 +21,12 @@ test.describe('Analytics e white-label (admin_rh)', () => {
     await expect(page.getByRole('heading', { name: /Painel de Analytics/ })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.locator('div.bg-\\[\\#0a0a0a\\]').first()).toBeVisible();
+
+    // O produto adotou MD3 claro. A asserção antiga procurava `div.bg-[#0a0a0a]`
+    // e passou a falhar por motivo legítimo: a cor mudou. Medir a superfície
+    // efetiva é mais durável que caçar uma classe.
+    const bodyBackground = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bodyBackground).toBe('rgb(247, 244, 239)');
 
     // KPIs e gráficos recharts renderizados após o fetch de /api/admin/analytics.
     await expect(page.getByText('Colaboradores Ativos')).toBeVisible({ timeout: 20_000 });
@@ -61,6 +66,12 @@ test.describe('Analytics e white-label (admin_rh)', () => {
     expect(ok.status()).toBe(200);
 
     // Employee não pode alterar branding.
+    //
+    // É preciso LIMPAR os cookies antes: o proxy manda usuário logado de volta
+    // para /dashboard ao abrir /login, então o formulário de login nunca
+    // aparecia e a requisição seguinte continuava sendo do admin — o teste
+    // media permissão de admin e chamava de 403 ausente.
+    await page.context().clearCookies();
     await page.goto('/login');
     await page.getByPlaceholder('voce@empresa.com').fill(USERS.alphaEmployee);
     await page.getByPlaceholder('••••••••').fill('123456');

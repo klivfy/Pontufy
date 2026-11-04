@@ -1,38 +1,132 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: "Google Sans Flex", "Google Sans", "Roboto", sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+/*
+ * A fonte (Google Sans Flex) é carregada pelo <link> do index.html. Importar
+ * aqui depois do `@import "tailwindcss"` viola a ordem exigida pelo CSS — o
+ * Tailwind expande em regras antes — e o build emitia warning.
+ */
 
-  --color-slate-custom: #1E293B;
-  --color-ice-gray: #F8F9FA;
-  --color-lavender-calm: #9333EA;
-  --color-mint-electric: #10B981;
+/*
+ * Landing Pontufy — mesma paleta e mesma tipografia do produto.
+ *
+ * O site institucional estava em Space Grotesk + roxo/esmeralda, enquanto o app
+ * já era Google Sans Flex + paleta quente. Quem vinha da landing para o login
+ * sentia troca de marca no meio do funil.
+ *
+ * Estratégia: em vez de reescrever 10 componentes com 334 usos de `slate-*`,
+ * sobrescrevemos as famílias do Tailwind no @theme. No v4 os utilitários
+ * apontam para `var(--color-slate-500)`, então trocar o valor recolore tudo sem
+ * tocar em componente — e mantém a hierarquia de contraste que o layout já usa
+ * (50 = fundo, 900 = texto).
+ */
+
+@theme {
+  --font-sans: "Google Sans Flex", "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── Neutros (família slate) → cinzas quentes da paleta ─────────────────── */
+  --color-slate-50: #faf9f7;
+  --color-slate-100: #f4f1ec;
+  --color-slate-200: #e3dfd8;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #acacac;
+  --color-slate-500: #848484;
+  --color-slate-600: #6b6b6b;
+  --color-slate-700: #5c5c5c;
+  --color-slate-800: #3a3a3a;
+  --color-slate-900: #2b2f2e;
+  --color-slate-950: #1f2221;
+
+  /* ── Roxo (marca antiga) → verde-chumbo ─────────────────────────────────── */
+  --color-purple-50: #eef3ef;
+  --color-purple-100: #cad9ca;
+  --color-purple-200: #b3c9b9;
+  --color-purple-300: #93b3a0;
+  --color-purple-400: #7a9a8c;
+  --color-purple-500: #495453;
+  --color-purple-600: #3d4746;
+  --color-purple-700: #323a39;
+  --color-purple-800: #282f2e;
+  --color-purple-900: #1f2423;
+
+  /* ── Esmeralda (sucesso/pontos) → menta ─────────────────────────────────── */
+  --color-emerald-50: #eff9f3;
+  --color-emerald-100: #cad9ca;
+  --color-emerald-200: #b8dfc9;
+  --color-emerald-300: #a7e3c1;
+  --color-emerald-400: #4f8c6a;
+  --color-emerald-500: #356a4c;
+  --color-emerald-600: #2d5c41;
+  --color-emerald-700: #254c36;
+  --color-emerald-800: #1d3d2b;
+  --color-emerald-900: #162e20;
+
+  /* ── Vermelho (erro) → tijolo da família blush ──────────────────────────── */
+  --color-red-50: #f9e7e3;
+  --color-red-100: #f5c8bf;
+  --color-red-200: #ebb3a8;
+  --color-red-300: #d99083;
+  --color-red-400: #b85a50;
+  --color-red-500: #a8433a;
+  --color-red-600: #8e352d;
+  --color-red-700: #752a24;
+  --color-red-800: #5c211c;
+  --color-red-900: #451814;
+
+  /* ── Laranja e âmbar (atenção) → areia/blush ────────────────────────────── */
+  --color-orange-50: #fdf4ef;
+  --color-orange-100: #f8e2d8;
+  --color-orange-200: #efcabb;
+  --color-orange-400: #c07a66;
+  --color-orange-500: #a8614d;
+  --color-orange-600: #8a4c3a;
+  --color-orange-700: #6f3c2d;
+
+  --color-amber-50: #fdf6ef;
+  --color-amber-100: #f5e3d2;
+  --color-amber-300: #e8c19b;
+  --color-amber-400: #c9924f;
+  --color-amber-500: #a8763a;
+  --color-amber-600: #8a5f2e;
+
+  /* ── Azul e céu (informação) → secundário areia-escuro ──────────────────── */
+  --color-blue-50: #f6f2ee;
+  --color-blue-100: #e0d2c5;
+  --color-blue-200: #cfbda9;
+  --color-blue-400: #8a7767;
+  --color-blue-500: #6d5f52;
+  --color-blue-600: #5a4e43;
+  --color-blue-700: #473d35;
+
+  --color-sky-50: #f6f2ee;
+  --color-sky-100: #e0d2c5;
+  --color-sky-400: #8a7767;
+  --color-sky-500: #6d5f52;
 
   /*
    * Material Design 3: shape scale (xs 4dp · sm 8dp · md/lg 12dp · xl 16dp ·
-   * 2xl/3xl 28dp) e elevação (níveis 1–5) sobre os tokens do Tailwind.
-   * Paleta de cores inalterada.
+   * 2xl/3xl 28dp).
    */
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   --radius-xs: 0.25rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.75rem;
   --radius-2xl: 1.75rem;
   --radius-3xl: 1.75rem;
   --radius-4xl: 2rem;
 
-  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.30);
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-  --shadow-md: 0 1px 2px 0 rgb(0 0 0 / 0.30), 0 2px 6px 2px rgb(0 0 0 / 0.15);
-  --shadow-lg: 0 1px 3px 0 rgb(0 0 0 / 0.30), 0 4px 8px 3px rgb(0 0 0 / 0.15);
-  --shadow-xl: 0 2px 3px 0 rgb(0 0 0 / 0.30), 0 6px 10px 4px rgb(0 0 0 / 0.15);
-  --shadow-2xl: 0 4px 4px 0 rgb(0 0 0 / 0.30), 0 8px 12px 6px rgb(0 0 0 / 0.15);
+  /* Elevação em tema claro: sombra quente e de baixa opacidade. */
+  --shadow-2xs: 0 1px 2px 0 rgb(52 52 52 / 0.06);
+  --shadow-xs: 0 1px 2px 0 rgb(52 52 52 / 0.08), 0 1px 3px 1px rgb(52 52 52 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(52 52 52 / 0.08), 0 1px 3px 1px rgb(52 52 52 / 0.05);
+  --shadow: 0 1px 2px 0 rgb(52 52 52 / 0.08), 0 1px 3px 1px rgb(52 52 52 / 0.05);
+  --shadow-md: 0 1px 2px 0 rgb(52 52 52 / 0.08), 0 2px 6px 2px rgb(52 52 52 / 0.06);
+  --shadow-lg: 0 1px 3px 0 rgb(52 52 52 / 0.08), 0 4px 8px 3px rgb(52 52 52 / 0.07);
+  --shadow-xl: 0 2px 3px 0 rgb(52 52 52 / 0.08), 0 6px 10px 4px rgb(52 52 52 / 0.08);
+  --shadow-2xl: 0 4px 4px 0 rgb(52 52 52 / 0.08), 0 8px 12px 6px rgb(52 52 52 / 0.09);
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
@@ -43,12 +137,12 @@
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #F8F9FA;
+  background: #faf9f7;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: #d4d4d4;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: #acacac;
 }

@@ -85,6 +85,33 @@ export const proxy = auth((req) => {
   };
   const passThrough = () => withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
 
+  /**
+   * 403 opaco, mas RENDERIZÁVEL.
+   *
+   * Antes: `new NextResponse(null, { status: 403 })`. Corpo vazio em navegação
+   * faz o Chrome abortar com `net::ERR_HTTP_RESPONSE_CODE_FAILURE` — o usuário
+   * via a tela de erro do navegador ("Esta página não está funcionando"), não
+   * uma resposta educada. Quem chega em /superadmin sem ser super_admin (link
+   * antigo, atalho, digitação) batia nisso.
+   *
+   * O texto continua genérico e sem dica de rota: a opacidade é de propósito.
+   * Só o transporte mudou.
+   */
+  const opaqueForbidden = () =>
+    new NextResponse(
+      '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>Não encontrado</title><style>' +
+        'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;' +
+        'background:#f7f4ef;color:#2b2f2e;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}' +
+        'main{text-align:center;padding:2rem}code{font-size:3rem;font-weight:800;opacity:.25;display:block}' +
+        'p{margin:.5rem 0 1.5rem;color:#5c5c5c}a{color:#495453;font-weight:600;text-decoration:none}' +
+        'a:hover{text-decoration:underline}</style></head><body><main><code>404</code>' +
+        '<p>Não encontramos esta página.</p><a href="/dashboard">Voltar ao início</a>' +
+        '</main></body></html>',
+      { status: 403, headers: { 'content-type': 'text/html; charset=utf-8' } },
+    );
+
   // ── Rotas públicas ───────────────────────────────────────────────────────
   if (rule?.public) {
     // Páginas de auth: usuário logado não volta para a tela de login.
@@ -111,7 +138,7 @@ export const proxy = auth((req) => {
 
     if (!allowed) {
       if (rule.opaque403) {
-        return withRequestId(new NextResponse(null, { status: 403 }));
+        return withRequestId(opaqueForbidden());
       }
       return withRequestId(NextResponse.redirect(new URL(rule.redirectTo ?? '/dashboard', req.nextUrl)));
     }
