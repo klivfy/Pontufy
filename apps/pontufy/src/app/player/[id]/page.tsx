@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, use } from 'react';
+import { useState, useMemo, use, useEffect } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
 
@@ -273,6 +273,7 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="flex flex-col h-screen bg-md-surface-dim overflow-hidden">
+      <LessonStartTracker lessonId={activeLesson.id} />
       <PointsCelebration
         points={celebrationPoints}
         isVisible={showCelebration}
@@ -445,4 +446,30 @@ export default function CoursePlayerPage({ params }: { params: Promise<{ id: str
       </AnimatePresence>
     </div>
   );
+}
+
+/**
+ * Registra no servidor que a aula foi aberta.
+ *
+ * Componente separado de propósito: no player, o `useEffect` ficaria depois dos
+ * `return` de loading/erro — hook condicional, que o lint reprova (e com razão).
+ * Aqui o hook roda sempre, e o componente não renderiza nada.
+ *
+ * A rota é idempotente por (usuário, aula). Falha é silenciosa: telemetria não
+ * pode impedir o colaborador de ler a aula.
+ */
+function LessonStartTracker({ lessonId }: { lessonId: string }) {
+  useEffect(() => {
+    if (!lessonId) return;
+
+    void fetch('/api/lessons/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lessonId }),
+    }).catch(() => {
+      // Silencioso por decisão: erro de métrica não é problema do colaborador.
+    });
+  }, [lessonId]);
+
+  return null;
 }

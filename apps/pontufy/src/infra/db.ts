@@ -105,6 +105,7 @@ const STRICT_TENANT_MODELS = [
   'UploadQuota',
   'EmailVerification',
   'OutboxEvent',
+  'LessonStart',
 ] as const;
 
 /**

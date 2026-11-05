@@ -1,4 +1,4 @@
-import { Users, Sparkles, Info } from 'lucide-react';
+import { Users, Sparkles, Info, DoorOpen } from 'lucide-react';
 
 import type { AdoptionReport } from './types';
 
@@ -6,13 +6,17 @@ import type { AdoptionReport } from './types';
 // Funil de adoção
 //
 // O painel respondia "quanto a empresa consumiu". Este bloco responde "quanta
-// gente da base chegou a usar". Três degraus e a nota do que ele NÃO mede —
-// número sem a ressalva vira promessa.
+// gente da base chegou a usar" e — o que faltava — **onde as pessoas param**.
+//
+// Quatro degraus: elegível → abriu → concluiu uma aula → concluiu um curso.
+// A distância entre os dois primeiros e os dois últimos é o abandono, que
+// aparece como número próprio em vez de ficar implícito na diferença.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const STAGE_FILL: Record<string, string> = {
   eligible: 'bg-md-outline',
-  started: 'bg-md-primary',
+  opened: 'bg-md-secondary',
+  completedOne: 'bg-md-primary',
   completers: 'bg-md-tertiary',
 };
 
@@ -22,11 +26,29 @@ function formatDays(days: number | null): string {
   return days === 1 ? '1 dia' : `${days} dias`;
 }
 
-export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport }) {
-  const { funnel, stages, lessonsPerLearner, medianDaysToFirstLesson, byDepartment, blindSpot } =
-    adoption;
+function formatSince(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR');
+}
 
-  const noLearners = stages.started === 0;
+export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport }) {
+  const {
+    funnel,
+    stages,
+    abandoned,
+    abandonmentRate,
+    lessonsPerLearner,
+    opensPerLearner,
+    medianDaysToFirstLesson,
+    byDepartment,
+    measuredSince,
+    blindSpot,
+  } = adoption;
+
+  const since = formatSince(measuredSince);
+  const nobodyOpened = stages.opened === 0;
 
   return (
     <section className="bg-md-surface-container border border-md-outline rounded-2xl p-6">
@@ -34,13 +56,13 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
         <Users size={16} className="text-md-tertiary" /> Funil de Adoção
       </h2>
       <p className="text-xs text-md-on-surface-variant mb-5">
-        Quanta gente da base chegou a aprender — não só quanto foi consumido
+        Quanta gente da base chegou a aprender — e onde as pessoas param
       </p>
 
-      {noLearners ? (
+      {nobodyOpened ? (
         <p className="text-sm text-md-on-surface-variant">
-          Nenhum colaborador concluiu uma aula ainda. O funil só ganha leitura depois da
-          primeira conclusão.
+          Nenhuma aula foi aberta desde {since ?? 'o início da medição'}. O funil só ganha
+          leitura depois da primeira abertura.
         </p>
       ) : (
         <>
@@ -58,21 +80,43 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
                 <div className="h-2.5 rounded-full bg-md-surface-container-high overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${STAGE_FILL[stage.key] ?? 'bg-md-primary'}`}
-                    style={{ width: `${Math.min(100, Math.max(stage.users > 0 ? 2 : 0, stage.shareOfEligible))}%` }}
+                    style={{
+                      width: `${Math.min(100, Math.max(stage.users > 0 ? 2 : 0, stage.shareOfEligible))}%`,
+                    }}
                   />
                 </div>
               </li>
             ))}
           </ol>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          {abandoned > 0 && (
+            <div className="mb-6 flex gap-3 rounded-xl border border-md-highlight/40 bg-md-highlight/10 px-4 py-3">
+              <DoorOpen size={18} className="mt-0.5 shrink-0 text-md-on-highlight" aria-hidden />
+              <div>
+                <p className="text-sm font-semibold text-md-on-highlight">
+                  {abandoned} {abandoned === 1 ? 'pessoa abriu' : 'pessoas abriram'} e não
+                  concluíram nenhuma aula ({abandonmentRate}%)
+                </p>
+                <p className="text-xs text-md-on-surface-variant mt-1">
+                  É aqui que o curso se perde. Abandono alto nos primeiros minutos costuma ser
+                  aula longa, texto difícil ou expectativa errada na descrição.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="rounded-xl border border-md-outline-variant bg-md-surface-container-low px-4 py-3">
               <p className="text-[11px] uppercase tracking-wide text-md-on-surface-variant mb-1">
-                Aulas por aprendiz
+                Aberturas por pessoa
               </p>
-              <p className="text-xl font-bold text-md-on-surface tabular-nums">
-                {lessonsPerLearner.toFixed(1)}
+              <p className="text-xl font-bold text-md-on-surface tabular-nums">{opensPerLearner}</p>
+            </div>
+            <div className="rounded-xl border border-md-outline-variant bg-md-surface-container-low px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wide text-md-on-surface-variant mb-1">
+                Aulas por quem concluiu
               </p>
+              <p className="text-xl font-bold text-md-on-surface tabular-nums">{lessonsPerLearner}</p>
             </div>
             <div className="rounded-xl border border-md-outline-variant bg-md-surface-container-low px-4 py-3">
               <p className="text-[11px] uppercase tracking-wide text-md-on-surface-variant mb-1">
@@ -81,6 +125,12 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
               <p className="text-xl font-bold text-md-on-surface">
                 {formatDays(medianDaysToFirstLesson)}
               </p>
+            </div>
+            <div className="rounded-xl border border-md-outline-variant bg-md-surface-container-low px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wide text-md-on-surface-variant mb-1">
+                Abandono
+              </p>
+              <p className="text-xl font-bold text-md-on-surface tabular-nums">{abandonmentRate}%</p>
             </div>
           </div>
 
@@ -91,7 +141,8 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
                   <tr className="text-left text-[11px] uppercase tracking-wide text-md-on-surface-variant border-b border-md-outline-variant">
                     <th className="py-2 pr-4 font-semibold">Departamento</th>
                     <th className="py-2 pr-4 font-semibold text-right">Elegíveis</th>
-                    <th className="py-2 pr-4 font-semibold text-right">Começaram</th>
+                    <th className="py-2 pr-4 font-semibold text-right">Abriram</th>
+                    <th className="py-2 pr-4 font-semibold text-right">Concluíram</th>
                     <th className="py-2 font-semibold text-right">Taxa</th>
                   </tr>
                 </thead>
@@ -103,10 +154,13 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
                         {row.eligible}
                       </td>
                       <td className="py-2 pr-4 text-right tabular-nums text-md-on-surface-variant">
-                        {row.started}
+                        {row.opened}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-md-on-surface-variant">
+                        {row.completedOne}
                       </td>
                       <td className="py-2 text-right tabular-nums font-medium text-md-on-surface">
-                        {row.startRate}%
+                        {row.openRate}%
                       </td>
                     </tr>
                   ))}
@@ -122,7 +176,7 @@ export default function AdoptionFunnel({ adoption }: { adoption: AdoptionReport 
         <span>{blindSpot}</span>
       </p>
 
-      {!noLearners && stages.completers > 0 && (
+      {!nobodyOpened && stages.completers > 0 && (
         <p className="mt-3 flex gap-2 text-xs leading-relaxed text-md-on-surface-variant">
           <Sparkles size={14} className="mt-0.5 shrink-0 text-md-tertiary" aria-hidden />
           <span>

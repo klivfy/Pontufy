@@ -1,7 +1,7 @@
 # Runbook de deploy
 
-> Atualizado em 04/11/2026. O número de migrações abaixo (6) refere-se ao
-> **primeiro** deploy; hoje `prisma/migrations/` tem 25 e o comando continua o
+> Atualizado em 05/11/2026. O número de migrações abaixo (6) refere-se ao
+> **primeiro** deploy; hoje `prisma/migrations/` tem 26 e o comando continua o
 > mesmo — `npm run db:deploy` aplica todas as pendentes.
 
 **Não faça o deploy antes de concluir os blocos abaixo.** Nesta ordem.

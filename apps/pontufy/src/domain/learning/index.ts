@@ -13,6 +13,50 @@ import { randomUUID } from 'node:crypto';
 export const QUIZ_BONUS_POINTS = 50;
 export const QUIZ_MIN_PERCENTAGE = 0.7;
 
+/**
+ * Registra que o colaborador ABRIU a aula.
+ *
+ * É o evento que faltava: `completeLesson` só sabe de quem terminou, então o
+ * funil de adoção não distinguia "ninguém entrou" de "todo mundo entrou e
+ * saiu". Uma linha por (usuário, aula) — a primeira abertura é a que importa.
+ *
+ * Não é efeito de negócio: quem chama é o player, e falhar aqui não pode
+ * impedir a aula de abrir. Ainda assim valida o vínculo com o curso do tenant,
+ * para não gravar telemetria apontando para aula de outra empresa.
+ */
+export async function recordLessonStart(params: {
+  tenantId: string;
+  userId: string;
+  lessonId: string;
+}): Promise<{ firstOpen: boolean }> {
+  const { tenantId, userId, lessonId } = params;
+  const db = getTenantDb(tenantId);
+
+  const lesson = await db.lesson.findFirst({
+    where: { id: lessonId },
+    select: { id: true },
+  });
+  if (!lesson) throw new DomainError('Aula não encontrada no escopo da empresa.', 404);
+
+  const existing = await db.lessonStart.findFirst({
+    where: { userId, lessonId },
+    select: { id: true },
+  });
+  if (existing) return { firstOpen: false };
+
+  try {
+    await db.lessonStart.create({ data: { userId, tenantId, lessonId } });
+    return { firstOpen: true };
+  } catch (error) {
+    // Duas abas abertas ao mesmo tempo: o índice único decide. A segunda
+    // chamada não é erro — é a mesma abertura.
+    if (typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002') {
+      return { firstOpen: false };
+    }
+    throw error;
+  }
+}
+
 export async function completeLesson(params: { tenantId: string; userId: string; lessonId: string }) {
   const { tenantId, userId, lessonId } = params;
   const db = getTenantDb(tenantId);
