@@ -84,6 +84,7 @@ model Tenant {
   rewards            Reward[]
   invitations        Invitation[]
   lessonCompletions  LessonCompletion[]
+  lessonStarts       LessonStart[]
   commissions        Commission[]
   notifications      Notification[]
   stripeEvents       StripeEvent[]
@@ -118,6 +119,7 @@ model User {
   pointsLedger        PointsLedger[]
   pointsLots          PointsLot[]
   lessonCompletions   LessonCompletion[]
+  lessonStarts        LessonStart[]
   passwordReset       PasswordReset?
   issuedCertificates  IssuedCertificate[]
   commissions         Commission[]
@@ -172,8 +174,32 @@ model Lesson {
 
   course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
   completions LessonCompletion[]
+  starts      LessonStart[]
 
   @@index([courseId])
+}
+
+/// "Aula aberta" — o evento que faltava para medir abandono.
+///
+/// `LessonCompletion` só registra quem terminou. Sem o começo, o funil de
+/// adoção tinha três degraus e o mais importante era invisível: quantos abrem
+/// a aula e desistem. Uma linha por (usuário, aula) — o que interessa é a
+/// PRIMEIRA abertura, não cada visita.
+model LessonStart {
+  id        String   @id @default(uuid())
+  userId    String
+  tenantId  String
+  lessonId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([lessonId])
 }
 
 model LessonCompletion {

@@ -49,6 +49,7 @@
   "/api/invitations": "inline:admin_rh",
   "/api/invitations/accept": "public",
   "/api/lessons/complete": "session",
+  "/api/lessons/start": "session",
   "/api/lessons/sync": "session",
   "/api/notifications": "session",
   "/api/notifications/[id]/read": "session",
